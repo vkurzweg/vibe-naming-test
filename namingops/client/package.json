@@ -27,6 +27,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.7.1",
     "react-scripts": "5.0.1",
+    "survey-react": "^1.12.46",
     "web-vitals": "^2.1.4",
     "yup": "^1.6.1"
   },

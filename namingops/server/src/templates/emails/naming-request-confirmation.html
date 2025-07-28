@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Naming Request Submitted - {{appName}}</title>
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        
+        /* Container */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eeeeee;
+        }
+        
+        .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 15px;
+        }
+        
+        /* Content */
+        .content {
+            padding: 30px 20px;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+            font-size: 24px;
+        }
+        
+        .highlight-box {
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .details {
+            margin: 25px 0;
+        }
+        
+        .detail-row {
+            display: flex;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eeeeee;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            width: 120px;
+            color: #7f8c8d;
+        }
+        
+        .detail-value {
+            flex: 1;
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            color: #7f8c8d;
+            border-top: 1px solid #eeeeee;
+        }
+        
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .container {
+                width: 100% !important;
+            }
+            .detail-row {
+                flex-direction: column;
+            }
+            .detail-label {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Naming Request Submitted</h1>
+            <p>Thank you for submitting your naming request to {{appName}}.</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <p>Hello,</p>
+            
+            <p>We've received your naming request and it's now in our queue for review. Here are the details of your submission:</p>
+            
+            <div class="highlight-box">
+                <div class="details">
+                    <div class="detail-row">
+                        <div class="detail-label">Request ID:</div>
+                        <div class="detail-value">{{requestId}}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Project Name:</div>
+                        <div class="detail-value">{{projectName}}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Submitted On:</div>
+                        <div class="detail-value">{{submittedAt}}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Status:</div>
+                        <div class="detail-value"><strong>Submitted for Review</strong></div>
+                    </div>
+                </div>
+            </div>
+            
+            <h3>What happens next?</h3>
+            <ol>
+                <li>Our naming committee will review your request</li>
+                <li>You'll receive an update within 2-3 business days</li>
+                <li>We may reach out if we need additional information</li>
+                <li>Once approved, the name will be registered in our system</li>
+            </ol>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{appUrl}}/requests/{{requestId}}" class="button">View Request Status</a>
+            </div>
+            
+            <p>If you have any questions or need to make changes to your submission, please reply to this email or contact our support team at <a href="mailto:{{supportEmail}}">{{supportEmail}}</a>.</p>
+            
+            <p>Thank you for using {{appName}}!</p>
+            
+            <p>Best regards,<br>The {{appName}} Team</p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>&copy; {{currentYear}} {{appName}}. All rights reserved.</p>
+            <p>
+                <a href="{{appUrl}}/privacy">Privacy Policy</a> | 
+                <a href="{{appUrl}}/terms">Terms of Service</a>
+                {{#if unsubscribeUrl}}
+                | <a href="{{unsubscribeUrl}}">Unsubscribe</a>
+                {{/if}}
+            </p>
+            <p>
+                {{appName}}<br>
+                {{appUrl}}
+            </p>
+        </div>
+    </div>
+</body>
+</html>
