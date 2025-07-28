@@ -2,6 +2,10 @@
 trigger: always_on
 ---
 
+- Do not include any TypeScript code
+- Ask for permission before adding TypeScript
+- If TypeScript is added, ask for permission before removing it
+
 #### General JavaScript Standards
 
 - Enforce consistent ES6+ syntax (e.g., `const`/`let`, arrow functions, async/await)
