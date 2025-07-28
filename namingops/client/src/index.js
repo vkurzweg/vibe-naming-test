@@ -10,14 +10,13 @@ import store from './store';
 import reportWebVitals from './reportWebVitals';
 import './index.css';
 
-// Google OAuth Client ID - use test ID in development if not set
-let GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+// Google OAuth Client ID from environment variables
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '1009058437445-s15inh3vb1dl1o1hcmg0nn9q6grr7n7h.apps.googleusercontent.com';
 
-// In development, use a test client ID if none is provided
-if (process.env.NODE_ENV === 'development' && (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID')) {
-  console.warn('Using test Google OAuth client ID for development. For production, set REACT_APP_GOOGLE_CLIENT_ID in your .env file.');
-  GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
+if (!process.env.REACT_APP_GOOGLE_CLIENT_ID) {
+  console.warn('Using default Google OAuth Client ID. For production, set REACT_APP_GOOGLE_CLIENT_ID in your .env file');
 }
+console.log('Using Google OAuth Client ID:', GOOGLE_CLIENT_ID);
 
 // Create a theme instance
 const theme = createTheme({

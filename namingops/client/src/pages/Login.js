@@ -149,10 +149,10 @@ const Login = () => {
       >
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <Typography component="h1" variant="h4" gutterBottom>
-            Welcome Back
+            Welcome to NamingOps! 🚀
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Sign in to your account to continue
+            Sign in to continue
           </Typography>
         </Box>
 
