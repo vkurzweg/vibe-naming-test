@@ -114,8 +114,8 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
           <List component="div" disablePadding>
             <ListItemButton
               sx={{ pl: 4 }}
-              selected={isActive('/requests/new')}
-              onClick={() => navigate('/requests/new')}
+              selected={isActive('/submit-request')}
+              onClick={() => navigate('/submit-request')}
             >
               <ListItemIcon>
                 <AddIcon />

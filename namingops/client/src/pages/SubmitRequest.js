@@ -30,13 +30,32 @@ import {
   TextIncrease as TextIncreaseIcon,
   TextDecrease as TextDecreaseIcon
 } from '@mui/icons-material';
-import { submitNamingRequest, saveDraft, loadDraft, clearDraft } from '../features/naming/namingSlice';
+import { useTheme } from '@mui/material/styles';
+import { 
+  submitNamingRequest, 
+  saveDraft, 
+  loadDraft, 
+  clearDraft
+} from '../features/naming/namingSlice';
+import { selectNamingState } from '../app/store';
 
 const SubmitRequest = () => {
+  const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
-  const { loading, success, error, requestId, draft } = useSelector((state) => state.naming);
+  
+  // Get the naming state using the selector
+  const namingState = useSelector((state) => state.naming);
+  
+  // Destructure the properties with default values to prevent undefined errors
+  const {
+    loading = false,
+    error = null,
+    success = false,
+    requestId = null,
+    draft = null
+  } = namingState || {};
   
   // Form state
   const [formData, setFormData] = useState(draft?.data || {});

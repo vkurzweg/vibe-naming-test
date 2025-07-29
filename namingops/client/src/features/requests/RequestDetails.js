@@ -72,25 +72,49 @@ const statusColors = {
 };
 
 const RequestDetails = () => {
+  // Hooks must be called at the top level
   const { id } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const theme = useTheme();
   const [tabValue, setTabValue] = React.useState('details');
   
-  // Fetch request details when component mounts or ID changes
-  useEffect(() => {
-    if (id) {
-      dispatch(fetchRequestById(id));
-    }
-  }, [dispatch, id]);
-
-  // Select request details from Redux store
+  // Select request details from Redux store at the top level
   const { currentRequest, status, error } = useSelector((state) => ({
     currentRequest: state.requests?.currentRequest || null,
     status: state.requests?.status || 'idle',
     error: state.requests?.error || null
   }));
+  
+  // Fetch request details when component mounts or ID changes
+  useEffect(() => {
+    if (id && id !== 'new') {
+      dispatch(fetchRequestById(id));
+    }
+  }, [dispatch, id]);
+
+  // Handle new request case
+  if (id === 'new') {
+    return (
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Paper elevation={3} sx={{ p: 3 }}>
+          <Typography variant="h5" gutterBottom>
+            Create New Request
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Please use the form to create a new naming request.
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={() => navigate('/submit-request')}
+          >
+            Go to New Request Form
+          </Button>
+        </Paper>
+      </Container>
+    );
+  }
   
   // Show loading state
   if (status === 'loading') {

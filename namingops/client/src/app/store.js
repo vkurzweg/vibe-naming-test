@@ -2,7 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 import { combineReducers } from 'redux';
-import thunk from 'redux-thunk';
+import { thunk } from 'redux-thunk';
 import namingReducer from '../features/naming/namingSlice';
 import authReducer from '../features/auth/authSlice';
 
@@ -41,7 +41,9 @@ const store = configureStore({
           'persist/REGISTER',
         ],
       },
-    }).concat(thunk),
+      // Disable thunk since it's already included by default
+      thunk: false,
+    }),
   devTools: process.env.NODE_ENV !== 'production',
 });
 

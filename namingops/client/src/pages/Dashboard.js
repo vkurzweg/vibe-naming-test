@@ -17,7 +17,7 @@ const Dashboard = () => {
   const { user } = useSelector((state) => state.auth);
 
   const handleNewRequest = () => {
-    navigate('/requests/new');
+    navigate('/submit-request');
   };
 
   return (

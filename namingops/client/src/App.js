@@ -16,6 +16,7 @@ import AuthLayout from './layouts/AuthLayout';
 // Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import SubmitRequest from './pages/SubmitRequest';
 import NotFound from './pages/NotFound';
 
 // Features
@@ -74,6 +75,11 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="requests/my-requests" element={<MyRequests />} />
             <Route path="requests/:id" element={<RequestDetails />} />
+            <Route path="submit-request" element={
+              <ProtectedRoute>
+                <SubmitRequest />
+              </ProtectedRoute>
+            } /> 
             {/* Add more protected routes here */}
           </Route>
           
