@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
@@ -6,6 +7,8 @@ const User = require('../models/User');
 const { verifyGoogleToken } = require('../config/passport');
 const logger = require('../utils/logger');
 const { isAuthenticated, hasRole } = require('../middleware/auth');
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.REACT_APP_GOOGLE_CLIENT_ID);
 
 const router = express.Router();
 
@@ -34,6 +37,26 @@ router.get(
     res.redirect(`${process.env.CLIENT_URL}/auth/callback?token=${token}`);
   }
 );
+
+router.post('/api/auth/google', async (req, res) => {
+  const { token } = req.body;
+  
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    
+    // Handle user creation/authentication here
+    // Return JWT or session token
+    
+    res.json({ success: true, user: payload });
+  } catch (error) {
+    console.error('Google auth error:', error);
+    res.status(401).json({ success: false, error: 'Invalid token' });
+  }
+});
 
 // @route   POST /api/auth/google/token
 // @desc    Authenticate with Google token (for mobile)

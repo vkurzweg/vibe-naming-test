@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const session = require('express-session');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const morgan = require('morgan');
@@ -25,14 +26,30 @@ const io = new Server(httpServer, {
 });
 
 // Middleware
-app.use(cors());
+// Enable CORS for all routes
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? 'https://your-production-domain.com' 
+    : 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: process.env.NODE_ENV === 'production' }
+}));
+
 // Passport middleware
 app.use(passport.initialize());
-require('./config/passport')(passport);
+const { initialize, session: passportSession } = require('./config/passport');
+app.use(initialize);
+app.use(passportSession); 
+
 
 // Socket.io
 io.on('connection', (socket) => {

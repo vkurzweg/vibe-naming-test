@@ -1,5 +1,6 @@
 const logger = require('../utils/logger');
 
+
 /**
  * Custom error class for handling application-specific errors
  */
@@ -132,24 +133,19 @@ const notFound = (req, res, next) => {
 
 // Catch unhandled promise rejections
 process.on('unhandledRejection', (err) => {
-  logger.error('UNHANDLED REJECTION! 💥 Shutting down...');
-  logger.error(err.name, err.message);
-  
-  // Close server & exit process
-  server.close(() => {
-    process.exit(1);
-  });
+  console.log('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.log(err.name, err.message);
+  // Exit the process without trying to close the server
+  process.exit(1);
 });
+
 
 // Catch uncaught exceptions
 process.on('uncaughtException', (err) => {
-  logger.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
-  logger.error(err.name, err.message);
-  
-  // Close server & exit process
-  server.close(() => {
-    process.exit(1);
-  });
+  console.log('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+  console.log(err.name, err.message);
+  // Exit the process without trying to close the server
+  process.exit(1);
 });
 
 module.exports = {
