@@ -5,6 +5,7 @@ import { combineReducers } from 'redux';
 import { thunk } from 'redux-thunk';
 import namingReducer from '../features/naming/namingSlice';
 import authReducer from '../features/auth/authSlice';
+import reviewReducer from '../features/review/reviewSlice';
 
 // Configuration for persisting the Redux store
 const persistConfig = {
@@ -20,6 +21,7 @@ const persistConfig = {
 const rootReducer = combineReducers({
   naming: namingReducer,
   auth: authReducer,
+  review: reviewReducer,
   // Add other reducers here
 });
 
@@ -55,6 +57,7 @@ export { store, persistor };
 // Export the RootState and AppDispatch types
 export const selectNamingState = (state) => state.naming;
 export const selectAuthState = (state) => state.auth;
+export const selectReviewState = (state) => state.review;
 
 // Re-export the naming slice actions for easier imports
 export * from '../features/naming/namingSlice';

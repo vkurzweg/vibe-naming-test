@@ -17,6 +17,7 @@ import AuthLayout from './layouts/AuthLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import SubmitRequest from './pages/SubmitRequest';
+import ReviewDashboard from './features/review/ReviewDashboard';
 import NotFound from './pages/NotFound';
 
 // Features
@@ -82,7 +83,16 @@ function App() {
             } /> 
             {/* Add more protected routes here */}
           </Route>
-          
+          <Route
+            path="/review"
+            element={
+              <ProtectedRoute requiredRole="reviewer">
+                <MainLayout>
+                  <ReviewDashboard />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
