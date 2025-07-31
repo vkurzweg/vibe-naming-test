@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import { GoogleLogin } from '@react-oauth/google';
 import {
   Box,
   Button,
@@ -37,14 +37,16 @@ const loginSchema = yup.object().shape({
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading, error: authError } = useSelector((state) => state.auth);
   const [showPassword, setShowPassword] = useState(false);
   const [ssoLoading, setSsoLoading] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    setError,
   } = useForm({
     resolver: yupResolver(loginSchema),
     defaultValues: {
@@ -56,10 +58,18 @@ const Login = () => {
   // Handle form submission
   const onSubmit = async (data) => {
     try {
-      await dispatch(login(data)).unwrap();
-      navigate('/');
-    } catch (err) {
-      console.error('Login failed:', err);
+      const resultAction = await dispatch(login(data));
+      
+      if (login.fulfilled.match(resultAction)) {
+        navigate('/');
+      } else {
+        const error = resultAction.error?.message || 'Login failed';
+        setFormError(error);
+        console.error('Login error:', error);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setFormError(error.message || 'An unexpected error occurred');
     }
   };
 
@@ -69,29 +79,29 @@ const Login = () => {
 
   // Handle Google OAuth success
   const handleGoogleSuccess = async (credentialResponse) => {
+    if (process.env.NODE_ENV === 'development') {
+      setFormError('Google OAuth is disabled in development mode');
+      return;
+    }
+  
     setSsoLoading(true);
+    setFormError('');
+    
     try {
-      console.log('Google OAuth success - Credential Response:', {
-        clientId: credentialResponse.clientId,
-        credential: credentialResponse.credential ? '✅ Credential received' : '❌ No credential',
-        select_by: credentialResponse.select_by || 'unknown',
-        // Don't log the full credential for security
-        credential_length: credentialResponse.credential ? credentialResponse.credential.length : 0
-      });
-
-      // Here you would typically send the credential to your backend for verification
-      // For testing purposes, we'll just show an alert and redirect
-      alert('Google OAuth successful! Check the console for details.');
+      const resultAction = await dispatch(googleLogin({
+        credential: credentialResponse.credential
+      }));
       
-      // In a real app, you would verify the credential with your backend
-      // and then log the user in before redirecting
-      // await verifyWithBackend(credentialResponse.credential);
-      
-      // For now, just redirect to home
-      navigate('/');
-    } catch (err) {
-      console.error('Google login failed:', err);
-      alert(`Google login failed: ${err.message}`);
+      if (googleLogin.fulfilled.match(resultAction)) {
+        navigate('/');
+      } else {
+        const error = resultAction.error?.message || 'Google login failed';
+        setFormError(error);
+        console.error('Google login error:', error);
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      setFormError(error.message || 'Google login failed');
     } finally {
       setSsoLoading(false);
     }
@@ -102,19 +112,18 @@ const Login = () => {
       error,
       timestamp: new Date().toISOString(),
       clientId: process.env.REACT_APP_GOOGLE_CLIENT_ID,
-      isConfigured: !!(process.env.REACT_APP_GOOGLE_CLIENT_ID && 
-                     process.env.REACT_APP_GOOGLE_CLIENT_ID !== 'YOUR_GOOGLE_CLIENT_ID')
+      isConfigured: !!isGoogleOAuthConfigured
     });
     
     let errorMessage = 'Google login failed. Please try again.';
     
-    if (error && error.error === 'popup_closed_by_user') {
+    if (error?.error === 'popup_closed_by_user') {
       errorMessage = 'Sign-in was cancelled.';
-    } else if (error && error.details) {
+    } else if (error?.details) {
       errorMessage = `Google sign-in error: ${error.details}`;
     }
     
-    alert(errorMessage);
+    setFormError(errorMessage);
     setSsoLoading(false);
   };
 
@@ -156,13 +165,25 @@ const Login = () => {
           </Typography>
         </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
+        {(formError || authError) && (
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3 }}
+            onClose={() => {
+              setFormError('');
+              // You might want to clear the auth error from the store here
+            }}
+          >
+            {formError || authError}
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+        <Box 
+          component="form" 
+          onSubmit={handleSubmit(onSubmit)} 
+          noValidate
+          sx={{ mt: 1 }}
+        >
           <Stack spacing={3}>
             <TextField
               fullWidth
@@ -174,7 +195,7 @@ const Login = () => {
               error={!!errors.email}
               helperText={errors.email?.message}
               disabled={loading || ssoLoading}
-              {...(control ? control.register('email') : {})}
+              {...(control?.register('email') || {})}
             />
 
             <TextField
@@ -200,7 +221,7 @@ const Login = () => {
                   </InputAdornment>
                 ),
               }}
-              {...(control ? control.register('password') : {})}
+              {...(control?.register('password') || {})}
             />
 
             <Box sx={{ textAlign: 'right' }}>
@@ -231,7 +252,7 @@ const Login = () => {
               </Typography>
             </Divider>
 
-            {isGoogleOAuthConfigured ? (
+            {isGoogleOAuthConfigured && process.env.NODE_ENV !== 'development' ? (
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
                 onError={handleGoogleError}
@@ -262,13 +283,17 @@ const Login = () => {
                       },
                     }}
                   >
-                    {ssoLoading ? 'Signing in...' : 'Continue with Google'}
+                    {ssoLoading ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      'Continue with Google'
+                    )}
                   </Button>
                 )}
               />
             ) : (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                Google OAuth is not configured. Please set up the Google OAuth client ID in your environment variables.
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Google OAuth is currently disabled in development mode.
               </Alert>
             )}
 

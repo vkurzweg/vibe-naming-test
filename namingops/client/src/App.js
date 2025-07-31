@@ -16,13 +16,14 @@ import AuthLayout from './layouts/AuthLayout';
 // Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import ReviewDashboard from './pages/ReviewDashboard';
 import SubmitRequest from './pages/SubmitRequest';
-import ReviewDashboard from './features/review/ReviewDashboard';
+import UserDashboard from './pages/UserDashboard';
 import NotFound from './pages/NotFound';
 
 // Features
 import MyRequests from './features/requests/MyRequests';
-import RequestDetails from './features/requests/RequestDetails';
+import RequestDetails from './pages/RequestDetails';
 
 // Google OAuth Client ID from environment variables
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '1009058437445-s15inh3vb1dl1o1hcmg0nn9q6grr7n7h.apps.googleusercontent.com';
@@ -59,7 +60,6 @@ function App() {
   return (
    <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex' }}>
         <Routes>
           {/* Auth Routes */}
           <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
@@ -83,20 +83,10 @@ function App() {
             } /> 
             {/* Add more protected routes here */}
           </Route>
-          <Route
-            path="/review"
-            element={
-              <ProtectedRoute requiredRole="reviewer">
-                <MainLayout>
-                  <ReviewDashboard />
-                </MainLayout>
-              </ProtectedRoute>
-            }
-          />
+          
           {/* 404 Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </Box>
     </ThemeProvider>
   );
 }

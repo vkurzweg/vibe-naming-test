@@ -9,68 +9,114 @@ const isAuthenticated = async (req, res, next) => {
     const authHeader = req.header('Authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.warn('Authentication failed: No Bearer token in Authorization header');
       return res.status(401).json({ 
         success: false, 
-        message: 'No token, authorization denied' 
+        message: 'No token, authorization denied',
+        code: 'NO_AUTH_TOKEN'
       });
     }
     
     const token = authHeader.split(' ')[1];
     
     if (!token) {
+      logger.warn('Authentication failed: Empty token in Authorization header');
       return res.status(401).json({ 
         success: false, 
-        message: 'No token, authorization denied' 
+        message: 'No token, authorization denied',
+        code: 'EMPTY_AUTH_TOKEN'
       });
+    }
+    
+    // Skip token verification in development if using mock token
+    if (process.env.NODE_ENV === 'development' && token === 'dev-mock-token-12345') {
+      logger.debug('Development mode: Using mock authentication');
+      req.user = { 
+        id: 'dev-user-id',
+        email: 'dev@example.com',
+        role: 'admin',
+        isAdmin: true
+      };
+      return next();
     }
     
     // Verify token
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      // Log token verification attempt
+      logger.debug('Verifying JWT token');
+      
+      // Verify the token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+        algorithms: ['HS256'],
+        ignoreExpiration: false,
+      });
+      
+      logger.debug('Token verified successfully', { userId: decoded.id });
       
       // Check if user still exists
       const user = await User.findById(decoded.id).select('-password');
       
       if (!user) {
+        logger.warn(`Authentication failed: User not found for token (ID: ${decoded.id})`);
         return res.status(401).json({ 
           success: false, 
-          message: 'User no longer exists' 
+          message: 'User no longer exists',
+          code: 'USER_NOT_FOUND'
         });
       }
       
       // Check if user is active
       if (!user.isActive) {
+        logger.warn(`Authentication failed: User account is deactivated (ID: ${user._id})`);
         return res.status(401).json({ 
           success: false, 
-          message: 'User account is deactivated' 
+          message: 'User account is deactivated',
+          code: 'ACCOUNT_DEACTIVATED'
         });
       }
       
       // Check if password was changed after the token was issued
       if (user.changedPasswordAfter(decoded.iat)) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'User recently changed password. Please log in again.' 
+        logger.warn(`Authentication failed: Password changed after token was issued (User ID: ${user._id})`);
+        return res.status(401).json({
+          success: false,
+          message: 'User recently changed password. Please log in again.',
+          code: 'PASSWORD_CHANGED'
         });
       }
       
       // Attach user to request object
       req.user = user;
+      logger.debug(`Authentication successful for user ${user._id} (${user.email})`);
       next();
     } catch (error) {
-      logger.error('Token verification error:', error);
-      
+      // Enhanced error logging
       if (error.name === 'TokenExpiredError') {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Token has expired' 
+        logger.warn('Token verification failed: Token expired', { 
+          expiredAt: error.expiredAt,
+          currentTime: new Date() 
         });
-      }
-      
-      if (error.name === 'JsonWebTokenError') {
         return res.status(401).json({ 
           success: false, 
-          message: 'Invalid token' 
+          message: 'Session expired. Please log in again.',
+          code: 'TOKEN_EXPIRED',
+          expiredAt: error.expiredAt
+        });
+      } else if (error.name === 'JsonWebTokenError') {
+        logger.warn('Token verification failed: Invalid token', { error: error.message });
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Invalid token. Please log in again.',
+          code: 'INVALID_TOKEN',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+      } else {
+        logger.error('Token verification failed with unexpected error:', error);
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Authentication failed',
+          code: 'AUTH_ERROR',
+          details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
       }
       

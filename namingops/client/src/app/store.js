@@ -6,15 +6,14 @@ import { thunk } from 'redux-thunk';
 import namingReducer from '../features/naming/namingSlice';
 import authReducer from '../features/auth/authSlice';
 import reviewReducer from '../features/review/reviewSlice';
+import { errorMiddleware } from '../middleware/errorMiddleware';
 
 // Configuration for persisting the Redux store
 const persistConfig = {
   key: 'root',
   storage,
-  // Only persist these reducers
-  whitelist: ['auth'], // Don't persist naming state as it contains temporary form data
-  // Optionally blacklist specific actions from triggering persistence
-  // blacklist: ['naming/submitNamingRequest/fulfilled']
+  whitelist: ['auth'], // Only persist the auth slice
+  // Add any other persist configuration options here
 };
 
 // Combine all reducers
@@ -29,38 +28,48 @@ const rootReducer = combineReducers({
 const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 // Configure the store with middleware
-const store = configureStore({
+export const store = configureStore({
   reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Ignore these action types from the serializable check
+        // Ignore these action types
         ignoredActions: [
           'persist/PERSIST',
           'persist/REHYDRATE',
-          'persist/PAUSE',
-          'persist/PURGE',
           'persist/REGISTER',
         ],
+        // Ignore these field paths in all actions
+        ignoredActionPaths: [
+          'payload.config',
+          'payload.request',
+          'payload.headers',
+          'error',
+          'meta.arg',
+          'register',
+          'rehydrate',
+        ],
+        // Ignore these paths in the state
+        ignoredPaths: ['register', 'rehydrate'],
       },
-      // Disable thunk since it's already included by default
-      thunk: false,
-    }),
+      thunk: {
+        // Add any extra arguments for thunks here
+        extraArgument: {},
+      },
+    }).concat([thunk, errorMiddleware]),
   devTools: process.env.NODE_ENV !== 'production',
 });
 
 // Create the persistor
-const persistor = persistStore(store);
+export const persistor = persistStore(store);
 
-export { store, persistor };
-
-// Export the RootState and AppDispatch types
+// Utility selectors
 export const selectNamingState = (state) => state.naming;
 export const selectAuthState = (state) => state.auth;
 export const selectReviewState = (state) => state.review;
 
-// Re-export the naming slice actions for easier imports
+// Re-export slice actions for easier imports
 export * from '../features/naming/namingSlice';
 
-// If you have any custom hooks, export them here
+// Export any custom hooks
 export * from './hooks';

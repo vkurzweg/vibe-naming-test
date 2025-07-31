@@ -1,6 +1,6 @@
 const { Client } = require('@elastic/elasticsearch');
 const logger = require('../utils/logger');
-const NameRequest = require('../models/NameRequest');
+const NameRequest = require('../models/NamingRequest');
 
 // Initialize Elasticsearch client
 const esClient = new Client({

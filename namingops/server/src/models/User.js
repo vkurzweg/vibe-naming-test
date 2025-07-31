@@ -103,10 +103,7 @@ const userSchema = new Schema({
   toObject: { virtuals: true }
 });
 
-// Indexes
-userSchema.index({ email: 1 }, { unique: true });
-userSchema.index({ googleId: 1 }, { sparse: true });
-userSchema.index({ employeeId: 1 }, { sparse: true });
+
 
 // Virtual for user's name requests
 userSchema.virtual('nameRequests', {

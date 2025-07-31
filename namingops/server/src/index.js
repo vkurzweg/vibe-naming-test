@@ -13,29 +13,58 @@ const initializeDatabase = require('./utils/dbInit');
 
 // Import routes
 const authRoutes = require('./routes/auth');
-const nameRequestRoutes = require('./routes/nameRequests');
+const nameRequestRoutes = require('./routes/namingRequests');
 const userRoutes = require('./routes/users');
+const healthRoutes = require('./routes/health');
 
 const app = express();
 const httpServer = createServer(app);
+
+// Configure CORS options
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin && process.env.NODE_ENV !== 'production') return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3001',
+      'http://localhost:5000',
+      'http://127.0.0.1:5000'
+    ];
+
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range', 'X-Total-Count'],
+  maxAge: 600
+};
+// Configure Socket.IO with CORS
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    credentials: true
+    origin: process.env.NODE_ENV === 'production' ? false : corsOptions.origin,
+    methods: corsOptions.methods,
+    credentials: corsOptions.credentials,
+    allowedHeaders: corsOptions.allowedHeaders
   }
 });
 
-// Middleware
-// Enable CORS for all routes
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CLIENT_URL 
-    : 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.options('*', cors(corsOptions));
+
+// In production, only allow specific origins
+
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -62,9 +91,10 @@ app.use(session(sessionConfig));
 
 // Passport middleware
 app.use(passport.initialize());
-const { initialize: initializePassport, session: passportSession } = require('./config/passport');
-initializePassport(passport);
 app.use(passport.session());
+
+// Initialize Passport configuration
+require('./config/passport');
 
 // Socket.io
 io.on('connection', (socket) => {
@@ -76,6 +106,7 @@ io.on('connection', (socket) => {
 });
 
 // Routes
+app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/name-requests', nameRequestRoutes);
 app.use('/api/users', userRoutes);
@@ -92,6 +123,11 @@ app.get('/health', (req, res) => {
   res.status(200).json(status);
 });
 
+// Test route
+app.get('/test', (req, res) => {
+  res.json({ message: 'Test route is working!' });
+});
+
 // Error handling middleware
 app.use(errorHandler);
 
@@ -99,6 +135,12 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
+  // Prevent multiple server starts
+  if (httpServer.listening) {
+    logger.warn('Server is already running');
+    return;
+  }
+
   try {
     // Initialize database connection
     await initializeDatabase();
@@ -179,4 +221,4 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 // Start the server
 startServer();
 
-module.exports = { app, server: httpServer };
+module.exports = { app, httpServer };

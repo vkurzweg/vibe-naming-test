@@ -1,510 +1,402 @@
-// pages/SubmitRequest.js
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// client/src/pages/SubmitRequest.js
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Model } from 'survey-core';
-import { Survey } from 'survey-react-ui';
-import { debounce } from 'lodash';
+import { format } from 'date-fns';
 import {
   Box,
-  Container,
-  Paper,
-  Typography,
   Button,
-  CircularProgress,
-  FormControlLabel,
-  Switch,
-  Alert,
-  Snackbar,
+  Card,
+  CardContent,
+  TextField,
+  Typography,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
+  Chip,
+  Divider,
   IconButton,
-  Tooltip
+  CircularProgress,
+  Snackbar,
+  Alert
 } from '@mui/material';
-import {
-  CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon,
-  Save as SaveIcon,
-  Dashboard as DashboardIcon,
-  Add as AddIcon,
-  HelpOutline as HelpOutlineIcon,
-  Accessibility as AccessibilityIcon,
-  TextIncrease as TextIncreaseIcon,
-  TextDecrease as TextDecreaseIcon
-} from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
-import { 
-  submitNamingRequest, 
-  saveDraft, 
-  loadDraft, 
-  clearDraft
-} from '../features/naming/namingSlice';
-import { selectNamingState } from '../app/store';
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { createNamingRequest } from '../features/naming/namingSlice';
 
-const SubmitRequest = () => {
-  const theme = useTheme();
+const SubmitRequest = () => { 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
-  
-  // Get the naming state using the selector
-  const namingState = useSelector((state) => state.naming);
-  
-  // Destructure the properties with default values to prevent undefined errors
+  const { loading, error } = useSelector((state) => state.naming);
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
+
   const {
-    loading = false,
-    error = null,
-    success = false,
-    requestId = null,
-    draft = null
-  } = namingState || {};
-  
-  // Form state
-  const [formData, setFormData] = useState(draft?.data || {});
-  const [lastSaved, setLastSaved] = useState(draft?.lastSaved || null);
-  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
-  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
-  const [accessibilityMode, setAccessibilityMode] = useState(false);
-  const [fontSize, setFontSize] = useState(14);
-
-  // Load draft on mount
-  useEffect(() => {
-    const savedDraft = JSON.parse(localStorage.getItem('namingRequestDraft'));
-    if (savedDraft) {
-      setFormData(savedDraft.data || {});
-      setLastSaved(savedDraft.lastSaved);
-    }
-  }, []);
-
-  // Auto-save functionality
-  const debouncedSave = useCallback(
-    debounce((data) => {
-      if (autoSaveEnabled && Object.keys(data).length > 0) {
-        const draft = {
-          data,
-          lastSaved: new Date().toISOString(),
-          userId: user?.id
-        };
-        localStorage.setItem('namingRequestDraft', JSON.stringify(draft));
-        setLastSaved(draft.lastSaved);
-        setShowSaveSuccess(true);
-        setTimeout(() => setShowSaveSuccess(false), 3000);
+    register,
+    handleSubmit,
+    formState: { errors },
+    control,
+    watch,
+    setValue,
+    reset
+  } = useForm({
+    defaultValues: {
+      requestTitle: '',
+      description: '',
+      priority: 'medium',
+      dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), // Default to 1 week from now
+      proposedNames: [{ name: '', description: '' }],
+      metadata: {
+        product: '',
+        targetAudience: '',
+        competitors: '',
+        keywords: []
       }
-    }, 2000),
-    [autoSaveEnabled, user?.id]
-  );
+    }
+  });
 
-  // Handle form changes
-  const handleValueChange = (survey) => {
-    const newData = { ...survey.data };
-    setFormData(newData);
-    debouncedSave(newData);
+  const proposedNames = watch('proposedNames');
+  const metadata = watch('metadata');
+
+  const handleAddProposedName = () => {
+    setValue('proposedNames', [...proposedNames, { name: '', description: '' }]);
   };
 
-  // Handle form submission
-  const handleComplete = async (survey) => {
-    const submissionData = {
-      ...survey.data,
-      submittedBy: user?.id,
-      submittedAt: new Date().toISOString(),
-      status: 'submitted',
-    };
+  const handleRemoveProposedName = (index) => {
+    if (proposedNames.length > 1) {
+      const updatedNames = [...proposedNames];
+      updatedNames.splice(index, 1);
+      setValue('proposedNames', updatedNames);
+    }
+  };
+
+  const handleAddKeyword = (e) => {
+    if (e.key === 'Enter' && e.target.value.trim()) {
+      e.preventDefault();
+      const keyword = e.target.value.trim();
+      if (!metadata.keywords.includes(keyword)) {
+        const updatedKeywords = [...metadata.keywords, keyword];
+        setValue('metadata.keywords', updatedKeywords);
+        e.target.value = '';
+      }
+    }
+  };
+
+  const handleRemoveKeyword = (keywordToRemove) => {
+    const updatedKeywords = metadata.keywords.filter(keyword => keyword !== keywordToRemove);
+    setValue('metadata.keywords', updatedKeywords);
+  };
+
+  const onSubmit = async (data) => {
+    console.log('Form submitted with data:', data);
     
     try {
-      await dispatch(submitNamingRequest(submissionData)).unwrap();
-      // Clear draft on successful submission
-      localStorage.removeItem('namingRequestDraft');
-      setLastSaved(null);
-    } catch (error) {
-      console.error('Submission error:', error);
-    }
-  };
-
-  // Initialize survey
-  const survey = useMemo(() => {
-    const surveyJson = {
-      title: "Naming Request",
-      showProgressBar: "top",
-      pages: [{
-        name: "basicInfo",
-        elements: [{
-          type: "text",
-          name: "projectName",
-          title: "Project/Product Name",
-          isRequired: true,
-          description: "Enter the name of the project or product that needs a name"
-        }, {
-          type: "dropdown",
-          name: "assetType",
-          title: "Asset Type",
-          isRequired: true,
-          choices: ["Product", "Feature", "Service", "API", "Other"]
-        }, {
-          type: "text",
-          name: "assetTypeOther",
-          title: "Please specify",
-          visibleIf: "{assetType} = 'Other'",
-          isRequired: "{assetType} = 'Other'"
-        }, {
-          type: "comment",
-          name: "description",
-          title: "Description",
-          description: "Provide a brief description of the project/product"
-        }, {
-          type: "text",
-          name: "proposedName",
-          title: "Proposed Name",
-          isRequired: true,
-          description: "Enter your suggested name (e.g., 'Project Phoenix')"
-        }, {
-          type: "comment",
-          name: "narrative",
-          title: "Naming Narrative",
-          description: "Explain the reasoning behind the proposed name"
-        }]
-      }],
-      showQuestionNumbers: "off",
-      questionErrorLocation: "bottom",
-      completeText: "Submit Request",
-      showPreviewBeforeComplete: "showAnsweredQuestions"
-    };
-
-    const survey = new Model(surveyJson);
-    survey.data = formData;
-    survey.onValueChanged.add(handleValueChange);
-    survey.onComplete.add(handleComplete);
-
-    // Apply accessibility settings
-    if (accessibilityMode) {
-      survey.css = {
-        ...survey.css,
-        root: 'sv_main sv_default_css sv-accessibility',
-        header: 'sv_header',
-        body: 'sv_body',
+      // Format the data for the API
+      const requestData = {
+        ...data,
+        proposedNames: data.proposedNames.filter(name => name.name.trim() !== ''),
+        metadata: {
+          ...data.metadata,
+          keywords: data.metadata.keywords || [],
+          competitors: data.metadata.competitors
+            ? data.metadata.competitors.split(',').map(s => s.trim()).filter(Boolean)
+            : []
+        },
+        // Add mock user data for development
+        ...(process.env.NODE_ENV === 'development' && {
+          userId: 'dev-user-id-' + Date.now(),
+          userName: 'Developer User',
+          userEmail: 'dev@example.com',
+          isDevMode: true
+        })
       };
+      
+      console.log('Prepared request data:', JSON.stringify(requestData, null, 2));
+      
+      // Log before dispatch
+      console.log('Dispatching createNamingRequest...');
+      
+      const resultAction = await dispatch(createNamingRequest(requestData));
+      console.log('Dispatch result:', resultAction);
+      
+      if (createNamingRequest.fulfilled.match(resultAction)) {
+        console.log('Request successful, resetting form...');
+        setSnackbarMessage('Naming request submitted successfully!');
+        setSnackbarSeverity('success');
+        setOpenSnackbar(true);
+        
+        // Don't redirect in development, just show success
+        if (process.env.NODE_ENV !== 'development') {
+          setTimeout(() => {
+            navigate('/');
+          }, 1500);
+        }
+        
+        reset();
+      } else {
+        const error = resultAction.payload || resultAction.error || { message: 'Failed to submit request' };
+        console.error('Submission error details:', {
+          error,
+          action: resultAction,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Show error but don't redirect in development
+        setSnackbarMessage(error.message || 'Failed to submit request');
+        setSnackbarSeverity('error');
+        setOpenSnackbar(true);
+      }
+    } catch (err) {
+      console.error('Error in onSubmit:', err);
+      const errorMessage = err.message || 'Failed to submit naming request';
+      setSnackbarMessage(errorMessage);
+      setSnackbarSeverity('error');
+      setOpenSnackbar(true);
     }
-
-    return survey;
-  }, [formData, accessibilityMode]);
-
-  // Handle manual save
-  const handleManualSave = () => {
-    const draft = {
-      data: formData,
-      lastSaved: new Date().toISOString(),
-      userId: user?.id
-    };
-    localStorage.setItem('namingRequestDraft', JSON.stringify(draft));
-    setLastSaved(draft.lastSaved);
-    setShowSaveSuccess(true);
-    setTimeout(() => setShowSaveSuccess(false), 3000);
   };
 
-  // Handle clear draft
-  const handleClearDraft = () => {
-    if (window.confirm('Are you sure you want to clear your draft? This cannot be undone.')) {
-      localStorage.removeItem('namingRequestDraft');
-      setFormData({});
-      setLastSaved(null);
-      survey.data = {};
-      survey.render();
-    }
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
   };
 
-  // Handle reset form
-  const handleResetForm = () => {
-    if (window.confirm('Are you sure you want to reset the form? All unsaved changes will be lost.')) {
-      survey.clear();
-      survey.render();
-    }
-  };
-
-  // Render save status
-  const renderSaveStatus = () => {
-    if (!autoSaveEnabled) return null;
-    return (
-      <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
-        {lastSaved ? `Last saved: ${new Date(lastSaved).toLocaleString()}` : 'Not saved yet'}
-      </Typography>
-    );
-  };
-
-  // Success view
-  if (success) {
-    return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
-          <CheckCircleIcon color="success" sx={{ fontSize: 80, mb: 3 }} />
-          <Typography variant="h4" gutterBottom>
-            Request Submitted Successfully!
-          </Typography>
-          <Typography variant="body1" paragraph>
-            Your naming request has been received and is being processed.
-          </Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Request ID: {requestId}
-          </Typography>
-          <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button
-              variant="contained"
-              onClick={() => navigate('/dashboard')}
-              startIcon={<DashboardIcon />}
-              size="large"
-            >
-              Go to Dashboard
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                dispatch({ type: 'naming/clearSubmission' });
-                survey.clear();
-                survey.render();
-              }}
-              startIcon={<AddIcon />}
-              size="large"
-            >
-              Submit Another Request
-            </Button>
-          </Box>
-          <Box sx={{ mt: 4, textAlign: 'left' }}>
-            <Typography variant="h6" gutterBottom>What happens next?</Typography>
-            <ul>
-              <li>You will receive a confirmation email with your request details</li>
-              <li>Our team will review your submission within 2 business days</li>
-              <li>You'll be notified once your request is approved or if we need more information</li>
-              <li>Track the status of your request in the dashboard</li>
-            </ul>
-          </Box>
-        </Paper>
-      </Container>
-    );
-  }
-
-  // Error view
-  if (error) {
-    let errorMessage = 'An error occurred while processing your request.';
-    if (error.type === 'VALIDATION_ERROR') {
-      errorMessage = 'Please correct the following errors:';
-    } else if (error.type === 'AUTH_ERROR') {
-      errorMessage = 'Please log in to submit a request.';
-    } else if (error.type === 'NETWORK_ERROR') {
-      errorMessage = 'Unable to connect to the server. Please check your connection.';
-    }
-
-    return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Paper elevation={3} sx={{ p: 4, textAlign: 'center' }}>
-          <ErrorIcon color="error" sx={{ fontSize: 80, mb: 3 }} />
-          <Typography variant="h5" color="error" gutterBottom>
-            {errorMessage}
-          </Typography>
-          
-          {error.errors && (
-            <Box sx={{ textAlign: 'left', my: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-              <ul style={{ margin: 0, paddingLeft: 24 }}>
-                {Object.entries(error.errors).map(([field, message]) => (
-                  <li key={field}>
-                    <strong>{field}:</strong> {message}
-                  </li>
-                ))}
-              </ul>
-            </Box>
-          )}
-
-          <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button
-              variant="contained"
-              onClick={() => {
-                dispatch({ type: 'naming/clearSubmission' });
-                survey.render();
-              }}
-              startIcon={<AddIcon />}
-            >
-              Try Again
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/dashboard')}
-              startIcon={<DashboardIcon />}
-            >
-              Go to Dashboard
-            </Button>
-          </Box>
-        </Paper>
-      </Container>
-    );
-  }
-
-  // Main form view
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: 4, position: 'relative' }}>
-        {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexWrap: 'wrap', gap: 2 }}>
-          <Typography variant="h4">Submit Naming Request</Typography>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-            {/* Accessibility Controls */}
-            <Tooltip title="Accessibility Mode">
-              <IconButton
-                onClick={() => setAccessibilityMode(!accessibilityMode)}
-                color={accessibilityMode ? "primary" : "default"}
-                size="small"
-              >
-                <AccessibilityIcon />
-              </IconButton>
-            </Tooltip>
-
-            {/* Font Size Controls */}
-            <Box sx={{ display: 'flex', alignItems: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-              <IconButton 
-                onClick={() => setFontSize(Math.max(12, fontSize - 1))} 
-                size="small"
-                disabled={fontSize <= 12}
-              >
-                <TextDecreaseIcon fontSize="small" />
-              </IconButton>
-              <Typography variant="caption" sx={{ px: 1 }}>{fontSize}px</Typography>
-              <IconButton 
-                onClick={() => setFontSize(Math.min(24, fontSize + 1))} 
-                size="small"
-                disabled={fontSize >= 24}
-              >
-                <TextIncreaseIcon fontSize="small" />
-              </IconButton>
-            </Box>
-
-            {/* Auto-save Toggle */}
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={autoSaveEnabled}
-                  onChange={(e) => setAutoSaveEnabled(e.target.checked)}
-                  size="small"
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
+      <Typography variant="h4" component="h1" gutterBottom>
+        Submit Naming Request
+      </Typography>
+      
+      <Card>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <Grid container spacing={3}>
+              {/* Request Title */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Request Title *"
+                  variant="outlined"
+                  {...register('requestTitle', { 
+                    required: 'Request title is required',
+                    minLength: {
+                      value: 5,
+                      message: 'Title must be at least 5 characters'
+                    }
+                  })}
+                  error={!!errors.requestTitle}
+                  helperText={errors.requestTitle?.message}
                 />
-              }
-              label="Auto-save"
-              labelPlacement="start"
-            />
+              </Grid>
 
-            {/* Manual Save Button */}
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<SaveIcon />}
-              onClick={handleManualSave}
-              disabled={!Object.keys(formData).length}
-            >
-              Save Draft
-            </Button>
+              {/* Description */}
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description *"
+                  variant="outlined"
+                  multiline
+                  rows={4}
+                  {...register('description', { 
+                    required: 'Description is required',
+                    minLength: {
+                      value: 20,
+                      message: 'Description must be at least 20 characters'
+                    }
+                  })}
+                  error={!!errors.description}
+                  helperText={errors.description?.message}
+                />
+              </Grid>
 
-            {/* Clear Draft Button */}
-            {lastSaved && (
-              <Button
-                variant="text"
-                size="small"
-                color="error"
-                onClick={handleClearDraft}
-                sx={{ ml: 1 }}
-              >
-                Clear Draft
-              </Button>
-            )}
-          </Box>
-        </Box>
+              {/* Priority */}
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth error={!!errors.priority}>
+                  <InputLabel id="priority-label">Priority *</InputLabel>
+                  <Select
+                    labelId="priority-label"
+                    label="Priority *"
+                    defaultValue="medium"
+                    {...register('priority', { required: 'Priority is required' })}
+                  >
+                    <MenuItem value="low">Low</MenuItem>
+                    <MenuItem value="medium">Medium</MenuItem>
+                    <MenuItem value="high">High</MenuItem>
+                  </Select>
+                  {errors.priority && (
+                    <FormHelperText>{errors.priority.message}</FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
 
-        {/* Save Status */}
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center' }}>
-          {renderSaveStatus()}
-          <Snackbar
-            open={showSaveSuccess}
-            autoHideDuration={3000}
-            onClose={() => setShowSaveSuccess(false)}
-            message="Draft saved successfully"
-            anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-          />
-        </Box>
+              {/* Due Date */}
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Due Date"
+                  type="date"
+                  InputLabelProps={{ shrink: true }}
+                  {...register('dueDate')}
+                />
+              </Grid>
 
-        {/* Form Actions */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
-          <Box>
-            <Button
-              variant="outlined"
-              onClick={handleResetForm}
-              disabled={!Object.keys(formData).length}
-              size="small"
-            >
-              Reset Form
-            </Button>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() => navigate('/dashboard')}
-              size="small"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() => survey.showPreview()}
-              disabled={!survey || !survey.nextPageNo}
-              size="small"
-            >
-              Review & Submit
-            </Button>
-          </Box>
-        </Box>
+              {/* Proposed Names */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Proposed Names *
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                {proposedNames.map((_, index) => (
+                  <Box key={index} sx={{ mb: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} sm={5}>
+                        <TextField
+                          fullWidth
+                          label={`Name ${index + 1} *`}
+                          variant="outlined"
+                          {...register(`proposedNames.${index}.name`, { 
+                            required: 'Name is required',
+                            validate: value => {
+                              if (value.trim() === '') return 'Name cannot be empty';
+                              // Check for duplicate names
+                              const names = proposedNames.map((item, i) => 
+                                i !== index ? item.name.toLowerCase() : ''
+                              );
+                              return !names.includes(value.toLowerCase()) || 'Name must be unique';
+                            }
+                          })}
+                          error={!!errors.proposedNames?.[index]?.name}
+                          helperText={errors.proposedNames?.[index]?.name?.message}
+                        /> 
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Description (Optional)"
+                          variant="outlined"
+                          {...register(`proposedNames.${index}.description`)}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={1} sx={{ textAlign: 'center' }}>
+                        {proposedNames.length > 1 && (
+                          <IconButton 
+                            color="error" 
+                            onClick={() => handleRemoveProposedName(index)}
+                            aria-label="remove name"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        )}
+                      </Grid>
+                    </Grid>
+                  </Box>
+                ))}
 
-        {/* Survey Component */}
-        <Box sx={{ 
-          '--sv-default-font-size': `${fontSize}px`,
-          '& .sv_qstn': {
-            marginBottom: '1.5em',
-          },
-          '& .sv_q_title': {
-            fontSize: '1.1em',
-            fontWeight: 500,
-          },
-          '& .sv_q_description': {
-            fontSize: '0.9em',
-            color: 'text.secondary',
-            marginBottom: '0.5em',
-          },
-          '& .sv_complete_btn': {
-            backgroundColor: theme.palette.primary.main,
-            color: theme.palette.primary.contrastText,
-            '&:hover': {
-              backgroundColor: theme.palette.primary.dark,
-            }
-          }
-        }}>
-          <Survey model={survey} />
-        </Box>
+                <Button
+                  variant="outlined"
+                  startIcon={<AddIcon />}
+                  onClick={handleAddProposedName}
+                  sx={{ mt: 1 }}
+                >
+                  Add Another Name
+                </Button>
+              </Grid>
 
-        {/* Loading Indicator */}
-        {loading && (
-          <Box sx={{ 
-            position: 'fixed', 
-            top: 0, 
-            left: 0, 
-            right: 0, 
-            bottom: 0, 
-            backgroundColor: 'rgba(0,0,0,0.5)', 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center',
-            zIndex: 9999
-          }}>
-            <Paper sx={{ p: 4, textAlign: 'center' }}>
-              <CircularProgress size={60} sx={{ mb: 2 }} />
-              <Typography variant="h6">Submitting your request...</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Please wait while we process your submission
-              </Typography>
-            </Paper>
-          </Box>
-        )}
-      </Paper>
-    </Container>
+              {/* Metadata */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Additional Information
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Product/Service"
+                      variant="outlined"
+                      {...register('metadata.product')}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      label="Target Audience"
+                      variant="outlined"
+                      {...register('metadata.targetAudience')}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Competitors (comma-separated)"
+                      variant="outlined"
+                      {...register('metadata.competitors')}
+                      helperText="Enter competitor names separated by commas"
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Keywords"
+                      variant="outlined"
+                      onKeyDown={handleAddKeyword}
+                      helperText="Press Enter to add a keyword"
+                    />
+                    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {metadata.keywords?.map((keyword, index) => (
+                        <Chip
+                          key={index}
+                          label={keyword}
+                          onDelete={() => handleRemoveKeyword(keyword)}
+                          size="small"
+                        />
+                      ))}
+                    </Box>
+                    <input
+                      type="hidden"
+                      {...register('metadata.keywords')}
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
+
+              {/* Submit Button */}
+              <Grid item xs={12} sx={{ mt: 2 }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  disabled={loading}
+                  startIcon={loading ? <CircularProgress size={20} /> : null}
+                >
+                  {loading ? 'Submitting...' : 'Submit Request'}
+                </Button>
+              </Grid>
+            </Grid>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbarSeverity} 
+          sx={{ width: '100%' }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 
