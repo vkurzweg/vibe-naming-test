@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   AppBar as MuiAppBar,
@@ -12,6 +12,7 @@ import {
   Menu,
   MenuItem,
   Divider,
+  Button,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
@@ -23,6 +24,7 @@ import {
   AccountCircle,
 } from '@mui/icons-material';
 import { logout } from '../features/auth/authSlice';
+import RoleSwitcher from '../components/developer/RoleSwitcher';
 
 const AppBar = ({ handleDrawerToggle }) => {
   const theme = useTheme();
@@ -89,6 +91,9 @@ const AppBar = ({ handleDrawerToggle }) => {
             <NotificationsIcon />
           </IconButton>
           
+          {/* Role Switcher - Only visible in development */}
+          <RoleSwitcher />
+          
           <Tooltip title="Account settings">
             <IconButton
               onClick={handleMenu}
@@ -98,8 +103,12 @@ const AppBar = ({ handleDrawerToggle }) => {
               aria-haspopup="true"
               aria-expanded={open ? 'true' : undefined}
             >
-              <Avatar sx={{ width: 32, height: 32 }}>
-                {user?.name?.[0]?.toUpperCase() || <AccountCircle />}
+              <Avatar
+                sx={{ width: 32, height: 32 }}
+                src={user?.avatar}
+                alt={user?.name?.[0]?.toUpperCase() || 'U'}
+              >
+                {!user?.avatar && (user?.name?.[0]?.toUpperCase() || 'U')}
               </Avatar>
             </IconButton>
           </Tooltip>
@@ -145,19 +154,19 @@ const AppBar = ({ handleDrawerToggle }) => {
               {user?.name || 'User'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {user?.email || ''}
+              {user?.email || 'user@example.com'}
             </Typography>
           </Box>
-          <Divider />
+          <Divider sx={{ my: 1 }} />
           <MenuItem onClick={handleProfile}>
-            <Avatar /> Profile
+            <AccountCircle sx={{ mr: 1 }} /> Profile
           </MenuItem>
           <MenuItem onClick={handleSettings}>
-            <SettingsIcon fontSize="small" sx={{ mr: 1 }} /> Settings
+            <SettingsIcon sx={{ mr: 1 }} /> Settings
           </MenuItem>
           <Divider />
           <MenuItem onClick={handleLogout}>
-            <LogoutIcon fontSize="small" sx={{ mr: 1 }} /> Logout
+            <LogoutIcon sx={{ mr: 1 }} /> Logout
           </MenuItem>
         </Menu>
       </Toolbar>

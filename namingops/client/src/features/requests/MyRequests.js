@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -82,37 +82,73 @@ const MyRequests = () => {
   const filters = useSelector(selectFilters);
   const sortConfig = useSelector(selectSortConfig);
   
-  // Local state for pagination
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
-  const [showFilters, setShowFilters] = React.useState(false);
+  // Local state for pagination and UI
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [showFilters, setShowFilters] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  // Fetch requests on component mount
+  // Debounce search input
   useEffect(() => {
-    dispatch(fetchUserRequests());
-  }, [dispatch]);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch requests when filters, sort, or pagination changes
+  useEffect(() => {
+    const params = {
+      page: page + 1, // API uses 1-based pagination
+      limit: rowsPerPage,
+      sortBy: sortConfig.key,
+      sortOrder: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
+      ...filters,
+      search: debouncedSearch || undefined
+    };
+
+    // Convert date objects to ISO strings for the API
+    if (filters.dateRange) {
+      if (filters.dateRange.start) {
+        params.startDate = filters.dateRange.start.toISOString().split('T')[0];
+      }
+      if (filters.dateRange.end) {
+        params.endDate = filters.dateRange.end.toISOString().split('T')[0];
+      }
+      delete params.dateRange;
+    }
+
+    // Remove undefined values
+    Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+
+    dispatch(fetchUserRequests(params));
+  }, [dispatch, page, rowsPerPage, sortConfig, debouncedSearch, filters]);
 
   // Handle search input change
   const handleSearchChange = (event) => {
     dispatch(setSearchQuery(event.target.value));
-    setPage(0);
+    setPage(0); // Reset to first page on new search
   };
 
   // Handle filter changes
   const handleStatusFilter = (event) => {
-    dispatch(setFilter({ key: 'status', value: event.target.value }));
+    dispatch(setFilter({ key: 'status', value: event.target.value || undefined }));
     setPage(0);
   };
 
   const handleDateFilter = (date, type) => {
-    const newDateRange = { ...filters.dateRange, [type]: date };
+    const newDateRange = { ...(filters.dateRange || {}), [type]: date };
     dispatch(setFilter({ key: 'dateRange', value: newDateRange }));
     setPage(0);
   };
 
   // Handle sort request
   const handleSort = (key) => {
-    dispatch(setSort(key));
+    const isAsc = sortConfig.key === key && sortConfig.direction === 'ascending';
+    dispatch(setSort({ 
+      key, 
+      direction: isAsc ? 'descending' : 'ascending' 
+    }));
   };
 
   // Handle pagination
@@ -145,12 +181,12 @@ const MyRequests = () => {
 
   // Get current page data
   const paginatedRequests = useMemo(
-    () => requests.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [requests, page, rowsPerPage]
+    () => requests.data || [],
+    [requests.data]
   );
 
   // Render loading state
-  if (loading && requests.length === 0) {
+  if (loading && !requests.data) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
         <CircularProgress />
@@ -168,7 +204,7 @@ const MyRequests = () => {
         <Button 
           variant="contained" 
           color="primary" 
-          onClick={() => dispatch(fetchUserRequests())}
+          onClick={() => dispatch(fetchUserRequests({ page: page + 1, limit: rowsPerPage }))}
           sx={{ mt: 2 }}
         >
           Retry
@@ -257,7 +293,7 @@ const MyRequests = () => {
                         <FormControl fullWidth size="small">
                           <InputLabel>Status</InputLabel>
                           <Select
-                            value={filters.status}
+                            value={filters.status || ''}
                             onChange={handleStatusFilter}
                             label="Status"
                           >
@@ -275,7 +311,7 @@ const MyRequests = () => {
                         <LocalizationProvider dateAdapter={AdapterDateFns}>
                           <DatePicker
                             label="From Date"
-                            value={filters.dateRange.start}
+                            value={filters.dateRange?.start || null}
                             onChange={(date) => handleDateFilter(date, 'start')}
                             renderInput={(params) => (
                               <TextField {...params} fullWidth size="small" />
@@ -288,7 +324,7 @@ const MyRequests = () => {
                         <LocalizationProvider dateAdapter={AdapterDateFns}>
                           <DatePicker
                             label="To Date"
-                            value={filters.dateRange.end}
+                            value={filters.dateRange?.end || null}
                             onChange={(date) => handleDateFilter(date, 'end')}
                             renderInput={(params) => (
                               <TextField {...params} fullWidth size="small" />
@@ -302,7 +338,10 @@ const MyRequests = () => {
                           fullWidth
                           variant="outlined"
                           startIcon={<ClearFiltersIcon />}
-                          onClick={() => dispatch(resetFilters())}
+                          onClick={() => {
+                            dispatch(resetFilters());
+                            setPage(0);
+                          }}
                         >
                           Clear Filters
                         </Button>
@@ -330,9 +369,9 @@ const MyRequests = () => {
                       </TableCell>
                       <TableCell>
                         <TableSortLabel
-                          active={sortConfig.key === 'request_date'}
+                          active={sortConfig.key === 'createdAt'}
                           direction={sortConfig.direction}
-                          onClick={() => handleSort('request_date')}
+                          onClick={() => handleSort('createdAt')}
                         >
                           <Typography variant="subtitle2" fontWeight="bold">
                             Date Submitted
@@ -352,9 +391,9 @@ const MyRequests = () => {
                       </TableCell>
                       <TableCell>
                         <TableSortLabel
-                          active={sortConfig.key === 'reviewer_name'}
+                          active={sortConfig.key === 'reviewer'}
                           direction={sortConfig.direction}
-                          onClick={() => handleSort('reviewer_name')}
+                          onClick={() => handleSort('reviewer')}
                         >
                           <Typography variant="subtitle2" fontWeight="bold">
                             Reviewer
@@ -371,23 +410,23 @@ const MyRequests = () => {
                   <TableBody>
                     {paginatedRequests.length > 0 ? (
                       paginatedRequests.map((request) => (
-                        <TableRow key={request.id} hover>
+                        <TableRow key={request._id} hover>
                           <TableCell>
                             <Typography variant="body2" fontWeight="medium">
-                              {request.request_title}
+                              {request.title}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" color="textSecondary">
-                              {format(parseISO(request.request_date), 'MMM dd, yyyy')}
+                              {format(parseISO(request.createdAt), 'MMM dd, yyyy')}
                             </Typography>
                             <Typography variant="caption" color="textSecondary">
-                              {format(parseISO(request.request_date), 'h:mm a')}
+                              {format(parseISO(request.createdAt), 'h:mm a')}
                             </Typography>
                           </TableCell>
                           <TableCell>
                             <Chip
-                              label={request.status.replace('_', ' ')}
+                              label={request.status?.replace('_', ' ') || 'N/A'}
                               color={statusColors[request.status] || 'default'}
                               size="small"
                               sx={{ textTransform: 'capitalize' }}
@@ -395,11 +434,11 @@ const MyRequests = () => {
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2">
-                              {request.reviewer_name || 'Not assigned'}
+                              {request.reviewer?.name || 'Not assigned'}
                             </Typography>
-                            {request.reviewer_email && (
+                            {request.reviewer?.email && (
                               <Typography variant="caption" color="textSecondary">
-                                {request.reviewer_email}
+                                {request.reviewer.email}
                               </Typography>
                             )}
                           </TableCell>
@@ -407,7 +446,7 @@ const MyRequests = () => {
                             <Button
                               size="small"
                               color="primary"
-                              onClick={() => navigate(`/requests/${request.id}`)}
+                              onClick={() => navigate(`/requests/${request._id}`)}
                             >
                               View Details
                             </Button>
@@ -439,11 +478,11 @@ const MyRequests = () => {
               </TableContainer>
 
               {/* Pagination */}
-              {requests.length > 0 && (
+              {requests.data?.length > 0 && (
                 <TablePagination
                   rowsPerPageOptions={[5, 10, 25, 50]}
                   component="div"
-                  count={requests.length}
+                  count={requests.total || 0}
                   rowsPerPage={rowsPerPage}
                   page={page}
                   onPageChange={handleChangePage}

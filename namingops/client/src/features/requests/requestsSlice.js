@@ -1,29 +1,55 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api from '../../services/api'; // Corrected import path
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
+// Async Thunks
 export const fetchUserRequests = createAsyncThunk(
   'requests/fetchUserRequests',
-  async (_, { getState, rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const { auth } = getState();
-      const response = await axios.get('/api/name-requests/my-requests', {
-        headers: { Authorization: `Bearer ${auth.token}` }
+      const { page = 1, limit = 10, status, priority, search, sortBy = 'createdAt', sortOrder = 'desc' } = params;
+      
+      const response = await api.get('/name-requests', {
+        params: {
+          page,
+          limit,
+          status,
+          priority,
+          search,
+          sortBy,
+          sortOrder
+        }
       });
-      return response.data;
+      
+      return {
+        data: response.data.data,
+        pagination: response.data.pagination || {}
+      };
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch requests');
     }
   }
 );
 
+export const getMyRequests = createAsyncThunk(
+  'requests/getMyRequests',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/name-requests/my-requests');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to fetch my requests');
+    }
+  }
+);
+
 export const searchRequests = createAsyncThunk(
   'requests/searchRequests',
-  async (searchParams, { rejectWithValue }) => {
+  async (query, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/name-requests/search', { params: searchParams });
-      return response.data;
+      const response = await api.get(`/name-requests/search?query=${query}`);
+      return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Search failed');
     }
@@ -32,20 +58,24 @@ export const searchRequests = createAsyncThunk(
 
 export const fetchRequestById = createAsyncThunk(
   'requests/fetchRequestById',
-  async (requestId, { getState, rejectWithValue }) => {
+  async (requestId, { rejectWithValue }) => {
     try {
-      const { auth } = getState();
-      const response = await axios.get(`/api/name-requests/${requestId}`, {
-        headers: { 
-          Authorization: `Bearer ${auth.token}`,
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      return response.data;
+      const response = await api.get(`/name-requests/${requestId}`);
+      return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch request');
+    }
+  }
+);
+
+export const updateRequest = createAsyncThunk(
+  'requests/updateRequest',
+  async ({ id, requestData }, { rejectWithValue }) => {
+    try {
+      const res = await api.put(`/name-requests/${id}`, requestData);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response.data);
     }
   }
 );
@@ -66,7 +96,8 @@ const initialState = {
     key: 'request_date',
     direction: 'descending'
   },
-  status: 'idle' // 'idle' | 'loading' | 'succeeded' | 'failed'
+  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  pagination: {}
 };
 
 const requestsSlice = createSlice({
@@ -107,13 +138,30 @@ const requestsSlice = createSlice({
       })
       .addCase(fetchUserRequests.fulfilled, (state, action) => {
         state.loading = false;
+        state.requests = action.payload.data;
+        state.pagination = action.payload.pagination;
+        state.filteredRequests = applyFilters({
+          ...state,
+          requests: action.payload.data
+        });
+      })
+      .addCase(fetchUserRequests.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      .addCase(getMyRequests.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getMyRequests.fulfilled, (state, action) => {
+        state.loading = false;
         state.requests = action.payload;
         state.filteredRequests = applyFilters({
           ...state,
           requests: action.payload
         });
       })
-      .addCase(fetchUserRequests.rejected, (state, action) => {
+      .addCase(getMyRequests.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -131,11 +179,27 @@ const requestsSlice = createSlice({
       .addCase(fetchRequestById.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
+      })
+      .addCase(updateRequest.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(updateRequest.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentRequest = action.payload;
+        const index = state.requests.findIndex(item => item._id === action.payload._id);
+        if (index !== -1) {
+          state.requests[index] = action.payload;
+        }
+        state.filteredRequests = applyFilters(state);
+      })
+      .addCase(updateRequest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   }
 });
 
-// Helper function to apply filters and search
+// Helper function to apply filters
 const applyFilters = (state) => {
   let result = [...state.requests];
   
@@ -206,6 +270,7 @@ export const selectError = (state) => state.requests.error;
 export const selectSearchQuery = (state) => state.requests.searchQuery;
 export const selectFilters = (state) => state.requests.filters;
 export const selectSortConfig = (state) => state.requests.sortConfig;
+export const selectPagination = (state) => state.requests.pagination;
 
 // Export utility functions
 export const exportToCSV = (requests) => {

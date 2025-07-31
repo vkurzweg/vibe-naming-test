@@ -9,7 +9,6 @@ const { getClient } = require('../config/db');
 const logger = require('../utils/logger');
 const mongoose = require('mongoose');
 
-
 // Constants
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -244,122 +243,73 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
 // @route   GET /api/name-requests
 // @desc    Get all naming requests with filtering and pagination
 // @access  Private
-router.get('/', [
-  isAuthenticated,
-  query('page').optional().isInt({ min: 1 }).toInt(),
-  query('limit').optional().isInt({ min: 1, max: MAX_LIMIT }).toInt(),
-  query('sortBy').optional().isString().trim().escape(),
-  query('sortOrder').optional().isIn(['asc', 'desc']),
-  query('status').optional().isString().trim().escape(),
-  query('priority').optional().isIn(['low', 'medium', 'high']),
-  query('search').optional().isString().trim().escape()
-], async (req, res) => {
+router.get('/', isAuthenticated, async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 'Invalid query parameters', 400, errors.array());
+    // TODO: Add role-based filtering. For now, returns all.
+    const requests = await NamingRequest.find().sort({ createdAt: -1 });
+    res.json(requests);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET /api/name-requests/search
+// @desc    Search for approved naming requests
+// @access  Private
+router.get('/search', isAuthenticated, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) {
+      return res.status(400).json({ msg: 'Search query is required' });
     }
 
-    const { 
-      status, 
-      priority, 
-      search, 
-      page = DEFAULT_PAGE, 
-      limit = DEFAULT_LIMIT,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
-    } = req.query;
+    const requests = await NamingRequest.find(
+      { $text: { $search: q }, status: 'approved' },
+      { score: { $meta: 'textScore' } }
+    ).sort({ score: { $meta: 'textScore' } });
 
-    const skip = (page - 1) * limit;
-    const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
-    const filter = { isActive: true };
+    res.json(requests);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
 
-    // Apply filters
-    if (status) filter.status = status;
-    if (priority) filter.priority = priority;
-
-    // Regular users can only see their own requests
-    if (!req.user.roles.includes('admin') && !req.user.roles.includes('reviewer')) {
-      filter.requestor = req.user.id;
-    }
-
-    // Search functionality
-    if (search) {
-      filter.$or = [
-        { requestTitle: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { 'proposedNames.name': { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const [requests, total] = await Promise.all([
-      NamingRequest.find(filter)
-        .sort(sort)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .populate('requestor', 'name email')
-        .populate('reviewer', 'name email'),
-      NamingRequest.countDocuments(filter)
-    ]);
-
-    return sendSuccess(res, {
-      data: requests,
-      pagination: {
-        total,
-        page: parseInt(page),
-        pages: Math.ceil(total / limit),
-        limit: parseInt(limit)
-      }
-    });
-
-  } catch (error) {
-    logger.error('Error fetching naming requests:', {
-      error: error.message,
-      stack: error.stack,
-      query: req.query
-    });
-    return sendError(res, 'Failed to fetch requests', 500);
+// @route   GET /api/name-requests/my-requests
+// @desc    Get all requests for the current user
+// @access  Private
+router.get('/my-requests', isAuthenticated, async (req, res) => {
+  try {
+    const requests = await NamingRequest.find({ requestor: req.user.id }).sort({ createdAt: -1 });
+    res.json(requests);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
 });
 
 // @route   GET /api/name-requests/:id
 // @desc    Get single naming request by ID
 // @access  Private
-router.get('/:id', [
-  isAuthenticated,
-  check('id').isMongoId().withMessage('Invalid request ID')
-], async (req, res) => {
+router.get('/:id', isAuthenticated, async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 'Invalid request ID', 400, errors.array());
-    }
-
     const request = await NamingRequest.findById(req.params.id)
       .populate('requestor', 'name email')
       .populate('reviewer', 'name email')
       .populate('history.changedBy', 'name email');
 
-    if (!request || !request.isActive) {
-      return sendError(res, 'Request not found', 404);
+    if (!request) {
+      return res.status(404).json({ msg: 'Request not found' });
     }
 
-    // Authorization check
-    if (!req.user.roles.includes('admin') && 
-        !req.user.roles.includes('reviewer') && 
-        request.requestor._id.toString() !== req.user.id) {
-      return sendError(res, 'Not authorized to view this request', 403);
+    res.json(request);
+  } catch (err) {
+    logger.error(`Error fetching request by ID: ${err.message}`, { requestId: req.params.id });
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Request not found' });
     }
-
-    return sendSuccess(res, request);
-
-  } catch (error) {
-    logger.error('Error fetching request:', {
-      error: error.message,
-      stack: error.stack,
-      requestId: req.params.id
-    });
-    return sendError(res, 'Failed to fetch request', 500);
+    res.status(500).send('Server Error');
   }
 });
 
@@ -446,401 +396,6 @@ router.put('/:id', [
 // @route   DELETE /api/name-requests/:id
 // @desc    Delete a naming request (soft delete)
 // @access  Private
-router.delete('/:id', [
-  isAuthenticated,
-  check('id').isMongoId().withMessage('Invalid request ID')
-], async (req, res) => {
-  try {
-    const result = await withTransaction(async (session) => {
-      const request = await NamingRequest.findById(req.params.id).session(session);
-      
-      if (!request || !request.isActive) {
-        throw { status: 404, message: 'Request not found' };
-      }
-
-      // Authorization check
-      if (request.requestor.toString() !== req.user.id && 
-          !req.user.roles.includes('admin')) {
-        throw { status: 403, message: 'Not authorized to delete this request' };
-      }
-
-      // Soft delete
-      request.isActive = false;
-      request.history.push({
-        status: request.status,
-        changedBy: req.user.id,
-        changedByName: req.user.name,
-        comment: 'Request deleted',
-        timestamp: new Date()
-      });
-
-      await request.save({ session });
-      logger.info(`Request deleted: ${request._id}`);
-      return request;
-    });
-
-    return sendSuccess(res, { id: result._id, message: 'Request deleted successfully' });
-
-  } catch (error) {
-    if (error.status) {
-      return sendError(res, error.message, error.status);
-    }
-    
-    logger.error('Error deleting request:', {
-      error: error.message,
-      stack: error.stack,
-      requestId: req.params.id
-    });
-    return sendError(res, 'Failed to delete request', 500);
-  }
-});
-
-// @route   PUT /api/name-requests/:id/submit
-// @desc    Submit a draft request for review
-// @access  Private
-router.put('/:id/submit', [
-  isAuthenticated,
-  check('id').isMongoId().withMessage('Invalid request ID')
-], async (req, res) => {
-  try {
-    const result = await withTransaction(async (session) => {
-      const request = await NamingRequest.findById(req.params.id).session(session);
-      
-      if (!request || !request.isActive) {
-        throw { status: 404, message: 'Request not found' };
-      }
-
-      // Only the requestor can submit their own draft
-      if (request.requestor.toString() !== req.user.id) {
-        throw { status: 403, message: 'Not authorized to submit this request' };
-      }
-
-      if (request.status !== 'draft') {
-        throw { status: 400, message: 'Only draft requests can be submitted' };
-      }
-
-      // Update status and add to history
-      request.status = 'submitted';
-      request.history.push({
-        status: 'submitted',
-        changedBy: req.user.id,
-        changedByName: req.user.name,
-        comment: 'Request submitted for review',
-        timestamp: new Date()
-      });
-
-      const savedRequest = await request.save({ session });
-      logger.info(`Request submitted: ${savedRequest._id}`);
-      return savedRequest;
-    });
-
-    const populatedRequest = await NamingRequest.findById(result._id)
-      .populate('requestor', 'name email')
-      .populate('reviewer', 'name email');
-
-    return sendSuccess(res, populatedRequest);
-
-  } catch (error) {
-    if (error.status) {
-      return sendError(res, error.message, error.status);
-    }
-    
-    logger.error('Error submitting request:', {
-      error: error.message,
-      stack: error.stack,
-      requestId: req.params.id
-    });
-    return sendError(res, 'Failed to submit request', 500);
-  }
-});
-// @route   PUT /api/name-requests/:id/claim
-// @desc    Claim a request for review
-// @access  Private (Reviewer/Admin)
-router.put('/:id/claim', [
-  isAuthenticated,
-  hasRole(['reviewer', 'admin']),
-  check('id').isMongoId().withMessage('Invalid request ID')
-], async (req, res) => {
-  try {
-    const result = await withTransaction(async (session) => {
-      const request = await NamingRequest.findById(req.params.id).session(session);
-      
-      if (!request || !request.isActive) {
-        throw { status: 404, message: 'Request not found' };
-      }
-
-      if (request.status !== 'submitted') {
-        throw { status: 400, message: 'Only submitted requests can be claimed for review' };
-      }
-
-      // Check if already claimed by someone else
-      if (request.reviewer && request.reviewer.toString() !== req.user.id) {
-        throw { 
-          status: 400, 
-          message: 'This request is already claimed by another reviewer' 
-        };
-      }
-
-      // Claim the request
-      request.status = 'in_review';
-      request.reviewer = req.user.id;
-      request.reviewerName = req.user.name;
-      request.reviewDate = new Date();
-      
-      request.history.push({
-        status: 'in_review',
-        changedBy: req.user.id,
-        changedByName: req.user.name,
-        comment: 'Request claimed for review',
-        timestamp: new Date()
-      });
-
-      const savedRequest = await request.save({ session });
-      logger.info(`Request claimed: ${savedRequest._id} by user ${req.user.id}`);
-      return savedRequest;
-    });
-
-    const populatedRequest = await NamingRequest.findById(result._id)
-      .populate('requestor', 'name email')
-      .populate('reviewer', 'name email');
-
-    return sendSuccess(res, populatedRequest);
-
-  } catch (error) {
-    if (error.status) {
-      return sendError(res, error.message, error.status);
-    }
-    
-    logger.error('Error claiming request:', {
-      error: error.message,
-      stack: error.stack,
-      requestId: req.params.id,
-      userId: req.user.id
-    });
-    return sendError(res, 'Failed to claim request', 500);
-  }
-});
-
-// @route   PUT /api/name-requests/:id/approve
-// @desc    Approve a naming request
-// @access  Private (Reviewer/Admin)
-router.put('/:id/approve', [
-  isAuthenticated,
-  hasRole(['reviewer', 'admin']),
-  check('id').isMongoId().withMessage('Invalid request ID'),
-  check('comment', 'Approval comment is required').not().isEmpty().trim().escape()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 'Validation failed', 400, errors.array());
-    }
-
-    const result = await withTransaction(async (session) => {
-      const request = await NamingRequest.findById(req.params.id).session(session);
-      
-      if (!request || !request.isActive) {
-        throw { status: 404, message: 'Request not found' };
-      }
-
-      // Check if the request is assigned to the current user
-      if (request.reviewer.toString() !== req.user.id && 
-          !req.user.roles.includes('admin')) {
-        throw { 
-          status: 403, 
-          message: 'Not authorized to approve this request' 
-        };
-      }
-
-      // Update request status
-      request.status = 'approved';
-      request.reviewDate = new Date();
-      request.reviewComments = req.body.comment;
-      
-      // Update all proposed names to approved
-      request.proposedNames = request.proposedNames.map(name => ({
-        ...name.toObject(),
-        status: 'approved'
-      }));
-
-      request.history.push({
-        status: 'approved',
-        changedBy: req.user.id,
-        changedByName: req.user.name,
-        comment: req.body.comment,
-        timestamp: new Date()
-      });
-
-      const savedRequest = await request.save({ session });
-      logger.info(`Request approved: ${savedRequest._id} by user ${req.user.id}`);
-      return savedRequest;
-    });
-
-    const populatedRequest = await NamingRequest.findById(result._id)
-      .populate('requestor', 'name email')
-      .populate('reviewer', 'name email');
-
-    return sendSuccess(res, populatedRequest);
-
-  } catch (error) {
-    if (error.status) {
-      return sendError(res, error.message, error.status);
-    }
-    
-    logger.error('Error approving request:', {
-      error: error.message,
-      stack: error.stack,
-      requestId: req.params.id,
-      userId: req.user.id
-    });
-    return sendError(res, 'Failed to approve request', 500);
-  }
-});
-
-// @route   PUT /api/name-requests/:id/reject
-// @desc    Reject a naming request
-// @access  Private (Reviewer/Admin)
-router.put('/:id/reject', [
-  isAuthenticated,
-  hasRole(['reviewer', 'admin']),
-  check('id').isMongoId().withMessage('Invalid request ID'),
-  check('comment', 'Rejection reason is required').not().isEmpty().trim().escape()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 'Validation failed', 400, errors.array());
-    }
-
-    const result = await withTransaction(async (session) => {
-      const request = await NamingRequest.findById(req.params.id).session(session);
-      
-      if (!request || !request.isActive) {
-        throw { status: 404, message: 'Request not found' };
-      }
-
-      // Check if the request is assigned to the current user
-      if (request.reviewer.toString() !== req.user.id && 
-          !req.user.roles.includes('admin')) {
-        throw { 
-          status: 403, 
-          message: 'Not authorized to reject this request' 
-        };
-      }
-
-      // Update request status
-      request.status = 'rejected';
-      request.reviewDate = new Date();
-      request.reviewComments = req.body.comment;
-      
-      // Update all proposed names to rejected
-      request.proposedNames = request.proposedNames.map(name => ({
-        ...name.toObject(),
-        status: 'rejected'
-      }));
-
-      request.history.push({
-        status: 'rejected',
-        changedBy: req.user.id,
-        changedByName: req.user.name,
-        comment: req.body.comment,
-        timestamp: new Date()
-      });
-
-      const savedRequest = await request.save({ session });
-      logger.info(`Request rejected: ${savedRequest._id} by user ${req.user.id}`);
-      return savedRequest;
-    });
-
-    const populatedRequest = await NamingRequest.findById(result._id)
-      .populate('requestor', 'name email')
-      .populate('reviewer', 'name email');
-
-    return sendSuccess(res, populatedRequest);
-
-  } catch (error) {
-    if (error.status) {
-      return sendError(res, error.message, error.status);
-    }
-    
-    logger.error('Error rejecting request:', {
-      error: error.message,
-      stack: error.stack,
-      requestId: req.params.id,
-      userId: req.user.id
-    });
-    return sendError(res, 'Failed to reject request', 500);
-  }
-});
-
-// @route   PUT /api/name-requests/:id/return
-// @desc    Return a request to the submitter for changes
-// @access  Private (Reviewer/Admin)
-router.put('/:id/return', [
-  isAuthenticated,
-  hasRole(['reviewer', 'admin']),
-  check('id').isMongoId().withMessage('Invalid request ID'),
-  check('comment', 'Return reason is required').not().isEmpty().trim().escape()
-], async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return sendError(res, 'Validation failed', 400, errors.array());
-    }
-
-    const result = await withTransaction(async (session) => {
-      const request = await NamingRequest.findById(req.params.id).session(session);
-      
-      if (!request || !request.isActive) {
-        throw { status: 404, message: 'Request not found' };
-      }
-
-      // Check if the request is assigned to the current user
-      if (request.reviewer.toString() !== req.user.id && 
-          !req.user.roles.includes('admin')) {
-        throw { 
-          status: 403, 
-          message: 'Not authorized to return this request' 
-        };
-      }
-
-      // Update request status
-      request.status = 'draft';
-      request.reviewer = null;
-      request.reviewerName = null;
-      
-      request.history.push({
-        status: 'returned',
-        changedBy: req.user.id,
-        changedByName: req.user.name,
-        comment: `Returned for changes: ${req.body.comment}`,
-        timestamp: new Date()
-      });
-
-      const savedRequest = await request.save({ session });
-      logger.info(`Request returned for changes: ${savedRequest._id} by user ${req.user.id}`);
-      return savedRequest;
-    });
-
-    const populatedRequest = await NamingRequest.findById(result._id)
-      .populate('requestor', 'name email')
-      .populate('reviewer', 'name email');
-
-    return sendSuccess(res, populatedRequest);
-
-  } catch (error) {
-    if (error.status) {
-      return sendError(res, error.message, error.status);
-    }
-    
-    logger.error('Error returning request:', {
-      error: error.message,
-      stack: error.stack,
-      requestId: req.params.id,
-      userId: req.user.id
-    });
-    return sendError(res, 'Failed to return request', 500);
-  }
-});
+// router.delete('/:id', [
 
 module.exports = router;

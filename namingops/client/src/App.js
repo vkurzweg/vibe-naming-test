@@ -20,6 +20,7 @@ import ReviewDashboard from './pages/ReviewDashboard';
 import SubmitRequest from './pages/SubmitRequest';
 import UserDashboard from './pages/UserDashboard';
 import NotFound from './pages/NotFound';
+import Archive from './pages/Archive';
 
 // Features
 import MyRequests from './features/requests/MyRequests';
@@ -79,6 +80,16 @@ function App() {
             <Route path="submit-request" element={
               <ProtectedRoute>
                 <SubmitRequest />
+              </ProtectedRoute>
+            } /> 
+            <Route path="requests/:id" element={
+              <ProtectedRoute>
+                <RequestDetails />
+              </ProtectedRoute>
+            } /> 
+            <Route path="archive" element={
+              <ProtectedRoute>
+                <Archive />
               </ProtectedRoute>
             } /> 
             {/* Add more protected routes here */}

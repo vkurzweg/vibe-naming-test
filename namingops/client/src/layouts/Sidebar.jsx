@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useSelector } from 'react-redux';
 import {
   Drawer,
   Box,
@@ -22,9 +22,9 @@ import {
   List as ListIcon,
   People as PeopleIcon,
   Settings as SettingsIcon,
+  Archive as ArchiveIcon,
   ExpandLess,
   ExpandMore,
-  StarBorder,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 
@@ -65,20 +65,59 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
-  const [openRequests, setOpenRequests] = React.useState(true);
-  const [openAdmin, setOpenAdmin] = React.useState(false);
+  const [expanded, setExpanded] = useState({});
 
   const isActive = (path) => {
     return location.pathname === path;
   };
 
-  const handleRequestsClick = () => {
-    setOpenRequests(!openRequests);
+  const handleExpand = (menu) => {
+    setExpanded(prev => ({
+      ...prev,
+      [menu]: !prev[menu]
+    }));
   };
 
-  const handleAdminClick = () => {
-    setOpenAdmin(!openAdmin);
-  };
+  // Navigation items based on user role
+  const navItems = useMemo(() => {
+    const items = [
+      {
+        text: 'Dashboard',
+        icon: <DashboardIcon />,
+        path: '/',
+        show: true,
+      },
+      {
+        text: 'Submit Request',
+        icon: <AddIcon />,
+        path: '/submit-request',
+        show: true,
+      },
+      {
+        text: 'Archive',
+        icon: <ArchiveIcon />,
+        path: '/archive',
+        show: true,
+      },
+    ];
+
+    // Add admin-specific items
+    if (user?.role === 'admin') {
+      items.push(
+        {
+          text: 'Admin',
+          icon: <SettingsIcon />,
+          children: [
+            { text: 'Form Configuration', path: '/admin/forms' },
+            { text: 'User Management', path: '/admin/users' },
+          ],
+          show: true,
+        }
+      );
+    }
+
+    return items;
+  }, [user?.role]);
 
   const drawer = (
     <div>
@@ -89,102 +128,47 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
       </Toolbar>
       <Divider />
       <List>
-        <ListItem disablePadding>
-          <ListItemButton
-            selected={isActive('/dashboard')}
-            onClick={() => navigate('/dashboard')}
-          >
-            <ListItemIcon>
-              <DashboardIcon />
-            </ListItemIcon>
-            <ListItemText primary="Dashboard" />
-          </ListItemButton>
-        </ListItem>
-
-        <ListItem disablePadding>
-          <ListItemButton onClick={handleRequestsClick}>
-            <ListItemIcon>
-              <ListIcon />
-            </ListItemIcon>
-            <ListItemText primary="Requests" />
-            {openRequests ? <ExpandLess /> : <ExpandMore />}
-          </ListItemButton>
-        </ListItem>
-        <Collapse in={openRequests} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            <ListItemButton
-              sx={{ pl: 4 }}
-              selected={isActive('/submit-request')}
-              onClick={() => navigate('/submit-request')}
-            >
-              <ListItemIcon>
-                <AddIcon />
-              </ListItemIcon>
-              <ListItemText primary="New Request" />
-            </ListItemButton>
-            <ListItemButton
-              sx={{ pl: 4 }}
-              selected={isActive('/requests/my-requests')}
-              onClick={() => navigate('/requests/my-requests')}
-            >
-              <ListItemIcon>
-                <ListIcon />
-              </ListItemIcon>
-              <ListItemText primary="My Requests" />
-            </ListItemButton>
-            {user?.role === 'reviewer' || user?.role === 'admin' ? (
-              <ListItemButton
-                sx={{ pl: 4 }}
-                selected={isActive('/requests/review')}
-                onClick={() => navigate('/requests/review')}
+        {navItems.map((item) => (
+          <React.Fragment key={item.text}>
+            {item.children ? (
+              <>
+                <ListItemButton onClick={() => handleExpand(item.text)}>
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} />
+                  {expanded[item.text] ? <ExpandLess /> : <ExpandMore />}
+                </ListItemButton>
+                <Collapse in={expanded[item.text]} timeout="auto" unmountOnExit>
+                  <List component="div" disablePadding>
+                    {item.children.map((child) => (
+                      <ListItemButton
+                        key={child.path}
+                        sx={{ pl: 4 }}
+                        selected={isActive(child.path)}
+                        onClick={() => navigate(child.path)}
+                      >
+                        <ListItemText primary={child.text} />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                </Collapse>
+              </>
+            ) : (
+              <ListItem 
+                key={item.path}
+                disablePadding
+                onClick={isMobile ? handleDrawerToggle : undefined}
               >
-                <ListItemIcon>
-                  <StarBorder />
-                </ListItemIcon>
-                <ListItemText primary="Review Requests" />
-              </ListItemButton>
-            ) : null}
-          </List>
-        </Collapse>
-
-        {(user?.role === 'admin' || user?.role === 'reviewer') && (
-          <ListItem disablePadding>
-            <ListItemButton onClick={handleAdminClick}>
-              <ListItemIcon>
-                <SettingsIcon />
-              </ListItemIcon>
-              <ListItemText primary="Admin" />
-              {openAdmin ? <ExpandLess /> : <ExpandMore />}
-            </ListItemButton>
-          </ListItem>
-        )}
-        
-        <Collapse in={openAdmin} timeout="auto" unmountOnExit>
-          <List component="div" disablePadding>
-            {user?.role === 'admin' && (
-              <ListItemButton
-                sx={{ pl: 4 }}
-                selected={isActive('/admin/users')}
-                onClick={() => navigate('/admin/users')}
-              >
-                <ListItemIcon>
-                  <PeopleIcon />
-                </ListItemIcon>
-                <ListItemText primary="User Management" />
-              </ListItemButton>
+                <ListItemButton
+                  selected={isActive(item.path)}
+                  onClick={() => navigate(item.path)}
+                >
+                  <ListItemIcon>{item.icon}</ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
             )}
-            <ListItemButton
-              sx={{ pl: 4 }}
-              selected={isActive('/admin/settings')}
-              onClick={() => navigate('/admin/settings')}
-            >
-              <ListItemIcon>
-                <SettingsIcon />
-              </ListItemIcon>
-              <ListItemText primary="Settings" />
-            </ListItemButton>
-          </List>
-        </Collapse>
+          </React.Fragment>
+        ))}
       </List>
     </div>
   );
@@ -195,36 +179,13 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
       sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       aria-label="mailbox folders"
     >
-      {/* Mobile drawer */}
-      <Drawer
-        variant="temporary"
-        open={mobileOpen}
+      <StyledDrawer
+        variant={isMobile ? 'temporary' : 'permanent'}
+        open={!isMobile || mobileOpen}
         onClose={handleDrawerToggle}
         ModalProps={{
-          keepMounted: true, // Better open performance on mobile.
+          keepMounted: true, // Better open performance on mobile
         }}
-        sx={{
-          display: { xs: 'block', sm: 'none' },
-          '& .MuiDrawer-paper': {
-            boxSizing: 'border-box',
-            width: drawerWidth,
-          },
-        }}
-      >
-        {drawer}
-      </Drawer>
-      
-      {/* Desktop drawer */}
-      <StyledDrawer
-        variant="permanent"
-        sx={{
-          display: { xs: 'none', sm: 'block' },
-          '& .MuiDrawer-paper': {
-            boxSizing: 'border-box',
-            width: drawerWidth,
-          },
-        }}
-        open
       >
         {drawer}
       </StyledDrawer>

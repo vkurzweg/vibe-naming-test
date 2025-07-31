@@ -10,12 +10,14 @@ const { initializeElasticsearch } = require('./config/elasticsearch');
 const { errorHandler } = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
 const initializeDatabase = require('./utils/dbInit');
+const { isAuthenticated } = require('./middleware/auth');
 
 // Import routes
 const authRoutes = require('./routes/auth');
 const nameRequestRoutes = require('./routes/namingRequests');
 const userRoutes = require('./routes/users');
 const healthRoutes = require('./routes/health');
+const formConfigurationRoutes = require('./routes/formConfigurations');
 
 const app = express();
 const httpServer = createServer(app);
@@ -106,10 +108,11 @@ io.on('connection', (socket) => {
 });
 
 // Routes
-app.use('/api/health', healthRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/name-requests', nameRequestRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/v1/health', healthRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/requests', nameRequestRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/form-configurations', formConfigurationRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -45,14 +45,15 @@ import {
   Add as AddIcon
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
-import { fetchRequestById, exportToPDF } from './requestsSlice';
+import { fetchRequestById, updateRequest, exportToPDF } from '../features/requests/requestsSlice';
 
 const statusIcons = {
   'pending': <PendingIcon />,
   'approved': <CheckCircleIcon />,
   'rejected': <CloseIcon />,
   'in_review': <InReviewIcon />,
-  'draft': <DescriptionIcon />
+  'draft': <DescriptionIcon />,
+  'needs_information': <InfoIcon />,
 };
 
 const statusLabels = {
@@ -60,7 +61,8 @@ const statusLabels = {
   'approved': 'Approved',
   'rejected': 'Rejected',
   'in_review': 'In Review',
-  'draft': 'Draft'
+  'draft': 'Draft',
+  'needs_information': 'Needs Information',
 };
 
 const statusColors = {
@@ -68,7 +70,8 @@ const statusColors = {
   'approved': 'success',
   'rejected': 'error',
   'in_review': 'info',
-  'draft': 'default'
+  'draft': 'default',
+  'needs_information': 'warning',
 };
 
 const RequestDetails = () => {
@@ -193,6 +196,11 @@ const RequestDetails = () => {
   const handleDelete = () => {
     // TODO: Implement delete functionality with confirmation dialog
     console.log('Delete request:', currentRequest?.id);
+  };
+
+  // Handle status update
+  const handleStatusUpdate = (status) => {
+    dispatch(updateRequest({ id, data: { status } }));
   };
 
   // Show loading state
@@ -320,6 +328,30 @@ const RequestDetails = () => {
               >
                 Resubmit
               </Button>
+            )}
+            {requestStatus === 'pending' && (
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={() => handleStatusUpdate('approved')}
+                >
+                  Approve
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={() => handleStatusUpdate('rejected')}
+                >
+                  Reject
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => handleStatusUpdate('needs_information')}
+                >
+                  Request More Information
+                </Button>
+              </Box>
             )}
           </Box>
         </Box>

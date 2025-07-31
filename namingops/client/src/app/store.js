@@ -6,6 +6,8 @@ import { thunk } from 'redux-thunk';
 import namingReducer from '../features/naming/namingSlice';
 import authReducer from '../features/auth/authSlice';
 import reviewReducer from '../features/review/reviewSlice';
+import requestsReducer from '../features/requests/requestsSlice';
+import formConfigReducer from '../features/admin/formConfigSlice'; // Import the new reducer
 import { errorMiddleware } from '../middleware/errorMiddleware';
 
 // Configuration for persisting the Redux store
@@ -21,6 +23,8 @@ const rootReducer = combineReducers({
   naming: namingReducer,
   auth: authReducer,
   review: reviewReducer,
+  requests: requestsReducer,
+  formConfig: formConfigReducer, // Add the new reducer to the store
   // Add other reducers here
 });
 
@@ -67,6 +71,8 @@ export const persistor = persistStore(store);
 export const selectNamingState = (state) => state.naming;
 export const selectAuthState = (state) => state.auth;
 export const selectReviewState = (state) => state.review;
+export const selectRequestsState = (state) => state.requests;
+export const selectFormConfigState = (state) => state.formConfig; // Add a new utility selector
 
 // Re-export slice actions for easier imports
 export * from '../features/naming/namingSlice';
