@@ -100,38 +100,205 @@ const CombinedLayout = () => {
   // Get auth state from Redux
   const { user } = useSelector((state) => state.auth);
   const currentRole = user?.role || 'submitter';
+  const { activeFormConfig, loading: formConfigLoading } = useSelector((state) => state.formConfig);
   
-  // Get form config state from Redux
-  const { 
-    formConfigs, 
-    activeFormConfig, 
-    loading: formConfigLoading, 
-    error: formConfigError 
-  } = useSelector((state) => state.formConfig);
+  // State for mobile drawer and UI
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
   
-  // Get naming request state from Redux
+  // Navigation items based on role
+  const navItems = useMemo(() => {
+    const items = [
+      { 
+        text: 'Dashboard', 
+        icon: <DashboardIcon />, 
+        path: '/dashboard',
+        view: 'dashboard',
+        roles: ['admin', 'reviewer', 'submitter']
+      },
+      { 
+        text: 'Submit Request', 
+        icon: <AddIcon />, 
+        path: '/submit-request',
+        view: 'submit-request',
+        roles: ['admin', 'submitter']
+      },
+      { 
+        text: 'My Requests', 
+        icon: <SubmitterIcon />, 
+        path: '/my-requests',
+        view: 'my-requests',
+        roles: ['admin', 'submitter', 'reviewer']
+      },
+      { 
+        text: 'Review Queue', 
+        icon: <ReviewerIcon />, 
+        path: '/review-queue',
+        view: 'review-queue',
+        roles: ['admin', 'reviewer']
+      },
+    ];
+    
+    // Add admin menu if user is admin
+    if (currentRole === 'admin') {
+      items.push(
+        { 
+          text: 'Admin', 
+          icon: <AdminIcon />, 
+          path: '/admin',
+          view: 'admin',
+          roles: ['admin'],
+          children: [
+            { 
+              text: 'Form Configuration', 
+              icon: <SettingsIcon />, 
+              path: '/admin/form-config',
+              view: 'form-config',
+              roles: ['admin']
+            },
+            { 
+              text: 'User Management', 
+              icon: <PeopleIcon />, 
+              path: '/admin/users',
+              view: 'users',
+              roles: ['admin']
+            },
+            { 
+              text: 'System Settings', 
+              icon: <TuneIcon />, 
+              path: '/admin/settings',
+              view: 'settings',
+              roles: ['admin']
+            }
+          ]
+        }
+      );
+    }
+    
+    // Add archive for all roles
+    items.push({ 
+      text: 'Archive', 
+      icon: <ArchiveIcon />, 
+      path: '/archive',
+      view: 'archive',
+      roles: ['admin', 'reviewer', 'submitter']
+    });
+    
+    return items.filter(item => item.roles.includes(currentRole));
+  }, [currentRole]);
+  
+  // Check if view is allowed for current role
+  const isViewAllowed = (view) => {
+    switch (view) {
+      case 'submit-request':
+        return ['admin', 'submitter'].includes(currentRole);
+      case 'review-queue':
+        return ['admin', 'reviewer'].includes(currentRole);
+      case 'admin':
+        return currentRole === 'admin';
+      default:
+        return true; // Dashboard is always allowed
+    }
+  };
+
+  // Handle navigation
+  const handleNavigation = useCallback((view) => {
+    if (isViewAllowed(view)) {
+      setActiveView(view);
+      const targetPath = navItems.find(item => item.view === view)?.path || '/';
+      navigate(targetPath);
+    }
+  }, [navigate, navItems, isViewAllowed]);
+
+  // Toggle mobile drawer
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+  
+  // Toggle admin menu
+  const handleAdminMenuToggle = () => {
+    setAdminMenuOpen(!adminMenuOpen);
+  };
+  
+  // Handle role switching (development only)
+  const handleRoleSwitch = (role) => {
+    if (isDevelopment) {
+      dispatch(switchRole(role));
+      setSnackbarMessage(`Switched to ${role} role`);
+      setSnackbarOpen(true);
+      
+      // If switching to a role that doesn't have access to current path, redirect to dashboard
+      const currentPath = location.pathname;
+      const currentNavItem = navItems.find(item => 
+        item.path === currentPath || 
+        (item.children && item.children.some(child => child.path === currentPath))
+      );
+      
+      if (!currentNavItem) {
+        navigate('/dashboard');
+      }
+    }
+  };
+  
+  // Close snackbar
+  const handleCloseSnackbar = () => {
+    setSnackbarOpen(false);
+  };
+  
+  // Load active form config on mount
+  useEffect(() => {
+    if (!activeFormConfig && !formConfigLoading) {
+      dispatch(fetchActiveFormConfig());
+    }
+  }, [dispatch, activeFormConfig, formConfigLoading]);
+  
+  // Get form config and naming request state from Redux
+  const { formConfigs, error: formConfigError } = useSelector((state) => state.formConfig);
   const { loading, error } = useSelector((state) => state.naming);
   
-  // Local state
-  const [mobileOpen, setMobileOpen] = useState(false);
+  // Local UI state
   const [activeView, setActiveView] = useState('dashboard');
   const [expanded, setExpanded] = useState({});
   const [roleAnchorEl, setRoleAnchorEl] = useState(null);
-  const [openSnackbar, setOpenSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('info');
   
-  // Form handling with react-hook-form
-  const formMethods = useForm({
-    defaultValues: {
+  // Form handling with react-hook-form - Initialize with default values from Redux
+  const getDefaultFormValues = useCallback(() => {
+    const defaultValues = {
       title: '',
       description: '',
       proposedNames: [{ name: '', description: '' }],
       metadata: { keywords: [] },
       dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
       priority: 'medium',
-    },
+    };
+
+    // Add default values for any additional fields from the active form config
+    if (activeFormConfig?.fields) {
+      activeFormConfig.fields.forEach(field => {
+        if (field.name && field.defaultValue !== undefined) {
+          defaultValues[field.name] = field.defaultValue;
+        }
+      });
+    }
+
+    return defaultValues;
+  }, [activeFormConfig]);
+
+  const formMethods = useForm({
+    defaultValues: getDefaultFormValues(),
+    mode: 'onChange',
+    reValidateMode: 'onChange'
   });
+  
+  // Reset form when activeFormConfig changes
+  useEffect(() => {
+    if (activeFormConfig) {
+      formMethods.reset(getDefaultFormValues());
+    }
+  }, [activeFormConfig, formMethods, getDefaultFormValues]);
 
   const { 
     control, 
@@ -195,37 +362,37 @@ const CombinedLayout = () => {
     console.log('Current user role:', user?.role);
   }, [user?.role]);
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+  // Handle role menu interactions
+  const handleRoleMenuOpen = (event) => {
+    if (isDevelopment) {
+      setRoleAnchorEl(event.currentTarget);
+    }
   };
 
-  const handleRoleMenu = (event) => {
-    setRoleAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAccountAnchorEl(null);
+  const handleRoleMenuClose = () => {
     setRoleAnchorEl(null);
   };
 
-  const handleRoleChange = useCallback(
-    (newRole) => {
-      if (isDevelopment) {
-        dispatch(switchRole({ role: newRole }));
-        // Close the menu after selection
-        handleClose();
-        
-        // Show feedback
-        setSnackbarMessage(`Switched to ${newRole} role`);
-        setSnackbarSeverity('success');
-        setOpenSnackbar(true);
-      }
-    },
-    [dispatch, isDevelopment]
-  );
+  const handleRoleChange = useCallback((newRole) => {
+    if (isDevelopment) {
+      dispatch(switchRole({ role: newRole }));
+      handleRoleMenuClose();
+      
+      // Show a brief notification about the role change
+      setSnackbarMessage(`Switched to ${newRole} role`);
+      setSnackbarSeverity('info');
+      setSnackbarOpen(true);
+    }
+  }, [dispatch, isDevelopment]);
 
+  // Handle form submission
   const onSubmit = async (formData) => {
     try {
+      if (!activeFormConfig) {
+        throw new Error('Form configuration not loaded. Please try again.');
+      }
+
+      // Create a clean request object based on the active form config
       const requestData = {
         title: formData.title?.trim() || 'Untitled Request',
         description: formData.description?.trim() || 'No description provided',
@@ -240,42 +407,59 @@ const CombinedLayout = () => {
         status: 'pending',
         createdBy: user?.id || 'anonymous',
         createdAt: new Date().toISOString(),
-        formConfigId: activeFormConfig?._id || 'default-config',
-        formConfigName: activeFormConfig?.name || 'Default Form',
+        formConfigId: activeFormConfig._id,
+        formConfigName: activeFormConfig.name,
+        formConfigVersion: activeFormConfig.version || '1.0.0',
+        // Include any additional fields from the form config
+        ...(activeFormConfig.fields?.reduce((acc, field) => {
+          if (field.name && formData[field.name] !== undefined) {
+            acc[field.name] = formData[field.name];
+          }
+          return acc;
+        }, {})),
       };
 
-      await dispatch(createNamingRequest(requestData));
+      // Dispatch the createNamingRequest action and wait for it to complete
+      const resultAction = await dispatch(createNamingRequest(requestData));
       
-      // Show success message
-      setSnackbarMessage('Request submitted successfully!');
-      setSnackbarSeverity('success');
-      
-      // Reset form
-      reset({
-        title: '',
-        description: '',
-        proposedNames: [{ name: '', description: '' }],
-        priority: 'medium',
-        metadata: { keywords: [] },
-        dueDate: ''
-      });
-      
-      // Switch to dashboard view
-      setActiveView('dashboard');
+      if (createNamingRequest.fulfilled.match(resultAction)) {
+        // Show success message
+        setSnackbarMessage('Request submitted successfully!');
+        setSnackbarSeverity('success');
+        
+        // Reset form to default values
+        const defaultValues = {
+          title: '',
+          description: '',
+          proposedNames: [{ name: '', description: '' }],
+          priority: 'medium',
+          metadata: { keywords: [] },
+          dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+          // Reset any additional fields from the form config
+          ...(activeFormConfig.fields?.reduce((acc, field) => {
+            acc[field.name] = field.defaultValue || '';
+            return acc;
+          }, {})),
+        };
+        
+        reset(defaultValues);
+        
+        // Navigate to the dashboard or my-requests view
+        navigate('/my-requests');
+      } else {
+        throw new Error(resultAction.error?.message || 'Failed to submit request');
+      }
       
     } catch (error) {
       console.error('Error submitting request:', error);
-      setSnackbarMessage(error.message || 'Failed to submit request');
+      setSnackbarMessage(error.message || 'An error occurred while submitting the request');
       setSnackbarSeverity('error');
     } finally {
-      setOpenSnackbar(true);
+      setSnackbarOpen(true);
     }
   };
 
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
-
+  // Handle accordion expansion
   const handleExpand = (menu) => {
     setExpanded((prev) => ({
       ...prev,
@@ -283,8 +467,7 @@ const CombinedLayout = () => {
     }));
   };
 
-
-
+  // Handle proposed names management
   const handleAddProposedName = () => {
     setValue('proposedNames', [...proposedNames, { name: '', description: '' }]);
   };
@@ -313,97 +496,6 @@ const CombinedLayout = () => {
     const updatedKeywords = metadata.keywords.filter((keyword) => keyword !== keywordToRemove);
     setValue('metadata.keywords', updatedKeywords);
   };
-
-  // Check if view is allowed for current role
-  const isViewAllowed = (view) => {
-    switch (view) {
-      case 'submit-request':
-        return ['admin', 'submitter'].includes(currentRole);
-      case 'review-requests':
-      case 'archive':
-        return ['admin', 'reviewer'].includes(currentRole);
-      case 'admin':
-        return currentRole === 'admin';
-      default:
-        return true; // Dashboard is always allowed
-    }
-  };
-
-  // Handle navigation
-  const handleNavigation = (view) => {
-    if (isViewAllowed(view)) {
-      setActiveView(view);
-    } else {
-      setActiveView('dashboard');
-    }
-  };
-
-  // Navigation items based on user role
-  const navItems = useMemo(() => {
-    const baseItems = [
-      {
-        text: 'Dashboard',
-        icon: <DashboardIcon />,
-        path: '/',
-        action: () => setActiveView('dashboard'),
-        show: true, // All roles can see dashboard
-      },
-      {
-        text: 'Submit Request',
-        icon: <AddIcon />,
-        path: '/submit-request',
-        action: () => setActiveView('submit-request'),
-        show: ['admin', 'submitter'].includes(currentRole), // Admin and submitters can submit
-      },
-      {
-        text: 'Review Requests',
-        icon: <RateReviewIcon />,
-        path: '/review',
-        action: () => setActiveView('review'),
-        show: ['admin', 'reviewer'].includes(currentRole), // Admin and reviewers can review
-      },
-      {
-        text: 'Archive',
-        icon: <ArchiveIcon />,
-        path: '/archive',
-        action: () => setActiveView('archive'),
-        show: ['admin', 'reviewer'].includes(currentRole), // Admin and reviewers can view archive
-      },
-    ];
-
-    // Admin only items
-    if (currentRole === 'admin') {
-      baseItems.push({
-        text: 'Admin',
-        icon: <AdminIcon />,
-        path: '/admin',
-        action: null,
-        show: true,
-        children: [
-          {
-            text: 'Form Config',
-            path: '/admin/forms',
-            action: () => navigate('/admin/forms'),
-            show: true,
-          },
-          {
-            text: 'Manage Users',
-            path: '/admin/users',
-            action: () => navigate('/admin/users'),
-            show: true,
-          },
-          {
-            text: 'System Settings',
-            path: '/admin/settings',
-            action: () => navigate('/admin/settings'),
-            show: true,
-          },
-        ],
-      });
-    }
-
-    return baseItems.filter(item => item.show !== false);
-  }, [currentRole, navigate]);
 
   // Render the appropriate content based on the active view
   const renderMainContent = () => {
@@ -691,24 +783,37 @@ const CombinedLayout = () => {
             <Box sx={{ mt: 'auto', p: 2 }}>
               <Divider sx={{ mb: 2 }} />
               <Box sx={{ display: 'flex', alignItems: 'center', p: 1 }}>
-                <Avatar sx={{ width: 40, height: 40, mr: 1 }}>
-                  {user?.name?.[0] || <SubmitterIcon />}
+                <Avatar 
+                  sx={{ 
+                    width: 32, 
+                    height: 32, 
+                    mr: 1,
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    fontSize: '0.875rem',
+                    cursor: isDevelopment ? 'pointer' : 'default'
+                  }}
+                  onClick={isDevelopment ? handleRoleMenu : undefined}
+                >
+                  {currentRole?.[0]?.toUpperCase() || 'U'}
                 </Avatar>
                 <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography noWrap variant="subtitle2">
+                  <Typography noWrap variant="body2" fontWeight="medium">
                     {user?.name || 'User'}
                   </Typography>
-                  <Typography noWrap variant="caption" color="text.secondary">
-                    {currentRole}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Typography noWrap variant="caption" color="text.secondary">
+                      {currentRole}
+                    </Typography>
+                    {isDevelopment && (
+                      <SettingsIcon 
+                        fontSize="small" 
+                        color="action" 
+                        sx={{ fontSize: '0.9em', opacity: 0.7 }}
+                      />
+                    )}
+                  </Box>
                 </Box>
-                {isDevelopment && (
-                  <Tooltip title="Switch Role">
-                    <IconButton size="small" onClick={handleRoleMenu}>
-                      <SettingsIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
               </Box>
             </Box>
           </Box>
@@ -734,35 +839,61 @@ const CombinedLayout = () => {
         </Container>
       </Box>
 
-      {/* Role selection menu */}
-      <Menu
-        anchorEl={roleAnchorEl}
-        open={Boolean(roleAnchorEl)}
-        onClose={handleClose}
-        onClick={handleClose}
-      >
-        <MenuItem onClick={() => handleRoleChange('admin')}>
-          <ListItemIcon>
-            <AdminIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Admin</ListItemText>
-          {currentRole === 'admin' && <Chip size="small" label="Current" />}
-        </MenuItem>
-        <MenuItem onClick={() => handleRoleChange('reviewer')}>
-          <ListItemIcon>
-            <ReviewerIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Reviewer</ListItemText>
-          {currentRole === 'reviewer' && <Chip size="small" label="Current" />}
-        </MenuItem>
-        <MenuItem onClick={() => handleRoleChange('submitter')}>
-          <ListItemIcon>
-            <SubmitterIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>Submitter</ListItemText>
-          {currentRole === 'submitter' && <Chip size="small" label="Current" />}
-        </MenuItem>
-      </Menu>
+      {/* Role selection menu - Only visible in development */}
+      {isDevelopment && (
+        <Menu
+          anchorEl={roleAnchorEl}
+          open={Boolean(roleAnchorEl)}
+          onClose={handleClose}
+          onClick={handleClose}
+          PaperProps={{
+            sx: {
+              mt: 1,
+              minWidth: 180,
+              boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)',
+              border: '1px solid rgba(0,0,0,0.05)'
+            }
+          }}
+          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        >
+          <Typography variant="caption" color="text.secondary" sx={{ px: 2, pt: 1, pb: 0.5, display: 'block' }}>
+            Development Role
+          </Typography>
+          <Divider sx={{ my: 0.5 }} />
+          {['admin', 'reviewer', 'submitter'].map((role) => (
+            <MenuItem 
+              key={role}
+              onClick={() => handleRoleChange(role)}
+              sx={{
+                py: 0.75,
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                }
+              }}
+            >
+              <Box sx={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%',
+                bgcolor: currentRole === role ? 'primary.main' : 'transparent',
+                border: currentRole === role ? 'none' : '1px solid',
+                borderColor: 'divider',
+                mr: 1.5,
+                flexShrink: 0
+              }} />
+              <ListItemText 
+                primary={role.charAt(0).toUpperCase() + role.slice(1)}
+                primaryTypographyProps={{
+                  variant: 'body2',
+                  color: currentRole === role ? 'text.primary' : 'text.secondary',
+                  fontWeight: currentRole === role ? 500 : 400
+                }}
+              />
+            </MenuItem>
+          ))}
+        </Menu>
+      )}
 
       {/* Snackbar for notifications */}
       <Snackbar

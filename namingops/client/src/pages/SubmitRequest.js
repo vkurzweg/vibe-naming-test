@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { createNamingRequest } from '../features/naming/namingSlice';
-import { fetchActiveFormConfig } from '../features/admin/formConfigSlice';
+import { loadActiveFormConfig } from '../features/admin/formConfigSlice';
 import { createRequest } from '../features/requests/requestsSlice';
 import DynamicFormField from '../features/requests/DynamicFormField';
 
@@ -90,7 +90,7 @@ const SubmitRequest = () => {
     const loadFormConfig = async () => {
       try {
         console.log('Loading form configuration...');
-        const resultAction = await dispatch(fetchActiveFormConfig());
+        const resultAction = await dispatch(loadActiveFormConfig());
         const config = resultAction.payload;
         
         if (config) {
@@ -143,7 +143,7 @@ const SubmitRequest = () => {
     if (process.env.NODE_ENV === 'development') {
       const intervalId = setInterval(() => {
         console.log('Checking for form config updates...');
-        dispatch(fetchActiveFormConfig());
+        dispatch(loadActiveFormConfig());
       }, 15000); // Check every 15 seconds
       
       return () => clearInterval(intervalId);
@@ -270,7 +270,7 @@ const SubmitRequest = () => {
   };
 
   const handleRefreshConfig = () => {
-    dispatch(fetchActiveFormConfig());
+    dispatch(loadActiveFormConfig());
   };
 
   if (formConfigLoading && !activeFormConfig) {

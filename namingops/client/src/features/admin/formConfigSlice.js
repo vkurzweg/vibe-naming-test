@@ -1,13 +1,32 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import api from '../../services/api';
+import { format } from 'date-fns';
 
 const initialState = {
-  formConfigs: [], // Ensure this is always an array
+  formConfigs: [],
   activeFormConfig: null,
   loading: false,
   error: null,
   lastUpdated: null,
+  lastFetched: null,
+  isInitialized: false,
 };
+
+// Selectors
+export const selectFormConfigState = (state) => state.formConfig;
+
+export const selectFormConfigs = createSelector(
+  [selectFormConfigState],
+  (formConfig) => formConfig.formConfigs
+);
+
+export const selectActiveFormConfig = createSelector(
+  [selectFormConfigState],
+  (formConfig) => formConfig.activeFormConfig
+);
+
+export const selectFormConfigById = (state, configId) =>
+  state.formConfig.formConfigs.find(config => config.id === configId);
 
 // Helper function to create a serializable error object
 const createSerializableError = (error) => {
@@ -52,126 +71,68 @@ const createSerializableError = (error) => {
 };
 
 // Async Thunks
+export const initializeFormConfig = createAsyncThunk(
+  'formConfig/initialize',
+  async (_, { dispatch, getState, rejectWithValue }) => {
+    try {
+      const { isInitialized, lastFetched } = getState().formConfig;
+      
+      // Only fetch if not initialized or data is older than 5 minutes
+      if (!isInitialized || !lastFetched || (Date.now() - new Date(lastFetched).getTime() > 5 * 60 * 1000)) {
+        await dispatch(fetchFormConfigurations()).unwrap();
+        await dispatch(loadActiveFormConfig()).unwrap();
+      }
+      
+      return true;
+    } catch (error) {
+      return rejectWithValue(createSerializableError(error));
+    }
+  }
+);
+
 export const fetchFormConfigurations = createAsyncThunk(
   'formConfig/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      console.log('Fetching all form configurations...');
       const response = await api.get('/v1/form-configurations');
-      console.log('Form configurations fetched successfully:', response.data);
-      
-      // Ensure we always return an array, even if the response is empty or not an array
-      const configs = Array.isArray(response.data) ? response.data : [];
-      return configs.length > 0 ? configs : [];
-    } catch (error) {
-      console.error('Error fetching form configurations:', error);
-      
-      // In development, return a default config if the request fails
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Development: Using default form configuration due to error');
-        return [{
-          _id: 'default-dev-config',
-          name: 'Default Development Form',
-          description: 'Default form configuration for development',
-          isActive: true,
-          fields: [
-            {
-              _id: '1',
-              name: 'requestTitle',
-              label: 'Request Title',
-              fieldType: 'text',
-              required: true
-            },
-            {
-              _id: '2',
-              name: 'description',
-              label: 'Description',
-              fieldType: 'textarea',
-              required: true
-            }
-          ]
-        }];
-      }
-      
-      return rejectWithValue(createSerializableError(error));
-    }
-  }
-);
-
-export const fetchActiveFormConfig = createAsyncThunk(
-  'formConfig/fetchActive',
-  async (_, { rejectWithValue, getState }) => {
-    try {
-      const state = getState();
-      const userRole = state.auth.user?.role || 'submitter';
-      
-      console.log(`Fetching active form config for role: ${userRole}`);
-      
-      // Add a timestamp to prevent caching
-      const timestamp = new Date().getTime();
-      const url = `/v1/form-configurations/active?role=${userRole}&_t=${timestamp}`;
-      
-      console.log('Making request to:', url);
-      const response = await api.get(url);
-      console.log('Active form config fetched successfully:', response.data);
-      
-      if (!response.data) {
-        throw new Error('No active form configuration found');
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching active form configuration:', error);
-      
-      // In development, return a default config if the request fails
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Development: Using default form configuration due to error');
-        return {
-          _id: 'default-dev-config',
-          name: 'Default Development Form',
-          description: 'Default form configuration for development',
-          isActive: true,
-          fields: [
-            {
-              _id: '1',
-              name: 'requestTitle',
-              label: 'Request Title',
-              fieldType: 'text',
-              required: true
-            },
-            {
-              _id: '2',
-              name: 'description',
-              label: 'Description',
-              fieldType: 'textarea',
-              required: true
-            }
-          ]
-        };
-      }
-      
-      return rejectWithValue(createSerializableError(error));
-    }
-  }
-);
-
-export const createFormConfiguration = createAsyncThunk(
-  'formConfig/create',
-  async (formData, { rejectWithValue }) => {
-    try {
-      const response = await api.post('/v1/form-configurations', formData);
-      return response.data;
+      return response.data || [];
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
     }
   }
 );
 
-export const updateFormConfiguration = createAsyncThunk(
-  'formConfig/update',
-  async ({ id, formData }, { rejectWithValue }) => {
+export const loadActiveFormConfig = createAsyncThunk(
+  'formConfig/loadActive',
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await api.put(`/v1/form-configurations/${id}`, formData);
+      const response = await api.get('/v1/form-configurations/active');
+      return response.data || null;
+    } catch (error) {
+      if (error.response?.status === 404) {
+        return null; // No active config is not an error
+      }
+      return rejectWithValue(createSerializableError(error));
+    }
+  }
+);
+
+export const saveFormConfiguration = createAsyncThunk(
+  'formConfig/save',
+  async (formData, { rejectWithValue, dispatch }) => {
+    try {
+      const method = formData.id ? 'put' : 'post';
+      const url = formData.id 
+        ? `/v1/form-configurations/${formData.id}`
+        : '/v1/form-configurations';
+      
+      const response = await api[method](url, formData);
+      
+      // If this is being set as active, update the active config
+      if (formData.isActive) {
+        await dispatch(loadActiveFormConfig());
+      }
+      
       return response.data;
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
@@ -198,83 +159,104 @@ const formConfigSlice = createSlice({
     clearFormConfigError: (state) => {
       state.error = null;
     },
+    setActiveFormConfig: (state, action) => {
+      state.activeFormConfig = action.payload;
+    },
+    resetFormConfigState: () => initialState,
   },
   extraReducers: (builder) => {
-    // Handle fetchFormConfigurations
-    builder
-      .addCase(fetchFormConfigurations.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchFormConfigurations.fulfilled, (state, action) => {
-        state.loading = false;
-        // Ensure we're setting an array, even if the payload is undefined or null
-        state.formConfigs = Array.isArray(action.payload) ? action.payload : [];
-        state.lastUpdated = new Date().toISOString();
-      })
-      .addCase(fetchFormConfigurations.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      
-      // Handle fetchActiveFormConfig
-      .addCase(fetchActiveFormConfig.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(fetchActiveFormConfig.fulfilled, (state, action) => {
-        state.loading = false;
+    // Initialize form config
+    builder.addCase(initializeFormConfig.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(initializeFormConfig.fulfilled, (state) => {
+      state.loading = false;
+      state.isInitialized = true;
+      state.lastFetched = new Date().toISOString();
+    });
+    builder.addCase(initializeFormConfig.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload || 'Failed to initialize form configuration';
+    });
+    
+    // Load active form config
+    builder.addCase(loadActiveFormConfig.fulfilled, (state, action) => {
+      if (action.payload) {
         state.activeFormConfig = action.payload;
         state.lastUpdated = new Date().toISOString();
-      })
-      .addCase(fetchActiveFormConfig.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      }
+    });
+    
+    // Handle fetchFormConfigurations
+    builder.addCase(fetchFormConfigurations.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchFormConfigurations.fulfilled, (state, action) => {
+      state.loading = false;
+      state.formConfigs = action.payload || [];
+      state.lastFetched = new Date().toISOString();
+    });
+    builder.addCase(fetchFormConfigurations.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload || 'Failed to fetch form configurations';
+    });
+    
+    // Handle saveFormConfiguration
+    builder.addCase(saveFormConfiguration.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(saveFormConfiguration.fulfilled, (state, action) => {
+      state.loading = false;
+      const updatedConfig = action.payload;
+      const existingIndex = state.formConfigs.findIndex(c => c.id === updatedConfig.id);
       
-      // Create configuration
-      .addCase(createFormConfiguration.fulfilled, (state, action) => {
-        state.formConfigs.unshift(action.payload);
-      })
+      if (existingIndex >= 0) {
+        state.formConfigs[existingIndex] = updatedConfig;
+      } else {
+        state.formConfigs.push(updatedConfig);
+      }
       
-      // Update configuration
-      .addCase(updateFormConfiguration.pending, (state) => {
-        console.log('Updating form configuration...');
-      })
-      .addCase(updateFormConfiguration.fulfilled, (state, action) => {
-        const updatedConfig = action.payload;
-        console.log('Successfully updated form config:', updatedConfig);
-        
-        // Update in formConfigs array
-        const index = state.formConfigs.findIndex(
-          (config) => config._id === updatedConfig._id
-        );
-        if (index !== -1) {
-          state.formConfigs[index] = updatedConfig;
-        } else {
-          // If it's a new config, add it to the array
-          state.formConfigs.push(updatedConfig);
-        }
-        
-        // If this is the active config, update it
-        if (!state.activeFormConfig || state.activeFormConfig._id === updatedConfig._id) {
-          console.log('Updating active form config with new data');
-          state.activeFormConfig = updatedConfig;
-        }
-      })
-      .addCase(updateFormConfiguration.rejected, (state, action) => {
-        console.error('Error updating form config:', action.payload);
-      })
+      if (state.activeFormConfig?.id === updatedConfig.id) {
+        state.activeFormConfig = updatedConfig;
+      }
       
-      // Delete configuration
-      .addCase(deleteFormConfiguration.fulfilled, (state, action) => {
-        state.formConfigs = state.formConfigs.filter(
-          (config) => config._id !== action.payload
-        );
-      });
+      state.lastUpdated = new Date().toISOString();
+    });
+    builder.addCase(saveFormConfiguration.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload || 'Failed to save form configuration';
+    });
+    
+    // Handle deleteFormConfiguration
+    builder.addCase(deleteFormConfiguration.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(deleteFormConfiguration.fulfilled, (state, action) => {
+      state.loading = false;
+      const configId = action.payload;
+      state.formConfigs = state.formConfigs.filter(c => c.id !== configId);
+      
+      if (state.activeFormConfig?.id === configId) {
+        state.activeFormConfig = null;
+      }
+      
+      state.lastUpdated = new Date().toISOString();
+    });
+    builder.addCase(deleteFormConfiguration.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload || 'Failed to delete form configuration';
+    });
   },
 });
 
-export const { clearFormConfigError } = formConfigSlice.actions;
+export const { 
+  clearFormConfigError, 
+  setActiveFormConfig,
+  resetFormConfigState 
+} = formConfigSlice.actions;
 
 export default formConfigSlice.reducer;

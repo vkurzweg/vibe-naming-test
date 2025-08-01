@@ -19,6 +19,9 @@ import Dashboard from './pages/Dashboard';
 import SubmitRequest from './pages/SubmitRequest';
 import NotFound from './pages/NotFound';
 import Archive from './pages/Archive';
+import FormConfigPage from './pages/FormConfigPage';
+import UsersPage from './pages/UsersPage';
+import ReviewQueue from './pages/ReviewQueue';
 
 // Features
 import MyRequests from './features/requests/MyRequests';
@@ -57,45 +60,79 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
 function App() {
   return (
-   <ThemeProvider theme={theme}>
+    <ThemeProvider theme={theme}>
       <CssBaseline />
-        <Routes>
-          {/* Auth Routes */}
-          <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
+      <Routes>
+        {/* Auth Routes */}
+        <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
+        <Route path="/unauthorized" element={<div>Unauthorized - You don't have permission to view this page</div>} />
+        
+        {/* Protected Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Dashboard />} />
           
-          {/* Protected Routes */}
-          <Route
-            path="/"
+          {/* Common Routes */}
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="my-requests" element={<MyRequests />} />
+          <Route path="requests/:id" element={<RequestDetails />} />
+          
+          {/* Submitter Routes */}
+          <Route 
+            path="submit-request" 
             element={
-              <ProtectedRoute>
-                <MainLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="requests/my-requests" element={<MyRequests />} />
-            <Route path="requests/:id" element={<RequestDetails />} />
-            <Route path="submit-request" element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="submitter">
                 <SubmitRequest />
               </ProtectedRoute>
-            } /> 
-            <Route path="requests/:id" element={
-              <ProtectedRoute>
-                <RequestDetails />
-              </ProtectedRoute>
-            } /> 
-            <Route path="archive" element={
-              <ProtectedRoute>
-                <Archive />
-              </ProtectedRoute>
-            } /> 
-            {/* Add more protected routes here */}
+            } 
+          />
+          
+          {/* Admin Routes */}
+          <Route path="admin">
+            <Route 
+              path="form-config" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <FormConfigPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="users" 
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <UsersPage />
+                </ProtectedRoute>
+              } 
+            />
           </Route>
           
-          {/* 404 Route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+          {/* Reviewer Routes */}
+          <Route 
+            path="review-queue" 
+            element={
+              <ProtectedRoute requiredRole={['admin', 'reviewer']}>
+                <ReviewQueue />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Archive - Accessible to all authenticated users */}
+          <Route path="archive" element={<Archive />} />
+          
+          {/* 404 for any undefined routes under / */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+        
+        {/* Catch-all 404 Route */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </ThemeProvider>
   );
 }
