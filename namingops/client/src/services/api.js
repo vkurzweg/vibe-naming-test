@@ -1,14 +1,14 @@
 import axios from 'axios';
 
-// Base URL with /api included
+// Base URL with /api/v1 included
 const API_URL = process.env.REACT_APP_API_URL 
   ? process.env.REACT_APP_API_URL.replace(/\/+$/, '')
   : 'http://localhost:5000';
 
-// Ensure the URL ends with /api
-const BASE_URL = API_URL.endsWith('/api') 
+// Ensure the URL ends with /api/v1
+const BASE_URL = API_URL.endsWith('/api/v1')
   ? API_URL 
-  : `${API_URL}/api`;
+  : `${API_URL}/api/v1`;
 
 // Development mode setup
 const isDevelopment = process.env.NODE_ENV === 'development';

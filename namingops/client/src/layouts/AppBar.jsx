@@ -117,8 +117,8 @@ const AppBar = () => {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Role Switcher (Development Only) */}
-          {isDevelopment && (
+          {/* Role Switcher - Always visible for now */}
+          {true && (
             <>
               <Tooltip title="Switch Role">
                 <Chip
