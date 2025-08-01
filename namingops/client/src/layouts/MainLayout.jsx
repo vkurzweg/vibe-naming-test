@@ -1,36 +1,26 @@
 import React from 'react';
-import { Box, CssBaseline, Container, Toolbar } from '@mui/material';
+import { Box, CssBaseline, Container, Toolbar, useTheme } from '@mui/material';
 import { Outlet } from 'react-router-dom';
 import AppBar from './AppBar';
-import Sidebar from './Sidebar';
 
 const MainLayout = () => {
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
+  const theme = useTheme();
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <CssBaseline />
-      <AppBar handleDrawerToggle={handleDrawerToggle} />
-      <Sidebar mobileOpen={mobileOpen} handleDrawerToggle={handleDrawerToggle} />
+      <AppBar />
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - 240px)` },
-          minHeight: '100vh',
-          backgroundColor: (theme) =>
-            theme.palette.mode === 'light'
-              ? theme.palette.grey[100]
-              : theme.palette.grey[900],
+          width: '100%',
+          backgroundColor: theme.palette.background.default,
+          p: { xs: 2, sm: 3 },
+          pt: { xs: 8, sm: 10 },
         }}
       >
-        <Toolbar />
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth="xl" sx={{ height: '100%' }}>
           <Outlet />
         </Container>
       </Box>

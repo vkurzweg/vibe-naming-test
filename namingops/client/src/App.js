@@ -7,10 +7,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import theme from './theme';
 
-
-
 // Layouts
-import MainLayout from './layouts/MainLayout';
+import CombinedLayout from './layouts/CombinedLayout';
 import AuthLayout from './layouts/AuthLayout';
 
 // Pages
@@ -72,7 +70,7 @@ function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <MainLayout />
+              <CombinedLayout />
             </ProtectedRoute>
           }
         >
