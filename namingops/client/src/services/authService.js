@@ -1,8 +1,48 @@
 import api from './api';
 
+// Development mode mock users
+const devUsers = {
+  admin: {
+    _id: 'dev-admin-123',
+    name: 'Development Admin',
+    email: 'admin@example.com',
+    role: 'admin',
+    token: 'dev-token-123',
+    _isDev: true
+  },
+  reviewer: {
+    _id: 'dev-reviewer-123',
+    name: 'Development Reviewer',
+    email: 'reviewer@example.com',
+    role: 'reviewer',
+    token: 'dev-token-123',
+    _isDev: true
+  },
+  submitter: {
+    _id: 'dev-submitter-123',
+    name: 'Development User',
+    email: 'user@example.com',
+    role: 'submitter',
+    token: 'dev-token-123',
+    _isDev: true
+  }
+};
+
 const authService = {
   // Register user
   register: async (userData) => {
+    if (process.env.NODE_ENV === 'development') {
+      // In development, just return a success response
+      const newUser = { 
+        ...userData, 
+        _id: `dev-${Date.now()}`,
+        _isDev: true
+      };
+      localStorage.setItem('token', 'dev-token-123');
+      localStorage.setItem('user', JSON.stringify(newUser));
+      return { user: newUser, token: 'dev-token-123' };
+    }
+    
     try {
       const response = await api.post('/auth/register', userData);
       if (response.data.token) {
@@ -17,6 +57,14 @@ const authService = {
 
   // Login user
   login: async (credentials) => {
+    if (process.env.NODE_ENV === 'development') {
+      // In development, bypass the actual login and return a mock user
+      const user = devUsers[credentials.role] || devUsers.admin;
+      localStorage.setItem('token', user.token);
+      localStorage.setItem('user', JSON.stringify(user));
+      return { user, token: user.token };
+    }
+    
     try {
       const response = await api.post('/auth/login', credentials);
       if (response.data.token) {
@@ -31,12 +79,44 @@ const authService = {
 
   // Logout user
   logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    if (process.env.NODE_ENV === 'development') {
+      // In development, just clear the local storage
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return Promise.resolve();
+    }
+    
+    // In production, call the actual logout endpoint
+    return api.post('/auth/logout')
+      .finally(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      });
+  },
+
+  // Development-only: Switch roles
+  switchRole: (role) => {
+    if (process.env.NODE_ENV !== 'development') {
+      console.warn('Role switching is only available in development mode');
+      return Promise.reject('Role switching is only available in development mode');
+    }
+    
+    const user = devUsers[role] || devUsers.admin;
+    localStorage.setItem('token', user.token);
+    localStorage.setItem('user', JSON.stringify(user));
+    return Promise.resolve({ user, token: user.token });
   },
 
   // Google login
   googleLogin: async (tokenResponse) => {
+    if (process.env.NODE_ENV === 'development') {
+      // In development, return a mock admin user
+      const user = devUsers.admin;
+      localStorage.setItem('token', user.token);
+      localStorage.setItem('user', JSON.stringify(user));
+      return { user, token: user.token };
+    }
+    
     try {
       const response = await api.post('/auth/google', {
         credential: tokenResponse.credential,

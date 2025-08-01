@@ -66,7 +66,7 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const [expanded, setExpanded] = useState({});
-
+  
   const isActive = (path) => {
     return location.pathname === path;
   };

@@ -2,7 +2,21 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import authService from '../../services/authService';
 
 // Get user from localStorage
-const user = JSON.parse(localStorage.getItem('user'));
+let user = JSON.parse(localStorage.getItem('user'));
+
+// Development mode: Create a default admin user if none exists
+if (process.env.NODE_ENV === 'development' && !user) {
+  user = {
+    id: 'dev-admin-123',
+    name: 'Development Admin',
+    email: 'admin@example.com',
+    role: 'admin',
+    token: 'dev-token-123',
+    _isDev: true
+  };
+  localStorage.setItem('user', JSON.stringify(user));
+  console.log('Development admin user created');
+}
 
 const initialState = {
   user: user || null,
@@ -12,7 +26,6 @@ const initialState = {
   message: '',
 };
 
-// Register user
 // Register user
 export const register = createAsyncThunk(
   'auth/register',
@@ -115,6 +128,20 @@ export const authSlice = createSlice({
       state.isError = false;
       state.message = '';
     },
+    switchRole: (state, action) => {
+      if (process.env.NODE_ENV === 'development') {
+        const { role } = action.payload;
+        state.user = {
+          ...state.user,
+          role,
+          name: `Dev ${role.charAt(0).toUpperCase() + role.slice(1)}`,
+          email: `${role}@example.com`,
+          _isDev: true
+        };
+        // Update localStorage
+        localStorage.setItem('user', JSON.stringify(state.user));
+      }
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -138,7 +165,17 @@ export const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.user = action.payload;
+        // If the payload is a complete user object (from role switcher), use it directly
+        if (action.payload && action.payload._isDev) {
+          state.user = action.payload;
+        } else {
+          // Otherwise, it's a regular login response
+          state.user = action.payload;
+        }
+        // Persist to localStorage in development
+        if (process.env.NODE_ENV === 'development') {
+          localStorage.setItem('user', JSON.stringify(state.user));
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -191,5 +228,5 @@ export const authSlice = createSlice({
   },
 });
 
-export const { reset } = authSlice.actions;
+export const { reset, switchRole } = authSlice.actions;
 export default authSlice.reducer;

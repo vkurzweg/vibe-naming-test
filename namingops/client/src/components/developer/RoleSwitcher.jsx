@@ -14,28 +14,36 @@ import {
   Badge
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { useDeveloperControls, ROLES } from '../../utils/developerMode';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import { useDispatch } from 'react-redux';
+import { login } from '../../features/auth/authSlice';
+import authService from '../../services/authService';
 import DeveloperModeIcon from '@mui/icons-material/DeveloperMode';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
+// Role constants for reference
+const ROLES = {
+  ADMIN: 'admin',
+  REVIEWER: 'reviewer',
+  SUBMITTER: 'submitter'
+};
+
 const RoleSwitcher = () => {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = React.useState(null);
+  const [isRoleSimulation, setIsRoleSimulation] = React.useState(true);
+  const [activeRole, setActiveRole] = React.useState(ROLES.ADMIN);
   const open = Boolean(anchorEl);
   
-  const {
-    isDeveloper,
-    activeRole,
-    isRoleSimulation,
-    availableRoles,
-    setActiveRole,
-    toggleRoleSimulation,
-    resetDeveloperSettings
-  } = useDeveloperControls();
+  // Available roles for switching
+  const availableRoles = [
+    { id: ROLES.ADMIN, label: 'Admin' },
+    { id: ROLES.REVIEWER, label: 'Reviewer' },
+    { id: ROLES.SUBMITTER, label: 'Submitter' }
+  ];
 
   // Don't render in production
-  if (!isDeveloper) return null;
+  if (process.env.NODE_ENV === 'production') return null;
 
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -45,24 +53,40 @@ const RoleSwitcher = () => {
     setAnchorEl(null);
   };
 
-  const handleRoleChange = (role) => {
-    setActiveRole(role);
-    // Close the menu after a short delay to show the selection
-    setTimeout(handleClose, 300);
+  const handleRoleChange = async (role) => {
+    try {
+      console.log('Switching to role:', role);
+      const { user, token } = await authService.switchRole(role);
+      dispatch(login(user));
+      setActiveRole(role);
+      // Close the menu after a short delay to show the selection
+      setTimeout(handleClose, 300);
+      // Force a refresh to ensure all components update
+      window.location.reload();
+    } catch (error) {
+      console.error('Error switching role:', error);
+    }
+  };
+
+  const handleToggleSimulation = () => {
+    const newValue = !isRoleSimulation;
+    setIsRoleSimulation(newValue);
+    // If turning off simulation, reset to admin role
+    if (!newValue) {
+      handleRoleChange(ROLES.ADMIN);
+    }
   };
 
   const handleReset = () => {
-    resetDeveloperSettings();
-    // Force a refresh to apply changes
-    window.location.reload();
+    // Reset to admin role
+    handleRoleChange(ROLES.ADMIN);
   };
 
   // Role display names and colors
   const roleDisplay = {
     [ROLES.ADMIN]: { label: 'Admin', color: theme.palette.error.main },
     [ROLES.REVIEWER]: { label: 'Reviewer', color: theme.palette.warning.main },
-    [ROLES.SUBMITTER]: { label: 'Submitter', color: theme.palette.info.main },
-    [ROLES.DEVELOPER]: { label: 'Developer', color: theme.palette.success.main },
+    [ROLES.SUBMITTER]: { label: 'Submitter', color: theme.palette.info.main }
   };
 
   return (
@@ -115,10 +139,10 @@ const RoleSwitcher = () => {
             <FormControlLabel
               control={
                 <Switch
-                  checked={isRoleSimulation}
-                  onChange={toggleRoleSimulation}
-                  color="primary"
                   size="small"
+                  checked={isRoleSimulation}
+                  onChange={handleToggleSimulation}
+                  color="primary"
                 />
               }
               label={isRoleSimulation ? 'On' : 'Off'}
@@ -139,26 +163,26 @@ const RoleSwitcher = () => {
           </Typography>
           
           <Box display="flex" flexWrap="wrap" gap={1} mb={2}>
-            {availableRoles.map((role) => (
+            {availableRoles.map((roleObj) => (
               <Button
-                key={role}
-                variant={role === activeRole ? 'contained' : 'outlined'}
+                key={roleObj.id}
+                variant={roleObj.id === activeRole ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => handleRoleChange(role)}
+                onClick={() => handleRoleChange(roleObj.id)}
                 disabled={!isRoleSimulation}
-                startIcon={<AccountCircleIcon />}
+                startIcon={<DeveloperModeIcon />}
                 sx={{
                   textTransform: 'none',
-                  backgroundColor: role === activeRole ? `${roleDisplay[role]?.color}22` : 'transparent',
-                  borderColor: role === activeRole ? roleDisplay[role]?.color : 'divider',
-                  color: role === activeRole ? roleDisplay[role]?.color : 'text.primary',
+                  backgroundColor: roleObj.id === activeRole ? `${roleDisplay[roleObj.id]?.color}22` : 'transparent',
+                  borderColor: roleObj.id === activeRole ? roleDisplay[roleObj.id]?.color : 'divider',
+                  color: roleObj.id === activeRole ? roleDisplay[roleObj.id]?.color : 'text.primary',
                   '&:hover': {
-                    borderColor: roleDisplay[role]?.color,
-                    backgroundColor: `${roleDisplay[role]?.color}11`,
+                    borderColor: roleDisplay[roleObj.id]?.color,
+                    backgroundColor: `${roleDisplay[roleObj.id]?.color}11`,
                   },
                 }}
               >
-                {roleDisplay[role]?.label || role}
+                {roleObj.label}
               </Button>
             ))}
           </Box>

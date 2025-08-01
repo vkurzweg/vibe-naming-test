@@ -16,9 +16,7 @@ import AuthLayout from './layouts/AuthLayout';
 // Pages
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import ReviewDashboard from './pages/ReviewDashboard';
 import SubmitRequest from './pages/SubmitRequest';
-import UserDashboard from './pages/UserDashboard';
 import NotFound from './pages/NotFound';
 import Archive from './pages/Archive';
 

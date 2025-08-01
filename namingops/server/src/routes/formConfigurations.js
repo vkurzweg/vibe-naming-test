@@ -8,14 +8,59 @@ const { isAdmin } = require('../middleware/auth');
 // @access  Public
 router.get('/active', async (req, res) => {
   try {
+    console.log('Fetching active form configuration...');
     const formConfig = await FormConfiguration.findOne({ isActive: true });
+    
+    console.log('Active form config query result:', formConfig ? 'Found' : 'Not found');
+    
     if (!formConfig) {
+      console.log('No active form configuration found in database');
+      // For development, return a default config if none is found
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Returning default development form config');
+        return res.json({
+          _id: 'default-dev-config',
+          name: 'Default Development Form',
+          description: 'Default form configuration for development',
+          isActive: true,
+          fields: [
+            {
+              _id: '1',
+              name: 'requestTitle',
+              label: 'Request Title',
+              fieldType: 'text',
+              required: true
+            },
+            {
+              _id: '2',
+              name: 'description',
+              label: 'Description',
+              fieldType: 'textarea',
+              required: true
+            }
+          ],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+      }
       return res.status(404).json({ msg: 'No active form configuration found' });
     }
+    
+    console.log('Returning active form config with fields:', 
+      formConfig.fields?.map(f => ({
+        name: f.name,
+        type: f.fieldType,
+        required: f.required
+      }))
+    );
+    
     res.json(formConfig);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('Error in active form config endpoint:', err);
+    res.status(500).json({ 
+      msg: 'Server Error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 });
 

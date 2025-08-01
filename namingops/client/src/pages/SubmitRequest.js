@@ -25,7 +25,7 @@ import {
   Alert,
   Paper
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { createNamingRequest } from '../features/naming/namingSlice';
 import { fetchActiveFormConfig } from '../features/admin/formConfigSlice';
 import { createRequest } from '../features/requests/requestsSlice';
@@ -34,42 +34,121 @@ import DynamicFormField from '../features/requests/DynamicFormField';
 const SubmitRequest = () => { 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  // Log the entire formConfig state for debugging
+  const formConfigState = useSelector((state) => state.formConfig);
+  console.log('Form Config State:', {
+    activeFormConfig: formConfigState.activeFormConfig,
+    loading: formConfigState.loading,
+    error: formConfigState.error,
+    lastUpdated: formConfigState.lastUpdated,
+    hasFields: formConfigState.activeFormConfig?.fields?.length > 0
+  });
+
+  // Destructure the values we need
   const { activeFormConfig, loading: formConfigLoading, error: formConfigError } = useSelector((state) => state.formConfig);
   const { loading, error } = useSelector((state) => state.naming);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
+  // Initialize form with empty values - the fields will be populated by the form config
+  const defaultValues = {
+    proposedNames: [{ name: '', description: '' }],
+    metadata: {
+      keywords: []
+    },
+    // Set default due date to 1 week from now
+    dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+    // Set default priority
+    priority: 'medium'
+  };
+
   const {
-    register,
     handleSubmit,
-    formState: { errors },
     control,
+    reset,
+    formState: { errors },
     watch,
-    setValue,
-    reset
+    setValue
   } = useForm({
-    defaultValues: {
-      requestTitle: '',
-      description: '',
-      priority: 'medium',
-      dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), // Default to 1 week from now
-      proposedNames: [{ name: '', description: '' }],
-      metadata: {
-        product: '',
-        targetAudience: '',
-        competitors: '',
-        keywords: []
-      }
-    }
+    defaultValues
   });
 
   const proposedNames = watch('proposedNames');
   const metadata = watch('metadata');
 
+  // Add a ref to track if we've already shown the initial loading state
+  const initialLoad = React.useRef(true);
+  const lastFetchedConfigId = React.useRef(null);
+  
+  // Effect to load form configuration
   useEffect(() => {
-    dispatch(fetchActiveFormConfig());
-  }, [dispatch]);
+    // Reset the last fetched ID when the component mounts or when the role changes
+    lastFetchedConfigId.current = null;
+    initialLoad.current = true;
+    
+    const loadFormConfig = async () => {
+      try {
+        console.log('Loading form configuration...');
+        const resultAction = await dispatch(fetchActiveFormConfig());
+        const config = resultAction.payload;
+        
+        if (config) {
+          console.log('Form configuration loaded:', {
+            id: config._id,
+            name: config.name,
+            fields: config.fields?.length || 0
+          });
+          
+          if (config._id !== lastFetchedConfigId.current) {
+            console.log('New form configuration detected, updating...');
+            lastFetchedConfigId.current = config._id;
+            
+            // Reset the form with new default values when a new config is loaded
+            const defaultValues = {
+              proposedNames: [{ name: '', description: '' }],
+              metadata: {
+                keywords: []
+              },
+              // Set default due date to 1 week from now
+              dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+              // Set default priority
+              priority: 'medium'
+            };
+            console.log('Resetting form with default values:', defaultValues);
+            reset(defaultValues);
+            
+            // Show a message to the user that the form has been updated
+            if (!initialLoad.current) {
+              setSnackbarMessage(`Loaded form: ${config.name}`);
+              setSnackbarSeverity('info');
+              setOpenSnackbar(true);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading form configuration:', error);
+        setSnackbarMessage('Failed to load form configuration');
+        setSnackbarSeverity('error');
+        setOpenSnackbar(true);
+      } finally {
+        initialLoad.current = false;
+      }
+    };
+    
+    // Always load the form config when the component mounts or when the role changes
+    loadFormConfig();
+    
+    // Set up an interval to periodically check for form config updates in development
+    if (process.env.NODE_ENV === 'development') {
+      const intervalId = setInterval(() => {
+        console.log('Checking for form config updates...');
+        dispatch(fetchActiveFormConfig());
+      }, 15000); // Check every 15 seconds
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [dispatch, reset]); // Reset when lastUpdated changes or when component mounts
 
   const handleAddProposedName = () => {
     setValue('proposedNames', [...proposedNames, { name: '', description: '' }]);
@@ -100,70 +179,88 @@ const SubmitRequest = () => {
     setValue('metadata.keywords', updatedKeywords);
   };
 
-  const onSubmit = async (data) => {
-    console.log('Form submitted with data:', data);
+  const onSubmit = async (formData) => {
+    console.log('Form submitted with data:', formData);
     
     try {
-      // Format the data for the API
+      // Get all field values from the form data
+      const fieldValues = {};
+      if (activeFormConfig?.fields) {
+        activeFormConfig.fields.forEach(field => {
+          fieldValues[field.name] = formData[field.name] || '';
+        });
+      }
+
+      // Prepare the request data according to the server's expected format
       const requestData = {
-        ...data,
-        proposedNames: data.proposedNames.filter(name => name.name.trim() !== ''),
-        metadata: {
-          ...data.metadata,
-          keywords: data.metadata.keywords || [],
-          competitors: data.metadata.competitors
-            ? data.metadata.competitors.split(',').map(s => s.trim()).filter(Boolean)
-            : []
-        },
-        // Add mock user data for development
-        ...(process.env.NODE_ENV === 'development' && {
-          userId: 'dev-user-id-' + Date.now(),
-          userName: 'Developer User',
-          userEmail: 'dev@example.com',
-          isDevMode: true
-        })
+        requestTitle: fieldValues.requestTitle || 'Untitled Request',
+        description: fieldValues.description || 'No description provided',
+        proposedNames: Array.isArray(formData.proposedNames) 
+          ? formData.proposedNames
+              .filter(name => name && name.name && name.name.trim() !== '')
+              .map(name => ({
+                name: String(name.name).trim(),
+                description: name.description ? String(name.description).trim() : ''
+              }))
+          : [{ name: 'New Name', description: 'Automatically added name' }],
+        // Include all other form fields in the formData object
+        ...Object.entries(fieldValues)
+          .filter(([key]) => !['requestTitle', 'description'].includes(key))
+          .reduce((acc, [key, value]) => ({
+            ...acc,
+            [key]: value
+          }), {})
       };
+
+      // Ensure we have at least one proposed name
+      if (requestData.proposedNames.length === 0) {
+        requestData.proposedNames = [{ 
+          name: fieldValues.requestTitle || 'New Name', 
+          description: fieldValues.description || 'Automatically added name' 
+        }];
+      }
+
+      // Prepare the final payload
+      const payload = {
+        title: requestData.requestTitle,
+        description: requestData.description,
+        formData: requestData,
+        user: {
+          id: 'dev-user-id',
+          name: 'Developer User',
+          email: 'dev@example.com',
+          role: 'user'
+        },
+        status: 'pending',
+        formConfigId: activeFormConfig?._id || 'default-config',
+        formConfigName: activeFormConfig?.name || 'Default Form'
+      };
+
+      console.log('Submitting request with payload:', JSON.stringify(payload, null, 2));
       
-      console.log('Prepared request data:', JSON.stringify(requestData, null, 2));
-      
-      // Log before dispatch
-      console.log('Dispatching createNamingRequest...');
-      
-      const resultAction = await dispatch(createNamingRequest(requestData));
-      console.log('Dispatch result:', resultAction);
+      const resultAction = await dispatch(createNamingRequest(payload));
       
       if (createNamingRequest.fulfilled.match(resultAction)) {
-        console.log('Request successful, resetting form...');
         setSnackbarMessage('Naming request submitted successfully!');
         setSnackbarSeverity('success');
-        setOpenSnackbar(true);
-        
-        // Don't redirect in development, just show success
-        if (process.env.NODE_ENV !== 'development') {
-          setTimeout(() => {
-            navigate('/');
-          }, 1500);
-        }
-        
-        reset();
+        reset(defaultValues);
       } else {
-        const error = resultAction.payload || resultAction.error || { message: 'Failed to submit request' };
-        console.error('Submission error details:', {
-          error,
-          action: resultAction,
-          timestamp: new Date().toISOString()
-        });
+        const error = resultAction.payload || { message: 'Failed to submit request' };
+        console.error('Submission error:', error);
         
-        // Show error but don't redirect in development
-        setSnackbarMessage(error.message || 'Failed to submit request');
+        // Extract validation errors if available
+        const errorMessage = error.details?.errors?.length > 0
+          ? error.details.errors.map(e => e.msg).join('\n')
+          : error.message || 'Failed to submit request';
+          
+        setSnackbarMessage(errorMessage);
         setSnackbarSeverity('error');
-        setOpenSnackbar(true);
       }
-    } catch (err) {
-      console.error('Error in onSubmit:', err);
-      const errorMessage = err.message || 'Failed to submit naming request';
-      setSnackbarMessage(errorMessage);
+    } catch (error) {
+      console.error('Error in onSubmit:', error);
+      setSnackbarMessage(error.message || 'An error occurred while submitting the form');
       setSnackbarSeverity('error');
+    } finally {
       setOpenSnackbar(true);
     }
   };
@@ -172,17 +269,61 @@ const SubmitRequest = () => {
     setOpenSnackbar(false);
   };
 
-  if (formConfigLoading) {
-    return <CircularProgress />;
+  const handleRefreshConfig = () => {
+    dispatch(fetchActiveFormConfig());
+  };
+
+  if (formConfigLoading && !activeFormConfig) {
+    return (
+      <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="200px">
+        <CircularProgress />
+        <Typography variant="body1" sx={{ mt: 2 }}>Loading form configuration...</Typography>
+      </Box>
+    );
   }
 
   if (formConfigError) {
-    return <Alert severity="error">{formConfigError.msg || 'Failed to load form configuration.'}</Alert>;
+    return (
+      <Alert 
+        severity="error"
+        action={
+          <Button color="inherit" size="small" onClick={handleRefreshConfig}>
+            Retry
+          </Button>
+        }
+      >
+        {formConfigError.msg || 'Failed to load form configuration.'}
+      </Alert>
+    );
   }
 
   if (!activeFormConfig) {
-    return <Typography>No active form available.</Typography>;
+    return (
+      <Box textAlign="center" py={4}>
+        <Typography variant="h6" gutterBottom>No active form available</Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={handleRefreshConfig}
+          startIcon={<RefreshIcon />}
+        >
+          Refresh Form
+        </Button>
+      </Box>
+    );
   }
+
+  // Debug log the form configuration being used
+  console.log('Rendering form with config:', {
+    name: activeFormConfig.name,
+    fieldCount: activeFormConfig.fields?.length || 0,
+    fields: activeFormConfig.fields?.map(f => ({
+      name: f.name,
+      label: f.label,
+      type: f.fieldType,
+      required: f.required
+    }))
+  });
 
   return (
     <Paper sx={{ p: 3, maxWidth: 800, margin: 'auto' }}>
@@ -193,9 +334,30 @@ const SubmitRequest = () => {
         {activeFormConfig.description}
       </Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
-        {activeFormConfig.fields.map((field) => (
-          <DynamicFormField key={field._id} field={field} control={control} errors={errors} />
-        ))}
+        {activeFormConfig.fields?.length > 0 ? (
+          activeFormConfig.fields.map((field) => {
+            // Create a new field object with required set to false
+            const optionalField = {
+              ...field,
+              required: false, // Ensure all fields are optional
+              // Ensure options is always an array
+              options: Array.isArray(field.options) ? field.options : []
+            };
+            
+            return (
+              <DynamicFormField 
+                key={field._id || field.name} 
+                field={optionalField} 
+                control={control} 
+                errors={errors} 
+              />
+            );
+          })
+        ) : (
+          <Alert severity="warning">
+            No form fields configured. Please check the form configuration.
+          </Alert>
+        )}
         <Box sx={{ mt: 3 }}>
           <Button type="submit" variant="contained" color="primary">
             Submit Request

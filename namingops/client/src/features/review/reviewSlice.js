@@ -1,12 +1,13 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import axios from 'axios';
+import api from '../../services/api';
 
 // Async thunks
 export const fetchReviewRequests = createAsyncThunk(
   'review/fetchRequests',
   async (filters = {}, { rejectWithValue }) => {
     try {
-      const response = await axios.get('/api/name-requests/review', { params: filters });
+      // Use the correct API endpoint with /v1/requests prefix
+      const response = await api.get('/v1/requests/review', { params: filters });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch review requests');
@@ -19,7 +20,8 @@ export const claimRequest = createAsyncThunk(
   async (requestId, { rejectWithValue, getState }) => {
     try {
       const { auth } = getState();
-      const response = await axios.patch(`/api/name-requests/${requestId}/claim`, {
+      // Use the correct API endpoint with /v1/requests prefix
+      const response = await api.patch(`/v1/requests/${requestId}/claim`, {
         reviewerId: auth.user.id,
         reviewerName: `${auth.user.firstName} ${auth.user.lastName}`
       });
