@@ -34,7 +34,7 @@ export const fetchUserRequests = createAsyncThunk(
 
 export const getMyRequests = createAsyncThunk(
   'requests/getMyRequests',
-  async (params = {}, { rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
       const response = await api.get('/requests/my-requests');
       return response.data;
@@ -148,6 +148,7 @@ const requestsSlice = createSlice({
       .addCase(fetchUserRequests.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        state.requests = []; // Ensure requests is an array on failure
       })
       .addCase(getMyRequests.pending, (state) => {
         state.loading = true;
@@ -164,6 +165,7 @@ const requestsSlice = createSlice({
       .addCase(getMyRequests.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        state.requests = []; // Ensure requests is an array on failure
       })
       .addCase(searchRequests.fulfilled, (state, action) => {
         state.filteredRequests = action.payload;
@@ -201,7 +203,8 @@ const requestsSlice = createSlice({
 
 // Helper function to apply filters
 const applyFilters = (state) => {
-  let result = [...state.requests];
+  let requestsToFilter = Array.isArray(state.requests) ? state.requests : [];
+  let result = [...requestsToFilter];
   
   // Apply search query
   if (state.searchQuery) {

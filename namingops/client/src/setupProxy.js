@@ -1,5 +1,7 @@
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
+console.log('setupProxy.js is being loaded!');
+
 module.exports = function(app) {
   app.use(
     '/api',

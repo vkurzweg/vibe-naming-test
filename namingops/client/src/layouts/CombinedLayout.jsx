@@ -1,22 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  fetchActiveFormConfig, 
-  clearFormConfigError 
-} from '../features/admin/formConfigSlice';
-import { createNamingRequest } from '../features/naming/namingSlice';
-import { 
-  setActiveView,
-  showSnackbar,
-  hideSnackbar
-} from '../features/ui/uiSlice';
-import { useForm } from 'react-hook-form';
-import { format } from 'date-fns';
 import {
   Box,
-  Container,
-  Typography,
   useTheme,
   useMediaQuery,
   Paper,
@@ -24,21 +10,9 @@ import {
   Tab,
   CircularProgress,
   Snackbar,
-  Alert,
-  Button
+  Alert
 } from '@mui/material';
-
-// Icons
-import {
-  Add as AddIcon,
-  Archive as ArchiveIcon,
-  AdminPanelSettings as AdminIcon,
-  RateReview as ReviewerIcon,
-  Send as SubmitterIcon,
-  Settings as SettingsIcon,
-  People as PeopleIcon,
-  Tune as TuneIcon
-} from '@mui/icons-material';
+import { hideSnackbar } from '../features/ui/uiSlice';
 
 // Features
 import MyRequests from '../features/requests/MyRequests';
@@ -47,6 +21,11 @@ import Archive from '../pages/Archive';
 import FormConfigPage from '../pages/FormConfigPage';
 import UsersPage from '../pages/UsersPage';
 import ReviewQueue from '../pages/ReviewQueue';
+import AdminDashboardOverview from '../pages/AdminDashboardOverview';
+
+// Import DebugUserInfo and RoleSwitcher
+
+import RoleSwitcher from '../components/developer/RoleSwitcher';
 
 const CombinedLayout = () => {
   const theme = useTheme();
@@ -58,24 +37,32 @@ const CombinedLayout = () => {
   // Get state from Redux
   const { user } = useSelector((state) => state.auth);
   const currentRole = user?.role || 'submitter';
-  const { activeFormConfig, loading: formConfigLoading } = useSelector((state) => state.formConfig || {});
+  const { loading: formConfigLoading } = useSelector((state) => state.formConfig || {});
   const snackbar = useSelector((state) => state.ui?.snackbar || { open: false, message: '', severity: 'info' });
+
+  console.log('CombinedLayout - Current Role:', currentRole);
   
-  // Get the current view from the URL or default to 'my-requests'
-  const getCurrentView = () => {
-    const path = location.pathname.replace(/^\//, '');
-    if (['my-requests', 'submit-request', 'review-queue', 'archive', 'admin'].includes(path)) {
+  const getInitialView = (role, pathname) => {
+    const path = pathname.replace(/^\//, '');
+    if (['my-requests', 'submit-request', 'review-queue', 'archive', 'admin-overview', 'admin/form-config', 'admin/users'].includes(path)) {
       return path;
     }
-    return 'my-requests';
+    // Default view based on role if path is not recognized or is root
+    if (role === 'admin') return 'admin-overview';
+    if (role === 'reviewer') return 'review-queue';
+    return 'my-requests'; // Default for submitter and others
   };
 
-  const [currentView, setCurrentView] = useState(getCurrentView());
+  const [currentView, setCurrentView] = useState(() => getInitialView(currentRole, location.pathname));
   
-  // Update current view when URL changes
+  // Update current view when URL changes or role changes
   useEffect(() => {
-    setCurrentView(getCurrentView());
-  }, [location.pathname]);
+    const newView = getInitialView(currentRole, location.pathname);
+    if (newView !== currentView) {
+      setCurrentView(newView);
+      navigate(`/${newView}`, { replace: true });
+    }
+  }, [location.pathname, currentRole, navigate, currentView]);
 
   // Handle tab change
   const handleTabChange = (event, newValue) => {
@@ -92,6 +79,7 @@ const CombinedLayout = () => {
     ];
     
     if (currentRole === 'admin') {
+      tabs.unshift({ value: 'admin-overview', label: 'Admin Overview', roles: ['admin'] });
       tabs.push(
         { value: 'admin/form-config', label: 'Form Config', roles: ['admin'] },
         { value: 'admin/users', label: 'User Management', roles: ['admin'] }
@@ -112,6 +100,8 @@ const CombinedLayout = () => {
         return <ReviewQueue />;
       case 'archive':
         return <Archive />;
+      case 'admin-overview':
+        return <AdminDashboardOverview />;
       case 'admin/form-config':
         return <FormConfigPage />;
       case 'admin/users':
@@ -131,6 +121,10 @@ const CombinedLayout = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
+      {/* Debug and Role Switcher (Development Only) */}
+
+      {process.env.NODE_ENV === 'development' && <RoleSwitcher />}
+
       {/* Main Content */}
       <Box sx={{ width: '100%', p: isMobile ? 1 : 3 }}>
         {/* Tabs for navigation */}

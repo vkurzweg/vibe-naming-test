@@ -24,15 +24,13 @@ import {
   TableRow,
   IconButton,
   Tooltip,
-  Chip,
-  Switch
+  Chip
 } from '@mui/material';
 import { 
   Add as AddIcon, 
   Delete as DeleteIcon,
   Save as SaveIcon,
   Edit as EditIcon,
-  Cancel as CancelIcon,
   Check as CheckIcon,
 } from '@mui/icons-material';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
@@ -40,10 +38,8 @@ import {
   fetchFormConfigurations as fetchFormConfigs, 
   saveFormConfiguration as saveFormConfig, 
   deleteFormConfiguration as deleteFormConfig,
-  setActiveFormConfig as setActiveFormConfigAction,
   clearFormConfigError,
-  selectFormConfigs,
-  selectActiveFormConfig
+  activateFormConfiguration
 } from '../features/admin/formConfigSlice';
 
 const FormConfigPage = () => {
@@ -52,13 +48,13 @@ const FormConfigPage = () => {
   const [editingConfig, setEditingConfig] = React.useState(null);
   const [isCreating, setIsCreating] = React.useState(false);
 
-  const { control, handleSubmit, reset, formState: { errors }, setValue } = useForm({
+  const { control, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: {
       name: '',
       description: '',
       isActive: false,
       fields: [
-        { name: '', type: 'text', label: '', required: false, options: [] }
+        { name: '', fieldType: 'text', label: '', required: false, options: [] }
       ]
     }
   });
@@ -85,7 +81,7 @@ const FormConfigPage = () => {
         name: '',
         description: '',
         isActive: false,
-        fields: [{ name: '', type: 'text', label: '', required: false, options: [] }]
+        fields: [{ name: '', fieldType: 'text', label: '', required: false, options: [] }]
       });
     }
   }, [editingConfig, isCreating, reset]);
@@ -125,14 +121,14 @@ const FormConfigPage = () => {
 
   const handleSetActive = async (id) => {
     try {
-      await dispatch(setActiveFormConfigAction(id)).unwrap();
+      await dispatch(activateFormConfiguration(id)).unwrap();
     } catch (error) {
       console.error('Error setting active form config:', error);
     }
   };
 
   const handleAddField = () => {
-    append({ name: '', type: 'text', label: '', required: false, options: [] });
+    append({ name: '', fieldType: 'text', label: '', required: false, options: [] });
   };
 
   const handleRemoveField = (index) => {
@@ -151,7 +147,7 @@ const FormConfigPage = () => {
       name: '',
       description: '',
       isActive: false,
-      fields: [{ name: '', type: 'text', label: '', required: false, options: [] }]
+      fields: [{ name: '', fieldType: 'text', label: '', required: false, options: [] }]
     });
   };
 
@@ -271,11 +267,11 @@ const FormConfigPage = () => {
                       </Grid>
                       <Grid item xs={12} md={3}>
                         <Controller
-                          name={`fields.${index}.type`}
+                          name={`fields.${index}.fieldType`}
                           control={control}
                           rules={{ required: 'Field type is required' }}
                           render={({ field }) => (
-                            <FormControl fullWidth size="small" error={!!errors.fields?.[index]?.type}>
+                            <FormControl fullWidth size="small" error={!!errors.fields?.[index]?.fieldType}>
                               <InputLabel>Field Type</InputLabel>
                               <Select {...field} label="Field Type">
                                 <MenuItem value="text">Text</MenuItem>
@@ -287,8 +283,8 @@ const FormConfigPage = () => {
                                 <MenuItem value="radio">Radio Buttons</MenuItem>
                                 <MenuItem value="textarea">Text Area</MenuItem>
                               </Select>
-                              {errors.fields?.[index]?.type && (
-                                <FormHelperText>{errors.fields[index].type.message}</FormHelperText>
+                              {errors.fields?.[index]?.fieldType && (
+                                <FormHelperText>{errors.fields[index].fieldType.message}</FormHelperText>
                               )}
                             </FormControl>
                           )}
@@ -423,7 +419,7 @@ const FormConfigPage = () => {
                         <IconButton 
                           size="small" 
                           onClick={() => handleEdit(config)}
-                          disabled={loading || (editingConfig && editingConfig._id !== config._id)}
+                          disabled={loading || (editingConfig && editingConfig._id === config._id)}
                         >
                           <EditIcon />
                         </IconButton>
@@ -431,8 +427,8 @@ const FormConfigPage = () => {
                       <Tooltip title="Delete">
                         <IconButton 
                           size="small" 
+                          color="error" 
                           onClick={() => handleDelete(config._id)}
-                          color="error"
                           disabled={loading || config.isActive}
                         >
                           <DeleteIcon />

@@ -13,7 +13,7 @@ import AuthLayout from './layouts/AuthLayout';
 
 // Pages
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+
 import SubmitRequest from './pages/SubmitRequest';
 import NotFound from './pages/NotFound';
 import Archive from './pages/Archive';
@@ -63,7 +63,7 @@ function App() {
       <Routes>
         {/* Auth Routes */}
         <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
-        <Route path="/unauthorized" element={<div>Unauthorized - You don't have permission to view this page</div>} />
+        <Route path="/unauthorized" element={<div>Unauthorized - You don&apos;t have permission to view this page</div>} />
         
         {/* Protected Routes */}
         <Route
@@ -74,10 +74,9 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Dashboard />} />
+          <Route index element={<Navigate to="/my-requests" replace />} />
           
           {/* Common Routes */}
-          <Route path="dashboard" element={<Dashboard />} />
           <Route path="my-requests" element={<MyRequests />} />
           <Route path="requests/:id" element={<RequestDetails />} />
           
@@ -125,7 +124,7 @@ function App() {
           <Route path="archive" element={<Archive />} />
           
           {/* 404 for any undefined routes under / */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/my-requests" replace />} />
         </Route>
         
         {/* Catch-all 404 Route */}

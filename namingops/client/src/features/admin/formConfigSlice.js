@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import api from '../../services/api';
-import { format } from 'date-fns';
+
 
 const initialState = {
   formConfigs: [],
@@ -26,7 +26,7 @@ export const selectActiveFormConfig = createSelector(
 );
 
 export const selectFormConfigById = (state, configId) =>
-  state.formConfig.formConfigs.find(config => config.id === configId);
+  state.formConfig.formConfigs.find(config => config._id === configId);
 
 // Helper function to create a serializable error object
 const createSerializableError = (error) => {
@@ -94,7 +94,7 @@ export const fetchFormConfigurations = createAsyncThunk(
   'formConfig/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/v1/form-configurations');
+      const response = await api.get('/form-configurations');
       return response.data || [];
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
@@ -106,7 +106,7 @@ export const loadActiveFormConfig = createAsyncThunk(
   'formConfig/loadActive',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/v1/form-configurations/active');
+      const response = await api.get('/form-configurations/active');
       return response.data || null;
     } catch (error) {
       if (error.response?.status === 404) {
@@ -121,11 +121,12 @@ export const saveFormConfiguration = createAsyncThunk(
   'formConfig/save',
   async (formData, { rejectWithValue, dispatch }) => {
     try {
-      const method = formData.id ? 'put' : 'post';
-      const url = formData.id 
-        ? `/v1/form-configurations/${formData.id}`
-        : '/v1/form-configurations';
+      const method = formData._id ? 'put' : 'post';
+      const url = formData._id 
+        ? `/form-configurations/${formData._id}`
+        : '/form-configurations';
       
+      console.log('Sending form data:', formData); // Add this line
       const response = await api[method](url, formData);
       
       // If this is being set as active, update the active config
@@ -144,8 +145,24 @@ export const deleteFormConfiguration = createAsyncThunk(
   'formConfig/delete',
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/v1/form-configurations/${id}`);
+      await api.delete(`/form-configurations/${id}`);
       return id;
+    } catch (error) {
+      return rejectWithValue(createSerializableError(error));
+    }
+  }
+);
+
+export const activateFormConfiguration = createAsyncThunk(
+  'formConfig/activate',
+  async (id, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await api.put(`/form-configurations/${id}/activate`);
+      // After activation, refetch all configs to ensure state is consistent
+      // and load the new active config
+      await dispatch(fetchFormConfigurations()).unwrap();
+      await dispatch(loadActiveFormConfig()).unwrap();
+      return response.data;
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
     }
@@ -159,9 +176,11 @@ const formConfigSlice = createSlice({
     clearFormConfigError: (state) => {
       state.error = null;
     },
-    setActiveFormConfig: (state, action) => {
-      state.activeFormConfig = action.payload;
-    },
+    // setActiveFormConfig is now handled by activateFormConfiguration async thunk
+    // and loadActiveFormConfig
+    // setActiveFormConfig: (state, action) => {
+    //   state.activeFormConfig = action.payload;
+    // },
     resetFormConfigState: () => initialState,
   },
   extraReducers: (builder) => {
@@ -211,7 +230,7 @@ const formConfigSlice = createSlice({
     builder.addCase(saveFormConfiguration.fulfilled, (state, action) => {
       state.loading = false;
       const updatedConfig = action.payload;
-      const existingIndex = state.formConfigs.findIndex(c => c.id === updatedConfig.id);
+      const existingIndex = state.formConfigs.findIndex(c => c._id === updatedConfig._id);
       
       if (existingIndex >= 0) {
         state.formConfigs[existingIndex] = updatedConfig;
@@ -219,7 +238,7 @@ const formConfigSlice = createSlice({
         state.formConfigs.push(updatedConfig);
       }
       
-      if (state.activeFormConfig?.id === updatedConfig.id) {
+      if (state.activeFormConfig?._id === updatedConfig._id) {
         state.activeFormConfig = updatedConfig;
       }
       
@@ -238,9 +257,9 @@ const formConfigSlice = createSlice({
     builder.addCase(deleteFormConfiguration.fulfilled, (state, action) => {
       state.loading = false;
       const configId = action.payload;
-      state.formConfigs = state.formConfigs.filter(c => c.id !== configId);
+      state.formConfigs = state.formConfigs.filter(c => c._id !== configId);
       
-      if (state.activeFormConfig?.id === configId) {
+      if (state.activeFormConfig?._id === configId) {
         state.activeFormConfig = null;
       }
       
@@ -250,12 +269,26 @@ const formConfigSlice = createSlice({
       state.loading = false;
       state.error = action.payload || 'Failed to delete form configuration';
     });
+
+    // Handle activateFormConfiguration
+    builder.addCase(activateFormConfiguration.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(activateFormConfiguration.fulfilled, (state) => {
+      state.loading = false;
+      state.lastUpdated = new Date().toISOString();
+    });
+    builder.addCase(activateFormConfiguration.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload || 'Failed to activate form configuration';
+    });
   },
 });
 
 export const { 
   clearFormConfigError, 
-  setActiveFormConfig,
+  // setActiveFormConfig, // Removed as it's now handled by thunk
   resetFormConfigState 
 } = formConfigSlice.actions;
 

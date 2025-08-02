@@ -130,7 +130,7 @@ export const authSlice = createSlice({
     },
     switchRole: (state, action) => {
       if (process.env.NODE_ENV === 'development') {
-        const { role } = action.payload;
+        const role = action.payload;
         state.user = {
           ...state.user,
           role,
@@ -138,9 +138,14 @@ export const authSlice = createSlice({
           email: `${role}@example.com`,
           _isDev: true
         };
+        console.log('Role switched to:', state.user.role);
         // Update localStorage
         localStorage.setItem('user', JSON.stringify(state.user));
       }
+    },
+    clearAuthError: (state) => {
+      state.isError = false;
+      state.message = '';
     }
   },
   extraReducers: (builder) => {
@@ -172,6 +177,7 @@ export const authSlice = createSlice({
           // Otherwise, it's a regular login response
           state.user = action.payload;
         }
+        console.log('User logged in. Role:', state.user.role);
         // Persist to localStorage in development
         if (process.env.NODE_ENV === 'development') {
           localStorage.setItem('user', JSON.stringify(state.user));

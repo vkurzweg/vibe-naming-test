@@ -197,9 +197,8 @@ const shutdown = async (signal) => {
   logger.info(`${signal} received: shutting down gracefully...`);
   
   try {
-    const { getClient } = require('./config/db');
-    const client = getClient();
-    await client.close();
+    const { mongoose } = require('./config/db');
+    await mongoose.connection.close();
     logger.info('MongoDB connection closed');
     
     httpServer.close(() => {
