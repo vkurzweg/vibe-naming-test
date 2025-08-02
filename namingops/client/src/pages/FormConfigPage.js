@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import CloseIcon from '@mui/icons-material/Close';
 import { 
   Box, 
   Typography, 
@@ -42,9 +43,11 @@ import {
   activateFormConfiguration
 } from '../features/admin/formConfigSlice';
 
+
 const FormConfigPage = () => {
   const dispatch = useDispatch();
   const { formConfigs, activeFormConfig, loading, error } = useSelector((state) => state.formConfig);
+  console.log('Form Configurations:', formConfigs);
   const [editingConfig, setEditingConfig] = React.useState(null);
   const [isCreating, setIsCreating] = React.useState(false);
 
@@ -394,46 +397,36 @@ const FormConfigPage = () => {
                       {config.name}
                     </TableCell>
                     <TableCell>{config.description || 'No description'}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ width: '150px' }}> {/* Adjust width for buttons */}
                       {config.isActive ? (
-                        <Chip label="Active" color="success" size="small" />
+                        <Typography variant="body2" color="success.main">Active</Typography>
                       ) : (
-                        <Chip label="Inactive" size="small" variant="outlined" />
+                        <StatusCellContent config={config} handleSetActive={handleSetActive} loading={loading} />
                       )}
                     </TableCell>
                     <TableCell>{config.fields?.length || 0} fields</TableCell>
                     <TableCell align="right">
-                      {!config.isActive && (
-                        <Tooltip title="Set as active">
+                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }}>
+                        <Tooltip title="Edit">
                           <IconButton 
                             size="small" 
-                            onClick={() => handleSetActive(config._id)}
-                            color="success"
-                            disabled={loading}
+                            onClick={() => handleEdit(config)}
+                            disabled={loading || (editingConfig && editingConfig._id === config._id)}
                           >
-                            <CheckIcon />
+                            <EditIcon />
                           </IconButton>
                         </Tooltip>
-                      )}
-                      <Tooltip title="Edit">
-                        <IconButton 
-                          size="small" 
-                          onClick={() => handleEdit(config)}
-                          disabled={loading || (editingConfig && editingConfig._id === config._id)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton 
-                          size="small" 
-                          color="error" 
-                          onClick={() => handleDelete(config._id)}
-                          disabled={loading || config.isActive}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton 
+                            size="small" 
+                            color="error" 
+                            onClick={() => handleDelete(config._id)}
+                            disabled={loading || config.isActive}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
@@ -442,6 +435,41 @@ const FormConfigPage = () => {
           </Table>
         </TableContainer>
       </Paper>
+    </Box>
+  );
+};
+
+// New component to handle hover state for inactive forms
+const StatusCellContent = ({ config, handleSetActive, loading }) => {
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  return (
+    <Box
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        minWidth: '80px', // Ensure enough space for button
+      }}
+    >
+      {isHovered ? (
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => handleSetActive(config._id)}
+          color="success"
+          disabled={loading}
+          startIcon={<CheckIcon />}
+          sx={{ '&:hover': { backgroundColor: 'success.light' } }}
+        >
+          Activate
+        </Button>
+      ) : (
+        <Typography variant="body2" color="text.secondary">Not active</Typography>
+      )}
     </Box>
   );
 };
