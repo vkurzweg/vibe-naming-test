@@ -26,15 +26,8 @@ import DynamicFormField from '../features/requests/DynamicFormField';
 const SubmitRequest = () => { 
   const dispatch = useDispatch();
   
-  // Log the entire formConfig state for debugging
+  // Get the form config state
   const formConfigState = useSelector((state) => state.formConfig);
-  console.log('Form Config State:', {
-    activeFormConfig: formConfigState.activeFormConfig,
-    loading: formConfigState.loading,
-    error: formConfigState.error,
-    lastUpdated: formConfigState.lastUpdated,
-    hasFields: formConfigState.activeFormConfig?.fields?.length > 0
-  });
 
   // Destructure the values we need
   const { activeFormConfig, loading: formConfigLoading, error: formConfigError } = useSelector((state) => state.formConfig);
@@ -84,18 +77,9 @@ const SubmitRequest = () => {
     initialLoad.current = true;
     const loadFormConfig = async () => {
       try {
-        console.log('Loading form configuration...');
         const resultAction = await dispatch(loadActiveFormConfig());
-        const config = resultAction.payload;
-        if (config) {
-          console.log('Form configuration loaded:', {
-            id: config._id,
-            name: config.name,
-            fields: config.fields?.length || 0
-          });
-        }
+        // Form configuration loaded successfully
       } catch (error) {
-        console.error('Error loading form configuration:', error);
         setSnackbarMessage('Failed to load form configuration');
         setSnackbarSeverity('error');
         setOpenSnackbar(true);
@@ -106,7 +90,6 @@ const SubmitRequest = () => {
     loadFormConfig();
     if (process.env.NODE_ENV === 'development') {
       const intervalId = setInterval(() => {
-        console.log('Checking for form config updates...');
         dispatch(loadActiveFormConfig());
       }, 15000);
       return () => clearInterval(intervalId);

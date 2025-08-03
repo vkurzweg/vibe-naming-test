@@ -94,7 +94,7 @@ export const fetchFormConfigurations = createAsyncThunk(
   'formConfig/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/v1/form-configurations');
+      const response = await api.get('/v1/form-configurations');
       return response.data || [];
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
@@ -106,7 +106,7 @@ export const loadActiveFormConfig = createAsyncThunk(
   'formConfig/loadActive',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/v1/form-configurations/active');
+      const response = await api.get('/v1/form-configurations/active');
       const data = response.data;
       if (Array.isArray(data) && data.length > 0) {
         return data[0]; 
@@ -204,11 +204,20 @@ const formConfigSlice = createSlice({
     });
     
     // Load active form config
+    builder.addCase(loadActiveFormConfig.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
     builder.addCase(loadActiveFormConfig.fulfilled, (state, action) => {
+      state.loading = false;
       if (action.payload) {
         state.activeFormConfig = action.payload;
         state.lastUpdated = new Date().toISOString();
       }
+    });
+    builder.addCase(loadActiveFormConfig.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload || 'Failed to load active form configuration';
     });
     
     // Handle fetchFormConfigurations

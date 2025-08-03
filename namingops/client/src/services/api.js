@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Use REACT_APP_API_URL if set, otherwise default to http://localhost:5000/api
+// Use REACT_APP_API_URL if set, otherwise default to http://localhost:5000
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 console.log('API Base URL:', BASE_URL);

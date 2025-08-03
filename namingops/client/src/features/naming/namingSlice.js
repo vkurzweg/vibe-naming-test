@@ -25,7 +25,7 @@ export const createNamingRequest = createAsyncThunk(
       console.log('Sending request to server with payload:', JSON.stringify(payload, null, 2));
       
       // Make the API request
-      const response = await api.post('/api/v1/requests', payload);
+      const response = await api.post('/v1/requests', payload);
       
       console.log('Request successful, response:', response.data);
       return response.data;
