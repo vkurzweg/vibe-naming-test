@@ -2,10 +2,7 @@ import React from 'react';
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import Box from '@mui/material/Box';
-import theme from './theme';
+
 
 // Layouts
 import CombinedLayout from './layouts/CombinedLayout';
@@ -24,6 +21,7 @@ import ReviewQueue from './pages/ReviewQueue';
 // Features
 import MyRequests from './features/requests/MyRequests';
 import RequestDetails from './pages/RequestDetails';
+import DashboardRedirect from './components/DashboardRedirect';
 
 // Google OAuth Client ID from environment variables
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '1009058437445-s15inh3vb1dl1o1hcmg0nn9q6grr7n7h.apps.googleusercontent.com';
@@ -58,9 +56,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Routes>
+    <Routes>
         {/* Auth Routes */}
         <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
         <Route path="/unauthorized" element={<div>Unauthorized - You don&apos;t have permission to view this page</div>} />
@@ -74,9 +70,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/my-requests" replace />} />
-          
-          {/* Common Routes */}
+          <Route index element={<DashboardRedirect />} />
           <Route path="my-requests" element={<MyRequests />} />
           <Route path="requests/:id" element={<RequestDetails />} />
           
@@ -130,7 +124,6 @@ function App() {
         {/* Catch-all 404 Route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </ThemeProvider>
   );
 }
 

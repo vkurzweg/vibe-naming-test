@@ -238,7 +238,9 @@ const formConfigSlice = createSlice({
         state.formConfigs.push(updatedConfig);
       }
       
-      if (state.activeFormConfig?._id === updatedConfig._id) {
+      // If the saved config is active, update the activeFormConfig in the state.
+      // This handles both updating an already active config and activating a new one.
+      if (updatedConfig.isActive) {
         state.activeFormConfig = updatedConfig;
       }
       

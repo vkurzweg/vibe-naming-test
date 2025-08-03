@@ -109,7 +109,7 @@ const usersSlice = createSlice({
     });
     builder.addCase(updateUser.fulfilled, (state, action) => {
       state.loading = false;
-      const index = state.users.findIndex(user => user.id === action.payload.id);
+      const index = state.users.findIndex(user => user._id === action.payload._id);
       if (index !== -1) {
         state.users[index] = action.payload;
       }
@@ -126,7 +126,7 @@ const usersSlice = createSlice({
     });
     builder.addCase(deleteUser.fulfilled, (state, action) => {
       state.loading = false;
-      state.users = state.users.filter(user => user.id !== action.payload);
+      state.users = state.users.filter(user => user._id !== action.payload);
     });
     builder.addCase(deleteUser.rejected, (state, action) => {
       state.loading = false;

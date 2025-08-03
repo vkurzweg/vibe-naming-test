@@ -44,6 +44,18 @@ export const getMyRequests = createAsyncThunk(
   }
 );
 
+export const fetchApprovedRequests = createAsyncThunk(
+  'requests/fetchApprovedRequests',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/requests/archive');
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to fetch archive');
+    }
+  }
+);
+
 export const searchRequests = createAsyncThunk(
   'requests/searchRequests',
   async (query, { rejectWithValue }) => {
@@ -81,8 +93,8 @@ export const updateRequest = createAsyncThunk(
 );
 
 const initialState = {
-  requests: [],
-  filteredRequests: [],
+  requests: { data: [], total: 0 },
+  filteredRequests: { data: [], total: 0 },
   currentRequest: null,
   loading: false,
   error: null,
@@ -138,7 +150,8 @@ const requestsSlice = createSlice({
       })
       .addCase(fetchUserRequests.fulfilled, (state, action) => {
         state.loading = false;
-        state.requests = action.payload.data;
+        state.requests.data = action.payload.data;
+        state.requests.total = action.payload.pagination.total;
         state.pagination = action.payload.pagination;
         state.filteredRequests = applyFilters({
           ...state,
@@ -166,6 +179,19 @@ const requestsSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
         state.requests = []; // Ensure requests is an array on failure
+      })
+      .addCase(fetchApprovedRequests.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchApprovedRequests.fulfilled, (state, action) => {
+        state.loading = false;
+        state.requests = action.payload;
+        state.filteredRequests = action.payload; // Initially, all approved requests are shown
+      })
+      .addCase(fetchApprovedRequests.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       .addCase(searchRequests.fulfilled, (state, action) => {
         state.filteredRequests = action.payload;
@@ -266,8 +292,8 @@ const applyFilters = (state) => {
 export const { setSearchQuery, setFilter, setSort, resetFilters } = requestsSlice.actions;
 
 // Export selectors
-export const selectAllRequests = (state) => state.requests.requests;
-export const selectFilteredRequests = (state) => state.requests.filteredRequests;
+export const selectAllRequests = (state) => state.requests.requests.data || [];
+export const selectFilteredRequests = (state) => state.requests.filteredRequests.data || [];
 export const selectIsLoading = (state) => state.requests.loading;
 export const selectError = (state) => state.requests.error;
 export const selectSearchQuery = (state) => state.requests.searchQuery;

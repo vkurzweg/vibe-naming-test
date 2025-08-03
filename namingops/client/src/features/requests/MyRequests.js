@@ -45,7 +45,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { format, parseISO, isAfter, isBefore, subDays } from 'date-fns';
 import { 
-  fetchUserRequests, 
+  getMyRequests, 
   searchRequests, 
   selectFilteredRequests,
   selectIsLoading,
@@ -98,31 +98,8 @@ const MyRequests = () => {
 
   // Fetch requests when filters, sort, or pagination changes
   useEffect(() => {
-    const params = {
-      page: page + 1, // API uses 1-based pagination
-      limit: rowsPerPage,
-      sortBy: sortConfig.key,
-      sortOrder: sortConfig.direction === 'ascending' ? 'asc' : 'desc',
-      ...filters,
-      search: debouncedSearch || undefined
-    };
-
-    // Convert date objects to ISO strings for the API
-    if (filters.dateRange) {
-      if (filters.dateRange.start) {
-        params.startDate = filters.dateRange.start.toISOString().split('T')[0];
-      }
-      if (filters.dateRange.end) {
-        params.endDate = filters.dateRange.end.toISOString().split('T')[0];
-      }
-      delete params.dateRange;
-    }
-
-    // Remove undefined values
-    Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
-
-    dispatch(fetchUserRequests(params));
-  }, [dispatch, page, rowsPerPage, sortConfig, debouncedSearch, filters]);
+    dispatch(getMyRequests());
+  }, [dispatch]);
 
   // Handle search input change
   const handleSearchChange = (event) => {

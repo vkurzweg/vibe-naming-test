@@ -245,7 +245,7 @@ const UsersPage = () => {
   const handleDeleteConfirm = async () => {
     if (userToDelete) {
       try {
-        await dispatch(deleteUser(userToDelete.id)).unwrap();
+        await dispatch(deleteUser(userToDelete._id)).unwrap();
         setDeleteDialogOpen(false);
         setUserToDelete(null);
         setSnackbar({

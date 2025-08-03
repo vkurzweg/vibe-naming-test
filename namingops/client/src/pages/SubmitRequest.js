@@ -28,7 +28,6 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon, Refresh as RefreshIcon } from '@mui/icons-material';
 import { createNamingRequest } from '../features/naming/namingSlice';
 import { loadActiveFormConfig } from '../features/admin/formConfigSlice';
-import { createRequest } from '../features/requests/requestsSlice';
 import DynamicFormField from '../features/requests/DynamicFormField';
 
 const SubmitRequest = () => { 
@@ -46,6 +45,7 @@ const SubmitRequest = () => {
 
   // Destructure the values we need
   const { activeFormConfig, loading: formConfigLoading, error: formConfigError } = useSelector((state) => state.formConfig);
+  const { user } = useSelector((state) => state.auth); // Get user from auth state
   const { loading, error } = useSelector((state) => state.naming);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -225,12 +225,7 @@ const SubmitRequest = () => {
         title: requestData.requestTitle,
         description: requestData.description,
         formData: requestData,
-        user: {
-          id: 'dev-user-id',
-          name: 'Developer User',
-          email: 'dev@example.com',
-          role: 'user'
-        },
+        user: user, // Use the logged-in user's data
         status: 'pending',
         formConfigId: activeFormConfig?._id || 'default-config',
         formConfigName: activeFormConfig?.name || 'Default Form'
@@ -328,53 +323,76 @@ const SubmitRequest = () => {
   return (
     <Paper sx={{ p: 3, maxWidth: 800, margin: 'auto' }}>
       <Typography variant="h4" gutterBottom>
-        {activeFormConfig.name}
+        {activeFormConfig.name || 'Submit a Naming Request'}
       </Typography>
       <Typography variant="subtitle1" gutterBottom>
         {activeFormConfig.description}
       </Typography>
+
       <form onSubmit={handleSubmit(onSubmit)}>
-        {activeFormConfig.fields?.length > 0 ? (
-          activeFormConfig.fields.map((field) => {
-            // Create a new field object with required set to false
-            const optionalField = {
-              ...field,
-              required: false, // Ensure all fields are optional
-              // Ensure options is always an array
-              options: Array.isArray(field.options) ? field.options : []
-            };
-            
-            return (
-              <DynamicFormField 
-                key={field._id || field.name} 
-                field={optionalField} 
-                control={control} 
-                errors={errors} 
-              />
-            );
-          })
-        ) : (
-          <Alert severity="warning">
-            No form fields configured. Please check the form configuration.
-          </Alert>
-        )}
+        <Grid container spacing={2}>
+          {/* Dynamic Fields from Config */}
+          {activeFormConfig.fields?.map((field) => (
+            <Grid item xs={12} key={field.name}>
+              <DynamicFormField field={field} control={control} errors={errors} />
+            </Grid>
+          ))}
+
+          {/* Standard Fields */}
+          <Grid item xs={12}>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="h6">Proposed Names</Typography>
+          </Grid>
+
+          {proposedNames.map((item, index) => (
+            <React.Fragment key={index}>
+              <Grid item xs={12} sm={5}>
+                <TextField {...control.register(`proposedNames.${index}.name`)} label={`Proposed Name #${index + 1}`} fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField {...control.register(`proposedNames.${index}.description`)} label="Description" fullWidth />
+              </Grid>
+              <Grid item xs={12} sm={1}>
+                <IconButton onClick={() => handleRemoveProposedName(index)} disabled={proposedNames.length <= 1}>
+                  <DeleteIcon />
+                </IconButton>
+              </Grid>
+            </React.Fragment>
+          ))}
+
+          <Grid item xs={12}>
+            <Button startIcon={<AddIcon />} onClick={handleAddProposedName}>Add Another Name</Button>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="h6">Additional Info</Typography>
+          </Grid>
+
+          <Grid item xs={12}>
+            <TextField label="Keywords (press Enter to add)" onKeyDown={handleAddKeyword} fullWidth />
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+              {metadata.keywords.map((keyword) => (
+                <Chip key={keyword} label={keyword} onDelete={() => handleRemoveKeyword(keyword)} />
+              ))}
+            </Box>
+          </Grid>
+        </Grid>
+
         <Box sx={{ mt: 3 }}>
-          <Button type="submit" variant="contained" color="primary">
-            Submit Request
+          <Button type="submit" variant="contained" color="primary" disabled={loading}>
+            {loading ? <CircularProgress size={24} /> : 'Submit Request'}
           </Button>
         </Box>
       </form>
+
       <Snackbar
         open={openSnackbar}
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbarSeverity} 
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity} sx={{ width: '100%' }}>
           {snackbarMessage}
         </Alert>
       </Snackbar>
