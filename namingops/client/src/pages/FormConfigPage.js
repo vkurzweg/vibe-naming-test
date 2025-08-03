@@ -13,6 +13,7 @@ import FormConfigList from '../components/FormConfigList';
 import FormConfigEditor from '../components/FormConfigEditor';
 
 const FormConfigPage = () => {
+  const user = useSelector(state => state.auth.user);
   const dispatch = useDispatch();
   const { formConfigs, activeFormConfig, loading, error } = useSelector((state) => state.formConfig);
   const [editingConfig, setEditingConfig] = useState(null);

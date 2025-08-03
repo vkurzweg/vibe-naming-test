@@ -123,4 +123,28 @@ router.delete('/:id', isAdmin, async (req, res) => {
   }
 });
 
+// @route   PUT /api/v1/form-configurations/:id/activate
+// @desc    Activate a form configuration (set isActive=true for this, false for all others)
+// @access  Admin
+router.put('/:id/activate', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Deactivate all configs
+    await FormConfiguration.updateMany({}, { $set: { isActive: false } });
+    // Activate the selected config
+    const activatedConfig = await FormConfiguration.findByIdAndUpdate(
+      id,
+      { $set: { isActive: true } },
+      { new: true }
+    );
+    if (!activatedConfig) {
+      return res.status(404).json({ msg: 'Form configuration not found' });
+    }
+    res.json(activatedConfig);
+  } catch (err) {
+    console.error('Error activating form configuration:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;

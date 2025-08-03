@@ -11,45 +11,21 @@ export const createNamingRequest = createAsyncThunk(
     console.log('Starting createNamingRequest with data:', JSON.stringify(requestData, null, 2));
     
     try {
-      // Ensure we have all required fields with proper defaults
+      // Pass through the form data exactly as provided without adding defaults
       const payload = {
-        title: requestData.title || 'Untitled Request',
-        description: requestData.description || 'No description provided',
-        formData: {
-          requestTitle: requestData.formData?.requestTitle || requestData.title || 'Untitled Request',
-          description: requestData.formData?.description || requestData.description || 'No description provided',
-          proposedNames: Array.isArray(requestData.formData?.proposedNames) 
-            ? requestData.formData.proposedNames
-                .filter(name => name && name.name && name.name.trim() !== '')
-                .map(name => ({
-                  name: String(name.name || '').trim(),
-                  description: name.description ? String(name.description).trim() : ''
-                }))
-            : [{ name: 'New Name', description: 'Automatically added name' }],
-          priority: ['low', 'medium', 'high'].includes(requestData.formData?.priority)
-            ? requestData.formData.priority
-            : 'medium',
-          dueDate: requestData.formData?.dueDate || null,
-          metadata: requestData.formData?.metadata || {}
-        },
-        user: {
-          id: requestData.user?.id || 'dev-user-id',
-          name: requestData.user?.name || 'Developer User',
-          email: requestData.user?.email || 'dev@example.com',
-          role: requestData.user?.role || 'user'
-        },
-        status: ['pending', 'in-progress', 'completed', 'rejected'].includes(requestData.status)
-          ? requestData.status
-          : 'pending',
-        formConfigId: requestData.formConfigId || 'default-config',
-        formConfigName: requestData.formConfigName || 'Default Form'
+        // Use only what's provided in the request data
+        formData: requestData.formData || {},
+        user: requestData.user || {},
+        status: requestData.status || 'pending',
+        formConfigId: requestData.formConfigId,
+        formConfigName: requestData.formConfigName
       };
 
       // Log the final payload being sent to the server
       console.log('Sending request to server with payload:', JSON.stringify(payload, null, 2));
       
       // Make the API request
-      const response = await api.post('/v1/requests', payload);
+      const response = await api.post('/api/v1/requests', payload);
       
       console.log('Request successful, response:', response.data);
       return response.data;
@@ -168,8 +144,18 @@ const namingSlice = createSlice({
       })
       .addCase(createNamingRequest.fulfilled, (state, action) => {
         state.loading = false;
-        state.requests = [action.payload, ...state.requests];
-        state.pagination.total += 1;
+        // Make sure we're handling the response correctly
+        if (action.payload && action.payload.data) {
+          // If the response has a data property, use that
+          state.requests.unshift(action.payload.data);
+        } else if (action.payload) {
+          // Otherwise use the payload directly
+          state.requests.unshift(action.payload);
+        }
+        // Safely increment the total count
+        if (state.pagination && typeof state.pagination.total === 'number') {
+          state.pagination.total += 1;
+        }
       })
       .addCase(createNamingRequest.rejected, (state, action) => {
         state.loading = false;

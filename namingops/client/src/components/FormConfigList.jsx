@@ -27,15 +27,18 @@ const FormConfigList = ({ formConfigs, activeConfigId, onEdit, onDelete, onSetAc
       }}
     >
       {formConfigs.map((config) => (
-        <Box key={config._id} sx={{ height: '100%' }}>
+        <Box key={config._id} sx={{ height: '100%', display: 'flex' }}>
           <Card
             sx={{
               width: '100%',
               height: '100%',
+              minHeight: 260,
               display: 'flex',
               flexDirection: 'column',
               border: config._id === activeConfigId ? '2px solid' : '1px solid',
               borderColor: config._id === activeConfigId ? 'primary.main' : 'divider',
+              boxSizing: 'border-box',
+              alignItems: 'stretch',
             }}
           >
             <CardContent sx={{ flexGrow: 1 }}>

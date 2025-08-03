@@ -94,7 +94,7 @@ export const fetchFormConfigurations = createAsyncThunk(
   'formConfig/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/form-configurations');
+      const response = await api.get('/api/v1/form-configurations');
       return response.data || [];
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
@@ -106,7 +106,7 @@ export const loadActiveFormConfig = createAsyncThunk(
   'formConfig/loadActive',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/form-configurations/active');
+      const response = await api.get('/api/v1/form-configurations/active');
       const data = response.data;
       if (Array.isArray(data) && data.length > 0) {
         return data[0]; 
@@ -127,8 +127,8 @@ export const saveFormConfiguration = createAsyncThunk(
     try {
       const method = formData._id ? 'put' : 'post';
       const url = formData._id 
-        ? `/form-configurations/${formData._id}`
-        : '/form-configurations';
+        ? `/api/v1/form-configurations/${formData._id}`
+        : '/api/v1/form-configurations';
       
       console.log('Sending form data:', formData); 
       const response = await api[method](url, formData);
@@ -149,7 +149,7 @@ export const deleteFormConfiguration = createAsyncThunk(
   'formConfig/delete',
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/form-configurations/${id}`);
+      await api.delete(`/api/v1/form-configurations/${id}`);
       return id;
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
@@ -161,7 +161,7 @@ export const activateFormConfiguration = createAsyncThunk(
   'formConfig/activate',
   async (id, { rejectWithValue, dispatch }) => {
     try {
-      const response = await api.put(`/form-configurations/${id}/activate`);
+      const response = await api.put(`/api/v1/form-configurations/${id}/activate`);
       // After activation, refetch all configs to ensure state is consistent
       // and load the new active config
       await dispatch(fetchFormConfigurations()).unwrap();

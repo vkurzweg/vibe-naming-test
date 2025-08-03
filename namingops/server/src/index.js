@@ -131,6 +131,16 @@ app.get('/test', (req, res) => {
   res.json({ message: 'Test route is working!' });
 });
 
+const path = require('path');
+app.use(express.static(path.join(__dirname, '../../client/build')));
+
+app.get('*', (req, res) => {
+  // Only serve index.html for non-API routes
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, '../../client/build', 'index.html'));
+  }
+});
+
 // Error handling middleware
 app.use(errorHandler);
 

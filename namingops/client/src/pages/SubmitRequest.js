@@ -7,16 +7,9 @@ import { format } from 'date-fns';
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   TextField,
   Typography,
   Grid,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  FormHelperText,
   Chip,
   Divider,
   IconButton,
@@ -32,7 +25,7 @@ import DynamicFormField from '../features/requests/DynamicFormField';
 
 const SubmitRequest = () => { 
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  
   // Log the entire formConfig state for debugging
   const formConfigState = useSelector((state) => state.formConfig);
   console.log('Form Config State:', {
@@ -46,7 +39,7 @@ const SubmitRequest = () => {
   // Destructure the values we need
   const { activeFormConfig, loading: formConfigLoading, error: formConfigError } = useSelector((state) => state.formConfig);
   const { user } = useSelector((state) => state.auth); // Get user from auth state
-  const { loading, error } = useSelector((state) => state.naming);
+  const { loading } = useSelector((state) => state.naming);
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
@@ -171,56 +164,22 @@ const SubmitRequest = () => {
     try {
       // Get all field values from the form data
       const fieldValues = {};
-      if (activeFormConfig?.fields) {
-        activeFormConfig.fields.forEach(field => {
-          fieldValues[field.name] = formData[field.name] || '';
-        });
-      }
-
-      // Prepare the request data according to the server's expected format
-      const requestData = {
-        requestTitle: fieldValues.requestTitle || 'Untitled Request',
-        description: fieldValues.description || 'No description provided',
-        proposedNames: Array.isArray(formData.proposedNames) 
-          ? formData.proposedNames
-              .filter(name => name && name.name && name.name.trim() !== '')
-              .map(name => ({
-                name: String(name.name).trim(),
-                description: name.description ? String(name.description).trim() : ''
-              }))
-          : [{ name: 'New Name', description: 'Automatically added name' }],
-        // Include all other form fields in the formData object
-        ...Object.entries(fieldValues)
-          .filter(([key]) => !['requestTitle', 'description'].includes(key))
-          .reduce((acc, [key, value]) => ({
-            ...acc,
-            [key]: value
-          }), {})
-      };
-
-      // Ensure we have at least one proposed name
-      if (requestData.proposedNames.length === 0) {
-        requestData.proposedNames = [{ 
-          name: fieldValues.requestTitle || 'New Name', 
-          description: fieldValues.description || 'Automatically added name' 
-        }];
-      }
+      activeFormConfig.fields.forEach(field => {
+        fieldValues[field.name] = formData[field.name] || '';
+      });
 
       // Prepare the final payload
       const payload = {
-        title: requestData.requestTitle,
-        description: requestData.description,
-        formData: requestData,
+        formData: fieldValues,
         user: user, // Use the logged-in user's data
         status: 'pending',
         formConfigId: activeFormConfig?._id || 'default-config',
         formConfigName: activeFormConfig?.name || 'Default Form'
       };
 
+      // Submit the request
       console.log('Submitting request with payload:', JSON.stringify(payload, null, 2));
-      
       const resultAction = await dispatch(createNamingRequest(payload));
-      
       if (createNamingRequest.fulfilled.match(resultAction)) {
         setSnackbarMessage('Naming request submitted successfully!');
         setSnackbarSeverity('success');
@@ -228,12 +187,10 @@ const SubmitRequest = () => {
       } else {
         const error = resultAction.payload || { message: 'Failed to submit request' };
         console.error('Submission error:', error);
-        
         // Extract validation errors if available
         const errorMessage = error.details?.errors?.length > 0
           ? error.details.errors.map(e => e.msg).join('\n')
           : error.message || 'Failed to submit request';
-          
         setSnackbarMessage(errorMessage);
         setSnackbarSeverity('error');
       }
@@ -295,7 +252,8 @@ const SubmitRequest = () => {
   }
 
   // Debug log the form configuration being used
-  console.log('Rendering form with config:', {
+  console.log('Rendering form with config:');
+  console.log({
     name: activeFormConfig.name,
     fieldCount: activeFormConfig.fields?.length || 0,
     fields: activeFormConfig.fields?.map(f => ({
@@ -306,72 +264,72 @@ const SubmitRequest = () => {
     }))
   });
 
+  // Conditional rendering based on loading/error states
+  if (formConfigLoading) {
+    return (
+      <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="200px">
+        <CircularProgress />
+        <Typography variant="body1" sx={{ mt: 2 }}>Loading form configuration...</Typography>
+      </Box>
+    );
+  }
+
+  if (formConfigError) {
+    return (
+      <Alert 
+        severity="error"
+        action={
+          <Button color="inherit" size="small" onClick={handleRefreshConfig}>
+            Retry
+          </Button>
+        }
+      >
+        {formConfigError.msg || 'Failed to load form configuration.'}
+      </Alert>
+    );
+  }
+
+  if (!activeFormConfig) {
+    return (
+      <Box textAlign="center" py={4}>
+        <Typography variant="h6" gutterBottom>No active form available</Typography>
+        <Button 
+          variant="contained" 
+          color="primary" 
+          onClick={handleRefreshConfig}
+          startIcon={<RefreshIcon />}
+        >
+          Refresh Form
+        </Button>
+      </Box>
+    );
+  }
+
+  // Main form render
   return (
     <Paper sx={{ p: 3, maxWidth: 800, margin: 'auto' }}>
       <Typography variant="h4" gutterBottom>
-        {activeFormConfig.name || 'Submit a Naming Request'}
+        {activeFormConfig.name || 'Submit a Request'}
       </Typography>
-      <Typography variant="subtitle1" gutterBottom>
-        {activeFormConfig.description}
-      </Typography>
-
-      <form onSubmit={handleSubmit(onSubmit)}>
+      {activeFormConfig.description && (
+        <Typography variant="subtitle1" gutterBottom>
+          {activeFormConfig.description}
+        </Typography>
+      )}
+      <form key={activeFormConfig?._id || 'default'} onSubmit={handleSubmit(onSubmit)}>
         <Grid container spacing={2}>
-          {/* Dynamic Fields from Config */}
           {activeFormConfig.fields?.map((field) => (
             <Grid item xs={12} key={field.name}>
               <DynamicFormField field={field} control={control} errors={errors} />
             </Grid>
           ))}
-
-          {/* Standard Fields */}
-          <Grid item xs={12}>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="h6">Proposed Names</Typography>
-          </Grid>
-
-          {proposedNames.map((item, index) => (
-            <React.Fragment key={index}>
-              <Grid item xs={12} sm={5}>
-                <TextField {...control.register(`proposedNames.${index}.name`)} label={`Proposed Name #${index + 1}`} fullWidth />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField {...control.register(`proposedNames.${index}.description`)} label="Description" fullWidth />
-              </Grid>
-              <Grid item xs={12} sm={1}>
-                <IconButton onClick={() => handleRemoveProposedName(index)} disabled={proposedNames.length <= 1}>
-                  <DeleteIcon />
-                </IconButton>
-              </Grid>
-            </React.Fragment>
-          ))}
-
-          <Grid item xs={12}>
-            <Button startIcon={<AddIcon />} onClick={handleAddProposedName}>Add Another Name</Button>
-          </Grid>
-
-          <Grid item xs={12}>
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="h6">Additional Info</Typography>
-          </Grid>
-
-          <Grid item xs={12}>
-            <TextField label="Keywords (press Enter to add)" onKeyDown={handleAddKeyword} fullWidth />
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
-              {metadata.keywords.map((keyword) => (
-                <Chip key={keyword} label={keyword} onDelete={() => handleRemoveKeyword(keyword)} />
-              ))}
-            </Box>
-          </Grid>
         </Grid>
-
         <Box sx={{ mt: 3 }}>
           <Button type="submit" variant="contained" color="primary" disabled={loading}>
             {loading ? <CircularProgress size={24} /> : 'Submit Request'}
           </Button>
         </Box>
       </form>
-
       <Snackbar
         open={openSnackbar}
         autoHideDuration={6000}
@@ -384,6 +342,8 @@ const SubmitRequest = () => {
       </Snackbar>
     </Paper>
   );
-};
+}
+
+
 
 export default SubmitRequest;

@@ -4,19 +4,19 @@ const namingRequestSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false,
   },
   title: {
     type: String,
-    required: true,
+    required: false,
   },
   formData: {
     type: Object,
-    required: true,
+    required: false,
   },
   status: {
     type: String,
-    enum: ['Submitted', 'In Review', 'Needs Information', 'Approved', 'Rejected'],
+    enum: ['Submitted', 'In Review', 'Needs Information', 'Approved', 'Rejected', 'pending', 'draft'],
     default: 'Submitted',
   },
   createdAt: {

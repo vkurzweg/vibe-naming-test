@@ -10,7 +10,7 @@ export const fetchUserRequests = createAsyncThunk(
     try {
       const { page = 1, limit = 10, status, priority, search, sortBy = 'createdAt', sortOrder = 'desc' } = params;
       
-      const response = await api.get('/requests', {
+      const response = await api.get('/api/v1/requests', {
         params: {
           page,
           limit,
@@ -36,7 +36,7 @@ export const getMyRequests = createAsyncThunk(
   'requests/getMyRequests',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/requests/my-requests');
+      const response = await api.get('/api/v1/requests/my-requests');
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch my requests');
@@ -48,7 +48,7 @@ export const fetchApprovedRequests = createAsyncThunk(
   'requests/fetchApprovedRequests',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/requests/archive');
+      const response = await api.get('/api/v1/requests/archive');
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch archive');
@@ -60,7 +60,7 @@ export const searchRequests = createAsyncThunk(
   'requests/searchRequests',
   async (query, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/requests/search?query=${query}`);
+      const response = await api.get(`/api/v1/requests/search?query=${query}`);
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Search failed');
@@ -72,7 +72,7 @@ export const fetchRequestById = createAsyncThunk(
   'requests/fetchRequestById',
   async (requestId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/requests/${requestId}`);
+      const response = await api.get(`/api/v1/requests/${requestId}`);
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch request');
@@ -84,7 +84,7 @@ export const updateRequest = createAsyncThunk(
   'requests/updateRequest',
   async ({ id, requestData }, { rejectWithValue }) => {
     try {
-      const res = await api.put(`/requests/${id}`, requestData);
+      const res = await api.put(`/api/v1/requests/${id}`, requestData);
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response.data);

@@ -16,12 +16,12 @@ const MAX_LIMIT = 100;
 
 // Validation middleware
 const validateRequest = [
-  check('requestTitle', 'Request title is required').not().isEmpty().trim().escape(),
-  check('description', 'Description is required').not().isEmpty().trim().escape(),
-  check('proposedNames', 'At least one proposed name is required').isArray({ min: 1 }),
-  check('proposedNames.*.name', 'Name is required').not().isEmpty().trim().escape(),
-  check('priority', 'Invalid priority').optional().isIn(['low', 'medium', 'high']),
-  check('dueDate', 'Invalid due date').optional().isISO8601()
+  check('requestTitle').optional().trim().escape(),
+  check('description').optional().trim().escape(),
+  check('proposedNames').optional(),
+  check('proposedNames.*.name').optional().trim().escape(),
+  check('priority').optional().isIn(['low', 'medium', 'high']),
+  check('dueDate').optional().isISO8601()
 ];
 
 // Helper to handle database operations with transactions
@@ -148,7 +148,7 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
     logger.info('Creating request with:', {
       requestorId,
       requestorName,
-      proposedNames: proposedNames.length,
+      proposedNames: proposedNames ? proposedNames.length : 0,
       metadata: Object.keys(metadata || {})
     });
 
@@ -158,11 +158,11 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
       description,
       requestor: requestorId,
       requestorName,
-      proposedNames: proposedNames.map(name => ({
+      proposedNames: Array.isArray(proposedNames) ? proposedNames.map(name => ({
         name: name.name,
         description: name.description || '',
         status: 'pending'
-      })),
+      })) : [],
       priority: priority || 'medium',
       dueDate: dueDate || null,
       metadata: metadata || {},
@@ -183,10 +183,8 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
     // Commit the transaction
     await session.commitTransaction();
     
-    // Populate the response
-    const populatedRequest = await NamingRequest.findById(savedRequest._id)
-      .populate('requestor', 'name email')
-      .populate('reviewer', 'name email');
+    // Populate the response - without trying to populate fields that don't exist
+    const populatedRequest = await NamingRequest.findById(savedRequest._id);
     
     logger.info('Sending success response for request:', savedRequest._id);
     
@@ -197,7 +195,9 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
     
   } catch (error) {
     // If we get here, something went wrong
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     
     logger.error('Error creating naming request:', {
       name: error.name,
