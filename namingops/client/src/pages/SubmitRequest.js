@@ -51,17 +51,21 @@ const SubmitRequest = () => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
-  // Initialize form with empty values - the fields will be populated by the form config
-  const defaultValues = {
-    proposedNames: [{ name: '', description: '' }],
-    metadata: {
-      keywords: []
-    },
-    // Set default due date to 1 week from now
-    dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-    // Set default priority
-    priority: 'medium'
-  };
+  // Helper to generate default values from config
+  function getDefaultValuesFromConfig(config) {
+    const defaults = {
+      proposedNames: [{ name: '', description: '' }],
+      metadata: { keywords: [] },
+      dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+      priority: 'medium'
+    };
+    if (config && Array.isArray(config.fields)) {
+      config.fields.forEach(field => {
+        defaults[field.name] = field.defaultValue ?? '';
+      });
+    }
+    return defaults;
+  }
 
   const {
     handleSubmit,
@@ -71,7 +75,7 @@ const SubmitRequest = () => {
     watch,
     setValue
   } = useForm({
-    defaultValues
+    defaultValues: getDefaultValuesFromConfig(null)
   });
 
   const proposedNames = watch('proposedNames');
@@ -81,50 +85,21 @@ const SubmitRequest = () => {
   const initialLoad = React.useRef(true);
   const lastFetchedConfigId = React.useRef(null);
   
-  // Effect to load form configuration
+  // Effect to load form configuration on mount
   useEffect(() => {
-    // Reset the last fetched ID when the component mounts or when the role changes
     lastFetchedConfigId.current = null;
     initialLoad.current = true;
-    
     const loadFormConfig = async () => {
       try {
         console.log('Loading form configuration...');
         const resultAction = await dispatch(loadActiveFormConfig());
         const config = resultAction.payload;
-        
         if (config) {
           console.log('Form configuration loaded:', {
             id: config._id,
             name: config.name,
             fields: config.fields?.length || 0
           });
-          
-          if (config._id !== lastFetchedConfigId.current) {
-            console.log('New form configuration detected, updating...');
-            lastFetchedConfigId.current = config._id;
-            
-            // Reset the form with new default values when a new config is loaded
-            const defaultValues = {
-              proposedNames: [{ name: '', description: '' }],
-              metadata: {
-                keywords: []
-              },
-              // Set default due date to 1 week from now
-              dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-              // Set default priority
-              priority: 'medium'
-            };
-            console.log('Resetting form with default values:', defaultValues);
-            reset(defaultValues);
-            
-            // Show a message to the user that the form has been updated
-            if (!initialLoad.current) {
-              setSnackbarMessage(`Loaded form: ${config.name}`);
-              setSnackbarSeverity('info');
-              setOpenSnackbar(true);
-            }
-          }
         }
       } catch (error) {
         console.error('Error loading form configuration:', error);
@@ -135,20 +110,31 @@ const SubmitRequest = () => {
         initialLoad.current = false;
       }
     };
-    
-    // Always load the form config when the component mounts or when the role changes
     loadFormConfig();
-    
-    // Set up an interval to periodically check for form config updates in development
     if (process.env.NODE_ENV === 'development') {
       const intervalId = setInterval(() => {
         console.log('Checking for form config updates...');
         dispatch(loadActiveFormConfig());
-      }, 15000); // Check every 15 seconds
-      
+      }, 15000);
       return () => clearInterval(intervalId);
     }
-  }, [dispatch, reset]); // Reset when lastUpdated changes or when component mounts
+  }, [dispatch]);
+
+  // Effect to reset form whenever activeFormConfig changes
+  useEffect(() => {
+    if (activeFormConfig && activeFormConfig._id !== lastFetchedConfigId.current) {
+      lastFetchedConfigId.current = activeFormConfig._id;
+      const dynamicDefaults = getDefaultValuesFromConfig(activeFormConfig);
+      console.log('Resetting form with dynamic default values:', dynamicDefaults);
+      reset(dynamicDefaults);
+      if (!initialLoad.current) {
+        setSnackbarMessage(`Loaded form: ${activeFormConfig.name}`);
+        setSnackbarSeverity('info');
+        setOpenSnackbar(true);
+      }
+      initialLoad.current = false;
+    }
+  }, [activeFormConfig, reset]);
 
   const handleAddProposedName = () => {
     setValue('proposedNames', [...proposedNames, { name: '', description: '' }]);
@@ -238,7 +224,7 @@ const SubmitRequest = () => {
       if (createNamingRequest.fulfilled.match(resultAction)) {
         setSnackbarMessage('Naming request submitted successfully!');
         setSnackbarSeverity('success');
-        reset(defaultValues);
+        reset(getDefaultValuesFromConfig(activeFormConfig));
       } else {
         const error = resultAction.payload || { message: 'Failed to submit request' };
         console.error('Submission error:', error);

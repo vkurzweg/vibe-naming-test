@@ -87,34 +87,67 @@ api.interceptors.response.use(
       
       // For form configurations, return a default config
       if (error.config?.url?.includes('form-configurations')) {
-        console.warn('Development: Returning mock form configuration');
-        return Promise.resolve({
-          data: [{
-            _id: 'default-dev-config',
-            name: 'Default Development Form',
-            description: 'Default form configuration for development',
-            isActive: true,
-            fields: [
-              {
-                _id: '1',
-                name: 'requestTitle',
-                label: 'Request Title',
-                fieldType: 'text',
-                required: true
-              },
-              {
-                _id: '2',
-                name: 'description',
-                label: 'Description',
-                fieldType: 'textarea',
-                required: true
-              }
-            ],
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }]
-        });
-      }
+          console.info('Development: Returning mock form configuration for', error.config.url);
+          const now = new Date().toISOString();
+          // If activating a config, extract the id from the URL
+          const activateMatch = error.config?.url?.match(/form-configurations\/(.+?)\/activate/);
+          if (activateMatch) {
+            const activatedId = activateMatch[1];
+            return Promise.resolve({
+              data: [{
+                _id: activatedId,
+                name: 'Activated Mock Form',
+                description: 'This is a mock activated form config for development.',
+                isActive: true,
+                fields: [
+                  {
+                    _id: '1',
+                    name: 'requestTitle',
+                    label: 'Request Title',
+                    fieldType: 'text',
+                    required: true
+                  },
+                  {
+                    _id: '2',
+                    name: 'description',
+                    label: 'Description',
+                    fieldType: 'textarea',
+                    required: true
+                  }
+                ],
+                createdAt: now,
+                updatedAt: now
+              }]
+            });
+          }
+          // Otherwise, return default mock config
+          return Promise.resolve({
+            data: [{
+              _id: 'default-dev-config',
+              name: 'Default Development Form',
+              description: 'Default form configuration for development',
+              isActive: true,
+              fields: [
+                {
+                  _id: '1',
+                  name: 'requestTitle',
+                  label: 'Request Title',
+                  fieldType: 'text',
+                  required: true
+                },
+                {
+                  _id: '2',
+                  name: 'description',
+                  label: 'Description',
+                  fieldType: 'textarea',
+                  required: true
+                }
+              ],
+              createdAt: now,
+              updatedAt: now
+            }]
+          });
+        }
     }
     
     // For production or non-development handling

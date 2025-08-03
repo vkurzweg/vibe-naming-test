@@ -241,7 +241,6 @@ const ReviewQueue = () => {
             Please provide a reason for rejecting this request:
           </DialogContentText>
           <TextField
-            autoFocus
             margin="dense"
             id="rejection-reason"
             label="Reason for rejection"

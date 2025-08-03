@@ -262,22 +262,23 @@ const FormConfigManager = () => {
                   secondary={config.description || 'No description provided'}
                   primaryTypographyProps={{ fontWeight: 'medium' }}
                 />
-                {config.isActive && (
-                  <Box 
-                    component="span" 
-                    sx={{
-                      bgcolor: 'success.main',
-                      color: 'white',
-                      px: 1,
-                      py: 0.5,
-                      borderRadius: 1,
-                      fontSize: '0.75rem',
-                      ml: 2
-                    }}
-                  >
-                    Active
-                  </Box>
-                )}
+                <Button 
+                  variant={config.isActive ? 'contained' : 'outlined'}
+                  color={config.isActive ? 'success' : 'primary'}
+                  size="small"
+                  disabled={config.isActive || loading}
+                  sx={{ ml: 2 }}
+                  onClick={() => {
+                    if (!config.isActive) {
+                      dispatch(require('./formConfigSlice').activateFormConfiguration(config._id))
+                        .unwrap()
+                        .then(() => setSnackbar({ open: true, message: 'Form activated successfully', severity: 'success' }))
+                        .catch((error) => setSnackbar({ open: true, message: error?.message || 'Failed to activate form', severity: 'error' }));
+                    }
+                  }}
+                >
+                  {config.isActive ? 'Active' : 'Activate'}
+                </Button>
               </ListItem>
             ))}
           </List>

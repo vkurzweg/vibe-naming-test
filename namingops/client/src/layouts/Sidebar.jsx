@@ -78,46 +78,12 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
     }));
   };
 
-  // Navigation items based on user role
-  const navItems = useMemo(() => {
-    const items = [
-      {
-        text: 'Dashboard',
-        icon: <DashboardIcon />,
-        path: '/',
-        show: true,
-      },
-      {
-        text: 'Submit Request',
-        icon: <AddIcon />,
-        path: '/submit-request',
-        show: true,
-      },
-      {
-        text: 'Archive',
-        icon: <ArchiveIcon />,
-        path: '/archive',
-        show: true,
-      },
-    ];
-
-    // Add admin-specific items
-    if (user?.role === 'admin') {
-      items.push(
-        {
-          text: 'Admin',
-          icon: <SettingsIcon />,
-          children: [
-            { text: 'Form Configuration', path: '/admin/forms' },
-            { text: 'User Management', path: '/admin/users' },
-          ],
-          show: true,
-        }
-      );
-    }
-
-    return items;
-  }, [user?.role]);
+  // Filter nav items by role and devOnly flag
+  const role = user?.role || 'submitter';
+  const isDev = process.env.NODE_ENV === 'development';
+  const filteredNav = NAV_ITEMS.filter(item =>
+    item.roles.includes(role) && (isDev || !item.devOnly)
+  );
 
   const drawer = (
     <div>

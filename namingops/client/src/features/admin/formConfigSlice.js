@@ -107,10 +107,14 @@ export const loadActiveFormConfig = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await api.get('/form-configurations/active');
-      return response.data || null;
+      const data = response.data;
+      if (Array.isArray(data) && data.length > 0) {
+        return data[0]; 
+      }
+      return data || null; 
     } catch (error) {
       if (error.response?.status === 404) {
-        return null; // No active config is not an error
+        return null; 
       }
       return rejectWithValue(createSerializableError(error));
     }
@@ -126,7 +130,7 @@ export const saveFormConfiguration = createAsyncThunk(
         ? `/form-configurations/${formData._id}`
         : '/form-configurations';
       
-      console.log('Sending form data:', formData); // Add this line
+      console.log('Sending form data:', formData); 
       const response = await api[method](url, formData);
       
       // If this is being set as active, update the active config
@@ -277,8 +281,38 @@ const formConfigSlice = createSlice({
       state.loading = true;
       state.error = null;
     });
-    builder.addCase(activateFormConfiguration.fulfilled, (state) => {
+    builder.addCase(activateFormConfiguration.fulfilled, (state, action) => {
       state.loading = false;
+      // Handle array or object payload
+      let activatedConfig = Array.isArray(action.payload) ? action.payload[0] : action.payload;
+      // Sanitize dates in activatedConfig
+      if (activatedConfig) {
+        ['createdAt', 'updatedAt'].forEach(field => {
+          if (activatedConfig[field] instanceof Date) {
+            activatedConfig[field] = activatedConfig[field].toISOString();
+          } else if (typeof activatedConfig[field] === 'string' && !/Z$/.test(activatedConfig[field])) {
+            const d = new Date(activatedConfig[field]);
+            if (!isNaN(d)) activatedConfig[field] = d.toISOString();
+          }
+        });
+      }
+      state.activeFormConfig = activatedConfig;
+      // Ensure the list of configs reflects the change in active status and sanitize their dates
+      state.formConfigs = state.formConfigs.map(config => {
+        const updated = {
+          ...config,
+          isActive: config._id === activatedConfig?._id
+        };
+        ['createdAt', 'updatedAt'].forEach(field => {
+          if (updated[field] instanceof Date) {
+            updated[field] = updated[field].toISOString();
+          } else if (typeof updated[field] === 'string' && !/Z$/.test(updated[field])) {
+            const d = new Date(updated[field]);
+            if (!isNaN(d)) updated[field] = d.toISOString();
+          }
+        });
+        return updated;
+      });
       state.lastUpdated = new Date().toISOString();
     });
     builder.addCase(activateFormConfiguration.rejected, (state, action) => {
