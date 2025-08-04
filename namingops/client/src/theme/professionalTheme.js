@@ -1,6 +1,7 @@
 import { createTheme } from '@mui/material/styles';
+import newColorPalette from './newColorPalette';
 
-// Professional Material-UI theme with dark mode default
+// Professional Material-UI theme with dark mode default and new color palette
 export const createProfessionalTheme = (mode = 'dark') => {
   const isDark = mode === 'dark';
   
@@ -8,53 +9,55 @@ export const createProfessionalTheme = (mode = 'dark') => {
     palette: {
       mode,
       primary: {
-        main: isDark ? '#90caf9' : '#1976d2',
-        light: isDark ? '#bbdefb' : '#42a5f5',
-        dark: isDark ? '#64b5f6' : '#1565c0',
-        contrastText: isDark ? '#000' : '#fff',
+        main: isDark ? newColorPalette.primary.main : newColorPalette.primary.light,
+        light: isDark ? newColorPalette.primary.light : newColorPalette.secondary.light,
+        dark: isDark ? newColorPalette.primary.dark : newColorPalette.primary.main,
+        contrastText: '#ffffff',
       },
       secondary: {
-        main: isDark ? '#f48fb1' : '#dc004e',
-        light: isDark ? '#f8bbd9' : '#e91e63',
-        dark: isDark ? '#f06292' : '#c51162',
+        main: isDark ? newColorPalette.secondary.main : newColorPalette.accent.main,
+        light: isDark ? newColorPalette.secondary.light : newColorPalette.accent.light,
+        dark: isDark ? newColorPalette.secondary.dark : newColorPalette.accent.dark,
+        contrastText: '#ffffff',
       },
       success: {
-        main: '#4caf50',
-        light: '#81c784',
-        dark: '#388e3c',
+        main: newColorPalette.status.approved,
+        light: newColorPalette.accent.light,
+        dark: newColorPalette.accent.dark,
       },
       warning: {
-        main: '#ff9800',
-        light: '#ffb74d',
-        dark: '#f57c00',
+        main: newColorPalette.status.pending,
+        light: newColorPalette.additional.skyBlue,
+        dark: newColorPalette.secondary.main,
       },
       error: {
-        main: '#f44336',
-        light: '#e57373',
-        dark: '#d32f2f',
+        // Using neutral gray instead of red for rejected status
+        main: newColorPalette.neutral.main,
+        light: newColorPalette.neutral.light,
+        dark: newColorPalette.neutral.dark,
       },
       info: {
-        main: '#2196f3',
-        light: '#64b5f6',
-        dark: '#1976d2',
+        main: newColorPalette.status.inProgress,
+        light: newColorPalette.additional.lightBlue,
+        dark: newColorPalette.secondary.dark,
       },
       background: {
-        default: isDark ? '#121212' : '#fafafa',
-        paper: isDark ? '#1e1e1e' : '#ffffff',
+        default: isDark ? '#121212' : '#ffffff',
+        paper: isDark ? '#1e1e1e' : '#f5f5f7',
       },
       text: {
-        primary: isDark ? '#ffffff' : '#212121',
-        secondary: isDark ? '#b3b3b3' : '#757575',
+        primary: isDark ? '#ffffff' : newColorPalette.text.primary,
+        secondary: isDark ? '#b3b3b3' : newColorPalette.text.secondary,
       },
       divider: isDark ? '#333' : '#e0e0e0',
-      // Custom status colors
+      // Custom status colors using new palette
       status: {
-        pending: '#ff9800',
-        'in-progress': '#2196f3',
-        approved: '#4caf50',
-        rejected: '#f44336',
-        draft: '#9e9e9e',
-        new: '#e91e63',
+        pending: newColorPalette.status.pending,
+        inProgress: newColorPalette.status.inProgress,
+        approved: newColorPalette.status.approved,
+        rejected: newColorPalette.status.rejected,
+        draft: newColorPalette.status.draft,
+        new: newColorPalette.status.new,
       },
     },
     typography: {

@@ -110,10 +110,31 @@ const reviewSlice = createSlice({
       })
       .addCase(fetchReviewRequests.fulfilled, (state, action) => {
         state.loading = false;
-        state.requests = action.payload.requests;
-        state.pagination.total = action.payload.total;
-        if (action.payload.metrics) {
-          state.metrics = action.payload.metrics;
+        
+        // Handle both object format with requests property and direct array format
+        if (Array.isArray(action.payload)) {
+          // Server is returning an array directly
+          state.requests = action.payload;
+          state.pagination.total = action.payload.length;
+          console.log('Received array response with', action.payload.length, 'requests');
+        } else if (action.payload && action.payload.requests) {
+          // Server is returning an object with requests property
+          state.requests = action.payload.requests;
+          state.pagination.total = action.payload.total || action.payload.requests.length;
+          
+          // Update metrics if available
+          if (action.payload.metrics) {
+            state.metrics = action.payload.metrics;
+          }
+        } else if (action.payload && action.payload.data) {
+          // Handle case where data might be nested under a data property
+          state.requests = action.payload.data;
+          state.pagination.total = action.payload.total || action.payload.data.length;
+        } else {
+          // Fallback for any other format
+          console.warn('Unexpected response format:', action.payload);
+          state.requests = [];
+          state.pagination.total = 0;
         }
       })
       .addCase(fetchReviewRequests.rejected, (state, action) => {

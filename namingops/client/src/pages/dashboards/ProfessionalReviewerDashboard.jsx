@@ -1,42 +1,42 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '@mui/material/styles';
 import {
   Box,
-  Container,
-  Grid,
   Card,
   CardContent,
   Typography,
+  Tabs,
+  Tab,
   Button,
   Chip,
+  TextField,
+  InputAdornment,
+  IconButton,
+  Divider,
+  Grid,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Paper,
-  IconButton,
   Tooltip,
   CircularProgress,
   Alert,
-  TextField,
-  InputAdornment,
-  Divider,
-  Avatar,
-  Stack,
   Badge,
+  Avatar,
   Menu,
   MenuItem,
   FormControl,
   InputLabel,
   Select,
   TableSortLabel,
-  Tabs,
-  Tab,
   LinearProgress,
 } from '@mui/material';
+import newColorPalette, { getStatusColor, getStatusIcon } from '../../theme/newColorPalette';
 import {
   Search as SearchIcon,
   FilterList as FilterIcon,
@@ -56,8 +56,6 @@ import {
 import { format, parseISO, isToday, isYesterday, differenceInDays } from 'date-fns';
 import { fetchReviewRequests, claimRequest, updateRequestStatus } from '../../features/review/reviewSlice';
 import { fetchUserRequests } from '../../features/requests/requestsSlice';
-import { getStatusColor, getStatusIcon } from '../../theme/professionalTheme';
-import { useTheme } from '@mui/material/styles';
 import RequestDetailsModal from '../../components/Requests/RequestDetailsModal';
 import RequestStatusUpdate from '../../components/Requests/RequestStatusUpdate';
 
@@ -134,21 +132,35 @@ const ProfessionalReviewerDashboard = () => {
   const reviewRequestsData = Array.isArray(reviewRequests) ? reviewRequests : [];
   
   console.log('All requests data:', allRequestsData);
-  console.log('Review requests data:', reviewRequestsData);
   console.log('All requests loading:', requestsLoading);
   console.log('All requests error:', requestsError);
+  console.log('Review requests data:', reviewRequestsData);
   console.log('Review requests loading:', reviewLoading);
   console.log('Review requests error:', reviewError);
   
   // Combine and deduplicate requests
   const combinedRequests = [...allRequestsData, ...reviewRequestsData].reduce((acc, request) => {
-    if (!acc.find(r => r._id === request._id)) {
+    // Skip null or undefined requests
+    if (!request) return acc;
+    
+    // Ensure each request has an _id for deduplication
+    const requestId = request._id || request.id;
+    if (!requestId) {
+      // Generate a temporary ID if none exists
+      const tempId = `temp-${Math.random().toString(36).substr(2, 9)}`;
+      request._id = tempId;
+      acc.push(request);
+      return acc;
+    }
+    
+    // Deduplicate by ID
+    if (!acc.find(r => (r._id === requestId || r.id === requestId))) {
       acc.push(request);
     }
     return acc;
   }, []);
   
-  console.log('Combined requests:', combinedRequests);
+  console.log('Combined requests after processing:', combinedRequests);
 
   // Show loading state if either data source is loading
   const isLoading = requestsLoading || reviewLoading;
@@ -157,63 +169,25 @@ const ProfessionalReviewerDashboard = () => {
   const hasError = requestsError || reviewError;
   const errorMessage = requestsError || reviewError || 'An error occurred while fetching requests';
   
-  // Filter requests based on tab, search, and status
-  const getFilteredRequests = () => {
-    let filtered = combinedRequests;
-
-    // Tab filtering
-    switch (tabValue) {
-      case 0: // All Active
-        filtered = filtered.filter(r => !['approved', 'rejected'].includes(r.status));
-        break;
-      case 1: // New Requests
-        filtered = filtered.filter(r => r.status === 'pending' || r.status === 'new');
-        break;
-      case 2: // In Progress
-        filtered = filtered.filter(r => r.status === 'in-progress');
-        break;
-      case 3: // My Assigned
-        filtered = filtered.filter(r => r.assignedTo === user?.id);
-        break;
-      default:
-        break;
-    }
-
-    // Search filtering
-    if (searchQuery) {
-      filtered = filtered.filter(request =>
-        request.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        request.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (typeof request.description === 'string' && request.description.toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
-
-    // Status filtering
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(request => request.status === statusFilter);
-    }
-
-    // Sorting
-    filtered.sort((a, b) => {
-      let aValue = a[sortBy];
-      let bValue = b[sortBy];
-      
-      if (sortBy === 'createdAt' || sortBy === 'updatedAt') {
-        aValue = new Date(aValue);
-        bValue = new Date(bValue);
-      }
-      
-      if (sortOrder === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-
-    return filtered;
-  };
-
-  const filteredRequests = getFilteredRequests();
+  // Filter requests based on tab, search, and status with better error handling
+  const filteredRequests = combinedRequests.filter(request => {
+    // More robust search that handles any data structure
+    const matchesSearch = !searchQuery || (
+      // Search in title (multiple possible locations)
+      (request.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       request.formData?.requestTitle?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+       request.formData?.title?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      // Search in description (multiple possible locations)
+      (request.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+       (typeof request.description === 'object' && request.description?.text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+       request.formData?.description?.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+    
+    // More robust status matching
+    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
 
   // Calculate comprehensive stats
   const stats = {
@@ -265,14 +239,21 @@ const ProfessionalReviewerDashboard = () => {
     setSelectedRequest(null);
   };
 
+  // Format date for display with better error handling
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-      const date = parseISO(dateString);
-      if (isToday(date)) return 'Today';
-      if (isYesterday(date)) return 'Yesterday';
-      return format(date, 'MMM dd, yyyy');
-    } catch {
+      // Handle different date formats
+      if (dateString instanceof Date) {
+        return format(dateString, 'MMM dd, yyyy');
+      } else if (typeof dateString === 'string') {
+        return format(parseISO(dateString), 'MMM dd, yyyy');
+      } else if (typeof dateString === 'number') {
+        return format(new Date(dateString), 'MMM dd, yyyy');
+      }
+      return format(parseISO(dateString.toString()), 'MMM dd, yyyy');
+    } catch (error) {
+      console.warn('Date formatting error:', error);
       return 'Invalid date';
     }
   };
@@ -284,15 +265,25 @@ const ProfessionalReviewerDashboard = () => {
     return theme.palette.text.secondary;
   };
 
-  const getStatusChipProps = (status) => ({
-    label: status?.replace('_', ' ').toUpperCase(),
-    sx: {
-      backgroundColor: getStatusColor(status, theme),
-      color: theme.palette.getContrastText(getStatusColor(status, theme)),
-      fontWeight: 600,
-      fontSize: '0.75rem',
-    },
-  });
+  // Use the new color palette for status chips
+  
+  // Get status chip props with better error handling
+  const getStatusChipProps = (status) => {
+    // Default to 'pending' if status is undefined or invalid
+    const safeStatus = status && typeof status === 'string' ? status : 'pending';
+    
+    return {
+      label: safeStatus.replace('_', ' ').toUpperCase(),
+      sx: {
+        backgroundColor: getStatusColor(safeStatus),
+        color: '#fff',
+        fontWeight: 600,
+        fontSize: '0.75rem',
+      },
+      size: 'small',
+      icon: getStatusIcon(safeStatus),
+    };
+  };
 
   if (reviewLoading || requestsLoading) {
     return (
@@ -642,7 +633,8 @@ const ProfessionalReviewerDashboard = () => {
                           <Box>
                             <Box display="flex" alignItems="center" gap={1}>
                               <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                {request.title || 'Untitled Request'}
+                                {/* Handle any title format */}
+                                {request.title || request.formData?.requestTitle || request.formData?.title || 'Untitled Request'}
                               </Typography>
                               {isUrgent && (
                                 <Chip 
@@ -654,16 +646,12 @@ const ProfessionalReviewerDashboard = () => {
                               )}
                             </Box>
                             <Typography variant="body2" color="text.secondary" noWrap>
+                              {/* Handle any description format */}
                               {typeof request.description === 'object' 
                                 ? request.description?.text || 'No description' 
-                                : request.description || 'No description'
+                                : request.description || request.formData?.description || 'No description'
                               }
                             </Typography>
-                            {request.formData && (
-                              <Typography variant="caption" color="text.secondary">
-                                {Object.keys(request.formData).length} field{Object.keys(request.formData).length !== 1 ? 's' : ''} submitted
-                              </Typography>
-                            )}
                           </Box>
                         </TableCell>
                         <TableCell>
@@ -682,14 +670,13 @@ const ProfessionalReviewerDashboard = () => {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Chip {...getStatusChipProps(request.status)} />
+                          {/* Handle any status format */}
+                          <Chip {...getStatusChipProps(request.status || 'pending')} />
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" sx={{ color: urgencyColor }}>
-                            {formatDate(request.createdAt)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {differenceInDays(new Date(), new Date(request.createdAt))} days ago
+                          <Typography variant="body2">
+                            {/* Handle any date format */}
+                            {formatDate(request.createdAt || request.date || request.submittedAt || new Date())}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
