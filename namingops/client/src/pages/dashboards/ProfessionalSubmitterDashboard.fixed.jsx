@@ -50,7 +50,6 @@ import { getStatusColor, getStatusIcon } from '../../theme/professionalTheme';
 import RequestDetailsModal from '../../components/Requests/RequestDetailsModal';
 import NamingGuidelines from '../../components/Guidelines/NamingGuidelines';
 import HelperAgent from '../../components/HelperAgent/HelperAgent';
-import SubmitRequestModal from '../../components/Requests/SubmitRequestModal';
 
 const ProfessionalSubmitterDashboard = () => {
   const dispatch = useDispatch();
@@ -64,7 +63,6 @@ const ProfessionalSubmitterDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedRequestId, setSelectedRequestId] = useState(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [submitRequestModalOpen, setSubmitRequestModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
@@ -268,7 +266,7 @@ const ProfessionalSubmitterDashboard = () => {
                         variant="contained"
                         color="primary"
                         startIcon={<AddIcon />}
-                        onClick={() => setSubmitRequestModalOpen(true)}
+                        onClick={() => navigate('/submit-request')}
                       >
                         New Request
                       </Button>
@@ -406,7 +404,7 @@ const ProfessionalSubmitterDashboard = () => {
                           color="primary"
                           startIcon={<AddIcon />}
                           fullWidth
-                          onClick={() => setSubmitRequestModalOpen(true)}
+                          onClick={() => navigate('/submit-request')}
                         >
                           New Request
                         </Button>
@@ -484,12 +482,6 @@ const ProfessionalSubmitterDashboard = () => {
         open={detailsModalOpen}
         onClose={handleCloseDetailsModal}
         requestId={selectedRequestId}
-      />
-      
-      {/* Submit Request Modal */}
-      <SubmitRequestModal
-        open={submitRequestModalOpen}
-        onClose={() => setSubmitRequestModalOpen(false)}
       />
     </Container>
   );

@@ -136,15 +136,8 @@ function AppRoutes() {
         <Route path="/review-queue" element={<Navigate to="/" replace />} />
         <Route path="/archive" element={<Navigate to="/" replace />} />
         
-        {/* Specific functional routes */}
-        <Route
-          path="/submit-request"
-          element={
-            <ProtectedRoute>
-              <SubmitRequest />
-            </ProtectedRoute>
-          }
-        />
+        {/* Redirect specific functional routes to main dashboard */}
+        <Route path="/submit-request" element={<Navigate to="/" replace />} />
         
         {/* Admin routes */}
         <Route

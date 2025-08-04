@@ -67,8 +67,8 @@ const ProfessionalReviewerDashboard = () => {
   const theme = useTheme();
   
   const { user } = useSelector((state) => state.auth);
-  const { requests: reviewRequests, loading: reviewLoading } = useSelector((state) => state.review);
-  const { requests: allRequests, loading: requestsLoading } = useSelector((state) => state.requests);
+  const { requests: reviewRequests, loading: reviewLoading, error: reviewError } = useSelector((state) => state.review);
+  const { requests: allRequests, loading: requestsLoading, error: requestsError } = useSelector((state) => state.requests);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -81,13 +81,64 @@ const ProfessionalReviewerDashboard = () => {
   const [statusUpdateModalOpen, setStatusUpdateModalOpen] = useState(false);
 
   useEffect(() => {
-    dispatch(fetchReviewRequests());
-    dispatch(fetchUserRequests({ page: 1, limit: 100 }));
+    console.log('Fetching review requests and user requests...');
+    
+    // Fetch review requests with detailed error handling
+    dispatch(fetchReviewRequests({
+      status: 'all',
+      page: 1,
+      limit: 100
+    }))
+      .unwrap()
+      .then(data => {
+        console.log('Review requests fetched successfully:', data);
+      })
+      .catch(error => {
+        console.error('Error fetching review requests:', error);
+        // Display error in UI instead of just console
+      });
+    
+    // Fetch user requests with detailed error handling  
+    dispatch(fetchUserRequests({
+      page: 1,
+      limit: 100
+    }))
+      .unwrap()
+      .then(data => {
+        console.log('User requests fetched successfully:', data);
+      })
+      .catch(error => {
+        console.error('Error fetching user requests:', error);
+        // Display error in UI instead of just console
+      });
+      
+    // Force refresh every 30 seconds to ensure data is current
+    const refreshInterval = setInterval(() => {
+      console.log('Auto-refreshing review data...');
+      dispatch(fetchReviewRequests({
+        status: 'all',
+        page: 1,
+        limit: 100
+      }));
+      dispatch(fetchUserRequests({
+        page: 1,
+        limit: 100
+      }));
+    }, 30000);
+    
+    return () => clearInterval(refreshInterval);
   }, [dispatch]);
 
-  // Get all requests data
+  // Get all requests data with better error handling
   const allRequestsData = Array.isArray(allRequests?.data) ? allRequests.data : [];
   const reviewRequestsData = Array.isArray(reviewRequests) ? reviewRequests : [];
+  
+  console.log('All requests data:', allRequestsData);
+  console.log('Review requests data:', reviewRequestsData);
+  console.log('All requests loading:', requestsLoading);
+  console.log('All requests error:', requestsError);
+  console.log('Review requests loading:', reviewLoading);
+  console.log('Review requests error:', reviewError);
   
   // Combine and deduplicate requests
   const combinedRequests = [...allRequestsData, ...reviewRequestsData].reduce((acc, request) => {
@@ -96,7 +147,16 @@ const ProfessionalReviewerDashboard = () => {
     }
     return acc;
   }, []);
+  
+  console.log('Combined requests:', combinedRequests);
 
+  // Show loading state if either data source is loading
+  const isLoading = requestsLoading || reviewLoading;
+  
+  // Show error if either data source has an error
+  const hasError = requestsError || reviewError;
+  const errorMessage = requestsError || reviewError || 'An error occurred while fetching requests';
+  
   // Filter requests based on tab, search, and status
   const getFilteredRequests = () => {
     let filtered = combinedRequests;
@@ -472,7 +532,25 @@ const ProfessionalReviewerDashboard = () => {
           <Divider sx={{ mb: 3 }} />
 
           {/* Requests Table */}
-          {filteredRequests.length === 0 ? (
+          {hasError ? (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {errorMessage}
+              <Button 
+                size="small" 
+                sx={{ mt: 1 }}
+                onClick={() => {
+                  dispatch(fetchReviewRequests());
+                  dispatch(fetchUserRequests());
+                }}
+              >
+                Retry
+              </Button>
+            </Alert>
+          ) : isLoading ? (
+            <Box display="flex" justifyContent="center" py={4}>
+              <CircularProgress />
+            </Box>
+          ) : filteredRequests.length === 0 ? (
             <Box textAlign="center" py={6}>
               <AssignmentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>

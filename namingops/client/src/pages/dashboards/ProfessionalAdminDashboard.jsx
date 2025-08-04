@@ -21,6 +21,15 @@ import {
   Chip,
   Divider,
   FormControlLabel,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -31,29 +40,140 @@ import {
   CheckCircle as CheckCircleIcon,
   People as PeopleIcon,
   AdminPanelSettings as AdminPanelSettingsIcon,
+  Assignment as AssignmentIcon,
+  Search as SearchIcon,
+  FilterList as FilterIcon,
+  Visibility as ViewIcon,
 } from '@mui/icons-material';
+import { format, parseISO } from 'date-fns';
 import { 
   fetchFormConfigs, 
   activateFormConfig, 
   deleteFormConfig 
 } from '../../features/formConfig/formConfigSlice';
+import { fetchReviewRequests } from '../../features/review/reviewSlice';
+import { fetchUserRequests } from '../../features/requests/requestsSlice';
+import { getStatusColor, getStatusIcon } from '../../theme/professionalTheme';
 import FormConfigModal from '../../components/FormConfig/FormConfigModal';
+import RequestDetailsModal from '../../components/Requests/RequestDetailsModal';
 
 const ProfessionalAdminDashboard = () => {
   const dispatch = useDispatch();
-  const { formConfigs, activeFormConfig, loading, error } = useSelector((state) => state.formConfig);
+  const { formConfigs, activeFormConfig, loading: formConfigLoading, error: formConfigError } = useSelector((state) => state.formConfig);
+  const { requests: reviewRequests, loading: reviewLoading, error: reviewError } = useSelector((state) => state.review);
+  const { requests: allRequests, loading: requestsLoading, error: requestsError } = useSelector((state) => state.requests);
   
   const [activeTab, setActiveTab] = useState(0);
   const [formConfigModalOpen, setFormConfigModalOpen] = useState(false);
   const [selectedFormConfig, setSelectedFormConfig] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   
   useEffect(() => {
     dispatch(fetchFormConfigs());
-  }, [dispatch]);
+    
+    // Fetch review requests and user requests for the Review tab
+    if (activeTab === 1) {
+      console.log('Fetching review data for admin dashboard...');
+      dispatch(fetchReviewRequests({
+        status: 'all',
+        page: 1,
+        limit: 100
+      }));
+      
+      dispatch(fetchUserRequests({
+        page: 1,
+        limit: 100
+      }));
+    }
+  }, [dispatch, activeTab]);
   
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+    
+    // Fetch data when switching to the Review tab
+    if (newValue === 1) {
+      dispatch(fetchReviewRequests({
+        status: 'all',
+        page: 1,
+        limit: 100
+      }));
+      
+      dispatch(fetchUserRequests({
+        page: 1,
+        limit: 100
+      }));
+    }
   };
+  
+  // Handle viewing request details
+  const handleViewRequest = (requestId) => {
+    setSelectedRequestId(requestId);
+    setDetailsModalOpen(true);
+  };
+  
+  const handleCloseDetailsModal = () => {
+    setDetailsModalOpen(false);
+  };
+  
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return format(parseISO(dateString), 'MMM dd, yyyy');
+    } catch {
+      return 'Invalid date';
+    }
+  };
+  
+  // Get status chip props
+  const getStatusChipProps = (status) => ({
+    label: status?.replace('_', ' ').toUpperCase(),
+    sx: {
+      backgroundColor: getStatusColor(status),
+      color: '#fff',
+      fontWeight: 600,
+      fontSize: '0.75rem',
+    },
+    size: 'small',
+    icon: getStatusIcon(status),
+  });
+  
+  // Process review data
+  const allRequestsData = Array.isArray(allRequests?.data) ? allRequests.data : [];
+  const reviewRequestsData = Array.isArray(reviewRequests) ? reviewRequests : [];
+  
+  // Combine and deduplicate requests
+  const combinedRequests = [...allRequestsData, ...reviewRequestsData].reduce((acc, request) => {
+    if (!acc.find(r => r._id === request._id)) {
+      acc.push(request);
+    }
+    return acc;
+  }, []);
+  
+  // Filter requests based on search and status
+  const filteredRequests = combinedRequests.filter(request => {
+    const matchesSearch = !searchQuery || 
+      request.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      request.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+  
+  // Show loading state if either data source is loading
+  const isRequestsLoading = requestsLoading || reviewLoading;
+  
+  // Show error if either data source has an error
+  const hasRequestsError = requestsError || reviewError;
+  const requestsErrorMessage = requestsError || reviewError || 'An error occurred while fetching requests';
+  
+  // Use formConfigLoading and formConfigError for form config tab
+  const loading = formConfigLoading;
+  const error = formConfigError;
   
   const handleCreateFormConfig = () => {
     setSelectedFormConfig(null);
@@ -112,6 +232,11 @@ const ProfessionalAdminDashboard = () => {
             <Tab 
               label="Form Configurations" 
               icon={<DescriptionIcon />} 
+              iconPosition="start"
+            />
+            <Tab 
+              label="Review Requests" 
+              icon={<AssignmentIcon />} 
               iconPosition="start"
             />
             <Tab 
@@ -227,8 +352,150 @@ const ProfessionalAdminDashboard = () => {
           </>
         )}
         
-        {/* Tab 2: User Management */}
+        {/* Tab 2: Review Requests */}
         {activeTab === 1 && (
+          <Box>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+              <Typography variant="h5" fontWeight={600}>
+                Review Requests
+              </Typography>
+            </Box>
+            
+            {/* Search and Filter */}
+            <Box mb={3}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={8}>
+                  <TextField
+                    placeholder="Search requests..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    fullWidth
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    select
+                    label="Status"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    fullWidth
+                    SelectProps={{ native: true }}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                  </TextField>
+                </Grid>
+              </Grid>
+            </Box>
+            
+            <Divider sx={{ mb: 3 }} />
+            
+            {/* Requests Table */}
+            {hasRequestsError ? (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {requestsErrorMessage}
+                <Button 
+                  size="small" 
+                  sx={{ mt: 1 }}
+                  onClick={() => {
+                    dispatch(fetchReviewRequests());
+                    dispatch(fetchUserRequests());
+                  }}
+                >
+                  Retry
+                </Button>
+              </Alert>
+            ) : isRequestsLoading ? (
+              <Box display="flex" justifyContent="center" py={4}>
+                <CircularProgress />
+              </Box>
+            ) : filteredRequests.length === 0 ? (
+              <Alert severity="info" sx={{ mb: 3 }}>
+                No requests found. Try adjusting your search or filter criteria.
+              </Alert>
+            ) : (
+              <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Request</TableCell>
+                      <TableCell>Requestor</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Submitted</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredRequests.map((request) => (
+                      <TableRow 
+                        key={request._id} 
+                        hover
+                        sx={{ 
+                          cursor: 'pointer',
+                          '&:hover': { backgroundColor: 'action.hover' }
+                        }}
+                        onClick={() => handleViewRequest(request._id)}
+                      >
+                        <TableCell>
+                          <Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                              {request.title || 'Untitled Request'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" noWrap>
+                              {typeof request.description === 'object' 
+                                ? request.description?.text || 'No description' 
+                                : request.description || 'No description'
+                              }
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {request.requestor?.name || 'Unknown'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip {...getStatusChipProps(request.status)} />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDate(request.createdAt)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Tooltip title="View Details">
+                            <IconButton 
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewRequest(request._id);
+                              }}
+                            >
+                              <ViewIcon />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </Box>
+        )}
+        
+        {/* Tab 3: User Management */}
+        {activeTab === 2 && (
           <Box>
             <Typography variant="h5" fontWeight={600} mb={3}>
               User Management
@@ -239,8 +506,8 @@ const ProfessionalAdminDashboard = () => {
           </Box>
         )}
         
-        {/* Tab 3: System Settings */}
-        {activeTab === 2 && (
+        {/* Tab 4: System Settings */}
+        {activeTab === 3 && (
           <Box>
             <Typography variant="h5" fontWeight={600} mb={3}>
               System Settings
@@ -257,6 +524,13 @@ const ProfessionalAdminDashboard = () => {
         open={formConfigModalOpen}
         onClose={handleCloseFormConfigModal}
         formConfig={selectedFormConfig}
+      />
+      
+      {/* Request Details Modal */}
+      <RequestDetailsModal
+        open={detailsModalOpen}
+        onClose={handleCloseDetailsModal}
+        requestId={selectedRequestId}
       />
     </Box>
   );

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Box, Container } from '@mui/material';
+import { Box } from '@mui/material';
 import ProfessionalAppBar from '../AppBar/ProfessionalAppBar';
+import ResponsiveContainer from './ResponsiveContainer';
 
 const ProfessionalLayout = ({ children }) => {
   return (
@@ -15,19 +16,9 @@ const ProfessionalLayout = ({ children }) => {
           overflow: 'auto'
         }}
       >
-        <Container 
-          maxWidth={false} 
-          sx={{ 
-            height: '100%',
-            width: '100%',
-            px: { xs: 2, sm: 3, md: 4 },
-            py: { xs: 2, sm: 3 },
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
+        <ResponsiveContainer fluid>
           {children}
-        </Container>
+        </ResponsiveContainer>
       </Box>
     </Box>
   );

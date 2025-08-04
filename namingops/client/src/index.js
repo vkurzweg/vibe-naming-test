@@ -8,6 +8,7 @@ import { store } from './app/store';
 import { ThemeProvider as AppThemeProviderWrapper } from './context/ThemeContext';
 import AppThemeProvider from './providers/AppThemeProvider';
 import reportWebVitals from './reportWebVitals';
+import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '1009058437445-s15inh3vb1dl1o1hcmg0nn9q6grr7n7h.apps.googleusercontent.com';

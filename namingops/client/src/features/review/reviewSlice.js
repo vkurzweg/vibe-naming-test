@@ -6,10 +6,21 @@ export const fetchReviewRequests = createAsyncThunk(
   'review/fetchRequests',
   async (filters = {}, { rejectWithValue }) => {
     try {
+      console.log('Fetching review requests with filters:', filters);
       // Use the correct API endpoint with /v1/requests prefix
-      const response = await api.get('/v1/requests/review', { params: filters });
+      // Remove role filter to get all requests for review
+      const response = await api.get('/v1/requests', { 
+        params: {
+          ...filters,
+          status: filters.status || 'all',
+          // Don't filter by role to ensure we get all requests
+          limit: 100
+        } 
+      });
+      console.log('Review requests API response:', response.data);
       return response.data;
     } catch (error) {
+      console.error('Error fetching review requests:', error);
       return rejectWithValue(error.response?.data || 'Failed to fetch review requests');
     }
   }
