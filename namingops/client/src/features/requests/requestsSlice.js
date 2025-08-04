@@ -10,7 +10,7 @@ export const fetchUserRequests = createAsyncThunk(
     try {
       const { page = 1, limit = 10, status, priority, search, sortBy = 'createdAt', sortOrder = 'desc' } = params;
       
-      const response = await api.get('/api/v1/requests', {
+      const response = await api.get('/v1/requests', {
         params: {
           page,
           limit,
@@ -36,7 +36,7 @@ export const getMyRequests = createAsyncThunk(
   'requests/getMyRequests',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/v1/requests/my-requests');
+      const response = await api.get('/v1/requests/my-requests');
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch my requests');
@@ -48,7 +48,7 @@ export const fetchApprovedRequests = createAsyncThunk(
   'requests/fetchApprovedRequests',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/v1/requests/archive');
+      const response = await api.get('/v1/requests/archive');
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch archive');
@@ -60,7 +60,7 @@ export const searchRequests = createAsyncThunk(
   'requests/searchRequests',
   async (query, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/api/v1/requests/search?query=${query}`);
+      const response = await api.get(`/v1/requests/search?query=${query}`);
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Search failed');
@@ -72,7 +72,7 @@ export const fetchRequestById = createAsyncThunk(
   'requests/fetchRequestById',
   async (requestId, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/api/v1/requests/${requestId}`);
+      const response = await api.get(`/v1/requests/${requestId}`);
       return response.data.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || 'Failed to fetch request');
@@ -84,7 +84,7 @@ export const updateRequest = createAsyncThunk(
   'requests/updateRequest',
   async ({ id, requestData }, { rejectWithValue }) => {
     try {
-      const res = await api.put(`/api/v1/requests/${id}`, requestData);
+      const res = await api.put(`/v1/requests/${id}`, requestData);
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response.data);
@@ -169,16 +169,30 @@ const requestsSlice = createSlice({
       })
       .addCase(getMyRequests.fulfilled, (state, action) => {
         state.loading = false;
-        state.requests = action.payload;
-        state.filteredRequests = applyFilters({
-          ...state,
-          requests: action.payload
+        
+        // Log the response data for debugging
+        console.log('getMyRequests.fulfilled - action.payload:', action.payload);
+        
+        // Ensure we have an array to work with
+        const requestsData = Array.isArray(action.payload) ? action.payload : [];
+        
+        // Update the state with the response data
+        state.requests.data = requestsData;
+        state.requests.total = requestsData.length;
+        
+        // Set filteredRequests directly as an array, not nested under data
+        state.filteredRequests = requestsData;
+        
+        console.log('getMyRequests.fulfilled - Updated state:', {
+          requestsData: state.requests.data,
+          filteredRequests: state.filteredRequests
         });
       })
       .addCase(getMyRequests.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        state.requests = []; // Ensure requests is an array on failure
+        state.requests.data = []; // Ensure requests.data is an array on failure
+        state.requests.total = 0;
       })
       .addCase(fetchApprovedRequests.pending, (state) => {
         state.loading = true;
@@ -186,12 +200,15 @@ const requestsSlice = createSlice({
       })
       .addCase(fetchApprovedRequests.fulfilled, (state, action) => {
         state.loading = false;
-        state.requests = action.payload;
+        state.requests.data = action.payload;
+        state.requests.total = action.payload.length;
         state.filteredRequests = action.payload; // Initially, all approved requests are shown
       })
       .addCase(fetchApprovedRequests.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        state.requests.data = []; // Ensure requests.data is an array on failure
+        state.requests.total = 0;
       })
       .addCase(searchRequests.fulfilled, (state, action) => {
         state.filteredRequests = action.payload;
@@ -229,7 +246,28 @@ const requestsSlice = createSlice({
 
 // Helper function to apply filters
 const applyFilters = (state) => {
-  let requestsToFilter = Array.isArray(state.requests) ? state.requests : [];
+  // Get requests array, handling different possible structures
+  let requestsToFilter = [];
+  
+  // Debug the actual structure
+  console.log('applyFilters - state structure:', {
+    stateType: typeof state,
+    hasRequests: 'requests' in state,
+    requestsType: typeof state.requests,
+    isRequestsArray: Array.isArray(state.requests),
+    requestsData: state.requests?.data ? 'has data property' : 'no data property'
+  });
+  
+  // Handle different possible structures
+  if (Array.isArray(state.requests)) {
+    requestsToFilter = state.requests;
+  } else if (state.requests?.data && Array.isArray(state.requests.data)) {
+    requestsToFilter = state.requests.data;
+  } else {
+    console.warn('applyFilters - Unable to find requests array in state:', state);
+    return [];
+  }
+  
   let result = [...requestsToFilter];
   
   // Apply search query
@@ -293,7 +331,12 @@ export const { setSearchQuery, setFilter, setSort, resetFilters } = requestsSlic
 
 // Export selectors
 export const selectAllRequests = (state) => state.requests.requests.data || [];
-export const selectFilteredRequests = (state) => state.requests.filteredRequests.data || [];
+export const selectFilteredRequests = (state) => {
+  console.log('selectFilteredRequests - state:', state.requests);
+  return Array.isArray(state.requests.filteredRequests) 
+    ? state.requests.filteredRequests 
+    : (state.requests.filteredRequests?.data || []);
+};
 export const selectIsLoading = (state) => state.requests.loading;
 export const selectError = (state) => state.requests.error;
 export const selectSearchQuery = (state) => state.requests.searchQuery;

@@ -33,7 +33,6 @@ import {
   selectError
 } from '../features/requests/requestsSlice';
 import RequestTable from '../components/RequestTable'; // Import the new component
-import { format } from 'date-fns';
 
 // TabPanel component for the review queue tabs
 function TabPanel(props) {
@@ -129,29 +128,9 @@ const ReviewQueue = () => {
     }
   };
 
-  // Format date
-  const formatDate = (dateString) => {
-    try {
-      return format(new Date(dateString), 'MMM d, yyyy h:mm a');
-    } catch (error) {
-      return 'Invalid date';
-    }
-  };
 
-  // Get status chip color
-  const getStatusChip = (status) => {
-    switch (status) {
-      case 'approved':
-        return <Chip label="Approved" color="success" size="small" variant="outlined" />;
-      case 'rejected':
-        return <Chip label="Rejected" color="error" size="small" variant="outlined" />;
-      case 'pending':
-      default:
-        return <Chip label="Pending" color="warning" size="small" variant="outlined" />;
-    }
-  };
 
-  
+  const filteredRequests = tabValue === 0 ? requests.filter(req => req.status === 'pending') : requests;
 
   if (loading && !requests.length) {
     return (
@@ -213,22 +192,26 @@ const ReviewQueue = () => {
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
-          <RequestTable
-            requests={requests.filter(req => req.status === 'pending')}
+          <RequestTable 
+            requests={filteredRequests}
             onApprove={handleStatusUpdate}
-            onReject={handleRejectClick}
-            formatDate={formatDate}
-            getStatusChip={getStatusChip}
+            onReject={(request) => {
+              setSelectedRequest(request);
+              setRejectDialogOpen(true);
+            }}
+            showActions={true}
           />
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <RequestTable
-            requests={requests}
+          <RequestTable 
+            requests={filteredRequests}
             onApprove={handleStatusUpdate}
-            onReject={handleRejectClick}
-            formatDate={formatDate}
-            getStatusChip={getStatusChip}
+            onReject={(request) => {
+              setSelectedRequest(request);
+              setRejectDialogOpen(true);
+            }}
+            showActions={true}
           />
         </TabPanel>
       </Paper>

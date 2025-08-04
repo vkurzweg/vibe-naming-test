@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { useEffectiveRole } from '../hooks/useEffectiveRole';
 import { logout, switchRole } from '../features/auth/authSlice';
 import {
   AppBar as MuiAppBar,
@@ -46,7 +47,7 @@ const AppBar = () => {
   const [roleAnchorEl, setRoleAnchorEl] = useState(null);
   const accountMenuOpen = Boolean(anchorEl);
   const roleMenuOpen = Boolean(roleAnchorEl);
-  const currentRole = user?.role || 'submitter';
+  const currentRole = useEffectiveRole() || 'submitter';
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);

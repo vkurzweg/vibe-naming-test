@@ -106,14 +106,21 @@ export const loadActiveFormConfig = createAsyncThunk(
   'formConfig/loadActive',
   async (_, { rejectWithValue }) => {
     try {
+      console.log('loadActiveFormConfig - Making API call to /v1/form-configurations/active');
       const response = await api.get('/v1/form-configurations/active');
+      console.log('loadActiveFormConfig - API response:', response.data);
+      
       const data = response.data;
       if (Array.isArray(data) && data.length > 0) {
+        console.log('loadActiveFormConfig - Returning first item from array');
         return data[0]; 
       }
+      console.log('loadActiveFormConfig - Returning data directly:', data);
       return data || null; 
     } catch (error) {
+      console.error('loadActiveFormConfig - Error:', error);
       if (error.response?.status === 404) {
+        console.log('loadActiveFormConfig - 404 Not Found, returning null');
         return null; 
       }
       return rejectWithValue(createSerializableError(error));
@@ -127,8 +134,8 @@ export const saveFormConfiguration = createAsyncThunk(
     try {
       const method = formData._id ? 'put' : 'post';
       const url = formData._id 
-        ? `/api/v1/form-configurations/${formData._id}`
-        : '/api/v1/form-configurations';
+        ? `/v1/form-configurations/${formData._id}`
+        : '/v1/form-configurations';
       
       console.log('Sending form data:', formData); 
       const response = await api[method](url, formData);
@@ -149,7 +156,7 @@ export const deleteFormConfiguration = createAsyncThunk(
   'formConfig/delete',
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/api/v1/form-configurations/${id}`);
+      await api.delete(`/v1/form-configurations/${id}`);
       return id;
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
@@ -161,13 +168,21 @@ export const activateFormConfiguration = createAsyncThunk(
   'formConfig/activate',
   async (id, { rejectWithValue, dispatch }) => {
     try {
-      const response = await api.put(`/api/v1/form-configurations/${id}/activate`);
+      console.log(`activateFormConfiguration - Activating form config with ID: ${id}`);
+      const response = await api.put(`/v1/form-configurations/${id}/activate`);
+      console.log('activateFormConfiguration - API response:', response.data);
+      
       // After activation, refetch all configs to ensure state is consistent
       // and load the new active config
+      console.log('activateFormConfiguration - Refetching all form configurations');
       await dispatch(fetchFormConfigurations()).unwrap();
+      
+      console.log('activateFormConfiguration - Loading active form configuration');
       await dispatch(loadActiveFormConfig()).unwrap();
+      
       return response.data;
     } catch (error) {
+      console.error('activateFormConfiguration - Error:', error);
       return rejectWithValue(createSerializableError(error));
     }
   }
@@ -205,17 +220,20 @@ const formConfigSlice = createSlice({
     
     // Load active form config
     builder.addCase(loadActiveFormConfig.pending, (state) => {
+      console.log('loadActiveFormConfig.pending - Setting loading to true');
       state.loading = true;
       state.error = null;
     });
+    
     builder.addCase(loadActiveFormConfig.fulfilled, (state, action) => {
+      console.log('loadActiveFormConfig.fulfilled - Setting activeFormConfig:', action.payload);
       state.loading = false;
-      if (action.payload) {
-        state.activeFormConfig = action.payload;
-        state.lastUpdated = new Date().toISOString();
-      }
+      state.activeFormConfig = action.payload;
+      state.lastUpdated = new Date().toISOString();
     });
+    
     builder.addCase(loadActiveFormConfig.rejected, (state, action) => {
+      console.log('loadActiveFormConfig.rejected - Error:', action.payload);
       state.loading = false;
       state.error = action.payload || 'Failed to load active form configuration';
     });

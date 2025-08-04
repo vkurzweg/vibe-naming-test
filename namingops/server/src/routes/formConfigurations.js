@@ -129,17 +129,27 @@ router.delete('/:id', isAdmin, async (req, res) => {
 router.put('/:id/activate', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`Activating form configuration with ID: ${id}`);
+    
     // Deactivate all configs
-    await FormConfiguration.updateMany({}, { $set: { isActive: false } });
+    console.log('Deactivating all form configurations');
+    const deactivateResult = await FormConfiguration.updateMany({}, { $set: { isActive: false } });
+    console.log('Deactivation result:', deactivateResult);
+    
     // Activate the selected config
+    console.log(`Activating form configuration with ID: ${id}`);
     const activatedConfig = await FormConfiguration.findByIdAndUpdate(
       id,
       { $set: { isActive: true } },
       { new: true }
     );
+    
     if (!activatedConfig) {
+      console.log(`Form configuration with ID ${id} not found`);
       return res.status(404).json({ msg: 'Form configuration not found' });
     }
+    
+    console.log('Successfully activated form configuration:', activatedConfig);
     res.json(activatedConfig);
   } catch (err) {
     console.error('Error activating form configuration:', err);

@@ -281,10 +281,31 @@ router.get('/search', isAuthenticated, async (req, res) => {
 // @access  Private
 router.get('/my-requests', isAuthenticated, async (req, res) => {
   try {
-    const requests = await NamingRequest.find({ requestor: req.user.id }).sort({ createdAt: -1 });
+    console.log('GET /my-requests - User:', {
+      id: req.user.id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role
+    });
+    
+    // Check if we're in development mode with a simulated user
+    const isDevelopmentUser = req.user._isDev === true;
+    console.log('GET /my-requests - Is development user:', isDevelopmentUser);
+    
+    // In development mode always return all requests for easier testing
+    let requests;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('GET /my-requests - Development mode, fetching all requests');
+      requests = await NamingRequest.find().sort({ createdAt: -1 });
+    } else {
+      console.log('GET /my-requests - Fetching requests for user:', req.user.id);
+      requests = await NamingRequest.find({ requestor: req.user.id }).sort({ createdAt: -1 });
+    }
+    
+    console.log(`GET /my-requests - Found ${requests.length} requests`);
     res.json(requests);
   } catch (err) {
-    console.error(err.message);
+    console.error('GET /my-requests - Error:', err.message);
     res.status(500).send('Server Error');
   }
 });
