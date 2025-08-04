@@ -30,13 +30,28 @@ const renderCellContent = (value, fieldName) => {
   
   // Handle status with chips
   if (fieldName === 'status') {
-    const statusColors = {
-      pending: 'warning',
-      approved: 'success',
-      rejected: 'error',
-      draft: 'default'
+    const statusConfig = {
+      submitted: { color: 'info', label: 'Submitted' },
+      under_review: { color: 'warning', label: 'Under Review' },
+      final_review: { color: 'warning', label: 'Final Review' },
+      approved: { color: 'success', label: 'Approved' },
+      on_hold: { color: 'default', label: 'On Hold' },
+      canceled: { color: 'error', label: 'Canceled' }
     };
-    return <Chip label={value} color={statusColors[value] || 'default'} size="small" />;
+    const config = statusConfig[value] || { color: 'default', label: value };
+    return <Chip label={config.label} color={config.color} size="small" />;
+  }
+  
+  // Handle priority with colors
+  if (fieldName === 'priority') {
+    const priorityConfig = {
+      low: { color: 'default', label: 'Low' },
+      medium: { color: 'info', label: 'Medium' },
+      high: { color: 'warning', label: 'High' },
+      urgent: { color: 'error', label: 'Urgent' }
+    };
+    const config = priorityConfig[value] || { color: 'default', label: value };
+    return <Chip label={config.label} color={config.color} size="small" />;
   }
   
   // Handle objects (like user)

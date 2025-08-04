@@ -115,12 +115,13 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
       });
     }
 
-    const { requestTitle, description, proposedNames, priority, dueDate, metadata } = req.body;
+    // Extract form data from request body - match actual schema structure
+    const formData = req.body;
     
     // In development, use the provided user ID or fall back to the dev user
     const isDev = process.env.NODE_ENV === 'development';
-    let requestorId;
-    let requestorName;
+    let userId;
+    let userName;
     
     if (isDev && (!req.user || req.user.id === 'dev-user-id')) {
       // For development, create or get dev user
@@ -137,42 +138,32 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
         await devUser.save({ session });
       }
       
-      requestorId = devUser._id;
-      requestorName = devUser.name;
+      userId = devUser._id;
+      userName = devUser.name;
     } else {
       // Use the authenticated user's ID
-      requestorId = req.user?.id || new mongoose.Types.ObjectId('64d1c9b3c7a8f4b9d8f3e2a1');
-      requestorName = req.user?.name || 'System User';
+      userId = req.user?.id || new mongoose.Types.ObjectId('64d1c9b3c7a8f4b9d8f3e2a1');
+      userName = req.user?.name || 'System User';
     }
     
     logger.info('Creating request with:', {
-      requestorId,
-      requestorName,
-      proposedNames: proposedNames ? proposedNames.length : 0,
-      metadata: Object.keys(metadata || {})
+      userId,
+      userName,
+      formData: Object.keys(formData || {})
     });
 
-    // Create the new naming request
+    // Create the new naming request using actual schema structure
     const newRequest = new NamingRequest({
-      requestTitle,
-      description,
-      requestor: requestorId,
-      requestorName,
-      proposedNames: Array.isArray(proposedNames) ? proposedNames.map(name => ({
-        name: name.name,
-        description: name.description || '',
-        status: 'pending'
-      })) : [],
-      priority: priority || 'medium',
-      dueDate: dueDate || null,
-      metadata: metadata || {},
-      status: 'draft',
-      history: [{
-        status: 'draft',
-        changedBy: requestorId,
-        changedByName: requestorName,
-        comment: 'Request created',
-        timestamp: new Date()
+      user: userId,
+      title: formData.requestorName || formData.title || 'Untitled Request',
+      formData: formData,
+      status: 'submitted',
+      priority: 'medium',
+      statusHistory: [{
+        status: 'submitted',
+        changedBy: userId,
+        changedAt: new Date(),
+        comment: 'Request submitted'
       }]
     });
 
@@ -245,11 +236,19 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
 // @access  Private
 router.get('/', isAuthenticated, async (req, res) => {
   try {
-    // TODO: Add role-based filtering. For now, returns all.
-    const requests = await NamingRequest.find().sort({ createdAt: -1 });
+    console.log('GET /api/name-requests - Fetching all requests for review queue');
+    
+    // Fetch all requests with populated user data
+    const requests = await NamingRequest.find()
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 });
+    
+    console.log(`GET /api/name-requests - Found ${requests.length} requests`);
+    console.log('Sample request structure:', requests[0] ? Object.keys(requests[0].toObject()) : 'No requests');
+    
     res.json(requests);
   } catch (err) {
-    console.error(err.message);
+    console.error('GET /api/name-requests - Error:', err.message);
     res.status(500).send('Server Error');
   }
 });
@@ -296,13 +295,18 @@ router.get('/my-requests', isAuthenticated, async (req, res) => {
     let requests;
     if (process.env.NODE_ENV === 'development') {
       console.log('GET /my-requests - Development mode, fetching all requests');
-      requests = await NamingRequest.find().sort({ createdAt: -1 });
+      requests = await NamingRequest.find()
+        .populate('user', 'name email')
+        .sort({ createdAt: -1 });
     } else {
       console.log('GET /my-requests - Fetching requests for user:', req.user.id);
-      requests = await NamingRequest.find({ requestor: req.user.id }).sort({ createdAt: -1 });
+      requests = await NamingRequest.find({ user: req.user.id })
+        .populate('user', 'name email')
+        .sort({ createdAt: -1 });
     }
     
     console.log(`GET /my-requests - Found ${requests.length} requests`);
+    console.log('Sample request structure:', requests[0] ? Object.keys(requests[0].toObject()) : 'No requests');
     res.json(requests);
   } catch (err) {
     console.error('GET /my-requests - Error:', err.message);
@@ -316,8 +320,7 @@ router.get('/my-requests', isAuthenticated, async (req, res) => {
 router.get('/:id', isAuthenticated, async (req, res) => {
   try {
     const request = await NamingRequest.findById(req.params.id)
-      .populate('requestor', 'name email')
-      .populate('reviewer', 'name email')
+      .populate('user', 'name email')
       .populate('history.changedBy', 'name email');
 
     if (!request) {

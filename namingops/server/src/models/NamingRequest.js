@@ -4,22 +4,61 @@ const namingRequestSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: false,
+    required: true,
   },
   title: {
     type: String,
-    required: false,
+    required: true,
   },
   formData: {
     type: Object,
-    required: false,
+    required: true,
   },
   status: {
     type: String,
-    enum: ['Submitted', 'In Review', 'Needs Information', 'Approved', 'Rejected', 'pending', 'draft'],
-    default: 'Submitted',
+    enum: ['submitted', 'under_review', 'final_review', 'approved', 'on_hold', 'canceled'],
+    default: 'submitted',
+    required: true,
   },
+  assignedReviewer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: false,
+  },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'urgent'],
+    default: 'medium',
+  },
+  reviewNotes: {
+    type: String,
+    default: '',
+  },
+  statusHistory: [{
+    status: {
+      type: String,
+      enum: ['submitted', 'under_review', 'final_review', 'approved', 'on_hold', 'canceled'],
+      required: true,
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    comment: {
+      type: String,
+      default: '',
+    },
+  }],
   createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  updatedAt: {
     type: Date,
     default: Date.now,
   },
