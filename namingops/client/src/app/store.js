@@ -7,7 +7,7 @@ import namingReducer from '../features/naming/namingSlice';
 import authReducer from '../features/auth/authSlice';
 import reviewReducer from '../features/review/reviewSlice';
 import requestsReducer from '../features/requests/requestsSlice';
-import formConfigReducer from '../features/admin/formConfigSlice'; // Import the new reducer
+import formConfigReducer from '../features/formConfig/formConfigSlice'; // Import the new reducer
 import { errorMiddleware } from '../middleware/errorMiddleware';
 
 // Configuration for persisting the Redux store

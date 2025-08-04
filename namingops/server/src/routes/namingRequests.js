@@ -321,7 +321,7 @@ router.get('/:id', isAuthenticated, async (req, res) => {
   try {
     const request = await NamingRequest.findById(req.params.id)
       .populate('user', 'name email')
-      .populate('history.changedBy', 'name email');
+      .populate('statusHistory.changedBy', 'name email');
 
     if (!request) {
       return res.status(404).json({ msg: 'Request not found' });

@@ -1,0 +1,186 @@
+/* Status Bar Styles - Apple-inspired design */
+
+.status-bar {
+  background-color: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border-light);
+  padding: var(--spacing-sm) 0;
+  min-height: 50px;
+}
+
+.status-bar-content {
+  padding: 0 var(--spacing-lg);
+}
+
+/* Help Section */
+.help-section {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.help-icon {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.help-text {
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+/* Status Indicator */
+.status-indicator {
+  display: flex;
+  justify-content: center;
+}
+
+.system-status-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-icon {
+  line-height: 1;
+}
+
+.status-text {
+  white-space: nowrap;
+}
+
+/* Contextual Actions */
+.contextual-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  justify-content: flex-end;
+}
+
+.contextual-action-btn {
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.contextual-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.contextual-action-btn.btn-primary {
+  background-color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.contextual-action-btn.btn-outline-primary {
+  color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.contextual-action-btn.btn-outline-primary:hover {
+  background-color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.contextual-action-btn.btn-outline-secondary {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-medium);
+}
+
+.contextual-action-btn.btn-outline-secondary:hover {
+  background-color: var(--color-interactive-hover);
+  border-color: var(--color-border-medium);
+  color: var(--color-text-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .status-bar-content {
+    padding: 0 var(--spacing-md);
+  }
+  
+  .contextual-actions {
+    justify-content: center;
+    margin-top: var(--spacing-xs);
+  }
+}
+
+@media (max-width: 768px) {
+  .status-bar {
+    padding: var(--spacing-xs) 0;
+  }
+  
+  .help-section {
+    justify-content: center;
+    text-align: center;
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .help-text {
+    font-size: 12px;
+  }
+  
+  .status-indicator {
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .system-status-badge {
+    font-size: 10px;
+    padding: var(--spacing-xs);
+  }
+  
+  .contextual-actions {
+    justify-content: center;
+    gap: var(--spacing-xs);
+  }
+  
+  .contextual-action-btn {
+    font-size: 11px;
+    padding: var(--spacing-xs);
+  }
+}
+
+@media (max-width: 576px) {
+  .status-bar-content .row > div {
+    margin-bottom: var(--spacing-xs);
+  }
+  
+  .help-section {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+  
+  .help-text {
+    text-align: center;
+    font-size: 11px;
+  }
+  
+  .contextual-actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .contextual-action-btn {
+    flex: 1;
+    min-width: 80px;
+    max-width: 120px;
+  }
+}
+
+/* Loading animation for status indicator */
+.system-status-badge .spinner-border-sm {
+  width: 12px;
+  height: 12px;
+  border-width: 1px;
+}
+
+/* Smooth transitions */
+.status-bar * {
+  transition: color 0.2s ease, background-color 0.2s ease;
+}

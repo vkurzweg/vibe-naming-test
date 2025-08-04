@@ -32,6 +32,25 @@ export const claimRequest = createAsyncThunk(
   }
 );
 
+export const updateRequestStatus = createAsyncThunk(
+  'review/updateStatus',
+  async ({ requestId, status, notes }, { rejectWithValue, getState }) => {
+    try {
+      const { auth } = getState();
+      // Use the correct API endpoint with /v1/requests prefix
+      const response = await api.patch(`/v1/requests/${requestId}/status`, {
+        status,
+        notes,
+        userId: auth.user.id,
+        userName: auth.user.name || `${auth.user.firstName} ${auth.user.lastName}`
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to update request status');
+    }
+  }
+);
+
 const initialState = {
   requests: [],
   loading: false,
@@ -95,6 +114,25 @@ const reviewSlice = createSlice({
         if (index !== -1) {
           state.requests[index] = action.payload;
         }
+      })
+      .addCase(claimRequest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to claim request';
+      })
+      .addCase(updateRequestStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateRequestStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.requests.findIndex(req => req._id === action.payload._id);
+        if (index !== -1) {
+          state.requests[index] = action.payload;
+        }
+      })
+      .addCase(updateRequestStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || 'Failed to update request status';
       });
   },
 });

@@ -34,7 +34,7 @@ const NotFound = () => {
           404 - Page Not Found
         </Typography>
         <Typography variant="h6" color="text.secondary" paragraph>
-          Oops! The page you're looking for doesn't exist.
+          Oops! The page you&apos;re looking for doesn&apos;t exist.
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 600 }}>
           The page you are looking for might have been removed, had its name changed, or is

@@ -13,8 +13,11 @@ const DebugUserInfo = () => {
   return (
     <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
       <Typography variant="h6" gutterBottom>Debug Info (Development Only)</Typography>
-      <Typography variant="body2">
-        <strong>Redux User:</strong> {JSON.stringify(user, null, 2)}
+      <Typography variant="body2" component="div">
+        <strong>Redux User:</strong>
+        <pre style={{ whiteSpace: 'pre-wrap', fontSize: '12px', marginTop: '8px' }}>
+          {JSON.stringify(user, null, 2)}
+        </pre>
       </Typography>
       <Typography variant="body2" sx={{ mt: 1 }}>
         <strong>LocalStorage User:</strong> {localStorageUser || 'Not found'}

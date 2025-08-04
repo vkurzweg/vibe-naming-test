@@ -1,0 +1,257 @@
+/* Context Bar Styles - Apple-inspired design */
+
+.context-bar {
+  background-color: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-light);
+  padding: var(--spacing-md) 0;
+}
+
+.context-bar-content {
+  padding: 0 var(--spacing-lg);
+}
+
+/* Context Navigation Tabs */
+.context-nav {
+  display: flex;
+  gap: var(--spacing-xs);
+  overflow-x: auto;
+  padding-bottom: var(--spacing-xs);
+}
+
+.context-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: none;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.context-tab:hover {
+  background-color: var(--color-interactive-hover);
+  color: var(--color-text-primary);
+}
+
+.context-tab.active {
+  background-color: var(--color-accent-primary);
+  color: white;
+}
+
+.context-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.context-label {
+  font-weight: 500;
+}
+
+/* Key Metrics */
+.metrics-container {
+  display: flex;
+  gap: var(--spacing-lg);
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 60px;
+}
+
+.metric-item.urgent .metric-value {
+  color: var(--color-accent-secondary);
+  font-weight: 600;
+}
+
+.metric-value {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1;
+  margin-bottom: var(--spacing-xs);
+}
+
+.metric-label {
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.system-status {
+  font-size: 11px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.quick-action-btn {
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  padding: var(--spacing-xs) var(--spacing-md);
+  border: 1px solid var(--color-border-medium);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-action-btn.btn-primary {
+  background-color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.quick-action-btn.btn-outline-primary {
+  color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.quick-action-btn.btn-outline-primary:hover {
+  background-color: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+}
+
+.quick-action-btn.btn-outline-secondary {
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-medium);
+}
+
+.quick-action-btn.btn-outline-secondary:hover {
+  background-color: var(--color-interactive-hover);
+  border-color: var(--color-border-medium);
+  color: var(--color-text-primary);
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .context-bar-content {
+    padding: 0 var(--spacing-md);
+  }
+  
+  .metrics-container {
+    gap: var(--spacing-md);
+    margin: var(--spacing-sm) 0;
+  }
+  
+  .quick-actions {
+    justify-content: center;
+    margin-top: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 768px) {
+  .context-bar {
+    padding: var(--spacing-sm) 0;
+  }
+  
+  .context-nav {
+    justify-content: flex-start;
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .context-tab {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+  
+  .metrics-container {
+    gap: var(--spacing-sm);
+    justify-content: space-around;
+  }
+  
+  .metric-item {
+    min-width: 50px;
+  }
+  
+  .metric-value {
+    font-size: 18px;
+  }
+  
+  .quick-actions {
+    gap: var(--spacing-xs);
+  }
+  
+  .quick-action-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 576px) {
+  .context-bar-content .row > div {
+    margin-bottom: var(--spacing-sm);
+  }
+  
+  .context-nav {
+    gap: var(--spacing-xs);
+  }
+  
+  .context-tab {
+    flex-direction: column;
+    padding: var(--spacing-xs);
+    min-width: 60px;
+  }
+  
+  .context-icon {
+    font-size: 14px;
+  }
+  
+  .context-label {
+    font-size: 11px;
+  }
+  
+  .metrics-container {
+    gap: var(--spacing-xs);
+  }
+  
+  .metric-item {
+    min-width: 45px;
+  }
+  
+  .quick-actions {
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .quick-action-btn {
+    flex: 1;
+    max-width: 120px;
+  }
+}
+
+/* Scrollbar styling for context nav */
+.context-nav::-webkit-scrollbar {
+  height: 4px;
+}
+
+.context-nav::-webkit-scrollbar-track {
+  background: var(--color-bg-tertiary);
+  border-radius: 2px;
+}
+
+.context-nav::-webkit-scrollbar-thumb {
+  background: var(--color-border-medium);
+  border-radius: 2px;
+}
+
+.context-nav::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}

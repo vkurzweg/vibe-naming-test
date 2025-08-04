@@ -5,24 +5,23 @@ import { DevRoleProvider } from './context/DevRoleContext';
 import { useSelector } from 'react-redux';
 import { useEffectiveRole } from './hooks/useEffectiveRole';
 
-// Layouts
-import CombinedLayout from './layouts/CombinedLayout';
+// Professional Theme Provider
+import ProfessionalThemeProvider from './components/ThemeProvider/ProfessionalThemeProvider';
+
+// Professional Dashboard Router
+import ProfessionalDashboardRouter from './components/DashboardRouter/ProfessionalDashboardRouter';
+
+// Layouts (keep for auth)
 import AuthLayout from './layouts/AuthLayout';
 
-// Pages
+// Pages (keep for auth and 404)
 import Login from './pages/Login';
-
-import SubmitRequest from './pages/SubmitRequest';
 import NotFound from './pages/NotFound';
-import Archive from './pages/Archive';
-import FormConfigPage from './pages/FormConfigPage';
-import UsersPage from './pages/UsersPage';
-import ReviewQueue from './pages/ReviewQueue';
 
-// Features
-import MyRequests from './pages/MyRequests';
-import RequestDetails from './pages/RequestDetails';
-import DashboardRedirect from './components/DashboardRedirect';
+// Legacy components for specific routes
+import SubmitRequest from './pages/SubmitRequest';
+import UsersPage from './pages/UsersPage';
+import FormConfigPage from './pages/FormConfigPage';
 
 // Google OAuth Client ID from environment variables
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '1009058437445-s15inh3vb1dl1o1hcmg0nn9q6grr7n7h.apps.googleusercontent.com';
@@ -50,133 +49,120 @@ const ProtectedRoute = ({ children, requiredRole }) => {
       return children;
     }
     
-    // If user has no role, deny access
-    if (!role) {
-      console.log('User has no role, denying access');
+    // Check if user has required role (support both string and array)
+    const hasRequiredRole = Array.isArray(requiredRole) 
+      ? requiredRole.includes(role)
+      : requiredRole === role;
+    
+    if (hasRequiredRole) {
+      console.log('User has required role, granting access');
+      return children;
+    } else {
+      console.log('User does not have required role, denying access');
       return <Navigate to="/unauthorized" replace />;
     }
-    
-    // In development, only restrict admin-only routes to admin role
-    // Allow submitter and reviewer to access each other's routes for easier testing
-    if (Array.isArray(requiredRole)) {
-      // If admin is required, enforce strictly
-      if (requiredRole.includes('admin') && !requiredRole.includes('reviewer') && !requiredRole.includes('submitter')) {
-        if (role !== 'admin') {
-          console.log(`Access denied - admin-only route, user role: ${role}`);
-          return <Navigate to="/unauthorized" replace />;
-        }
-      }
-      // Otherwise, allow access if user has any valid role
-      else if (!['admin', 'reviewer', 'submitter'].includes(role)) {
-        console.log(`Access denied - invalid role: ${role}`);
-        return <Navigate to="/unauthorized" replace />;
-      }
-    } 
-    // Handle single role - only restrict admin routes
-    else if (requiredRole === 'admin' && role !== 'admin') {
-      console.log(`Access denied - admin-only route, user role: ${role}`);
-      return <Navigate to="/unauthorized" replace />;
-    }
-    
-    console.log(`Development access granted - user role: ${role}, required: ${requiredRole}`);
-    return children;
   }
 
-  // Production behavior
+  // Production mode - strict authentication and role checking
   if (!isAuthenticated) {
+    console.log('User not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
-  // Handle array of roles
-  if (requiredRole) {
-    if (Array.isArray(requiredRole)) {
-      if (!requiredRole.includes(role)) {
-        return <Navigate to="/unauthorized" replace />;
-      }
-    } 
-    // Handle single role
-    else if (role !== requiredRole) {
-      return <Navigate to="/unauthorized" replace />;
-    }
+  // If no role is required, just check authentication
+  if (!requiredRole) {
+    console.log('No role required, user is authenticated, granting access');
+    return children;
   }
 
+  // Check if user has required role (support both string and array)
+  const hasRequiredRole = Array.isArray(requiredRole) 
+    ? requiredRole.includes(role)
+    : requiredRole === role;
+
+  if (!hasRequiredRole) {
+    console.log('User does not have required role, redirecting to unauthorized');
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  console.log('User has required role, granting access');
   return children;
 };
 
-function App() {
+const App = () => {
   return (
-    <DevRoleProvider>
-      <AppRoutes />
-    </DevRoleProvider>
+    <ProfessionalThemeProvider>
+      <DevRoleProvider>
+        <AppRoutes />
+      </DevRoleProvider>
+    </ProfessionalThemeProvider>
   );
-}
+};
 
 function AppRoutes() {
   return (
     <Routes>
         {/* Auth Routes */}
         <Route path="/login" element={<AuthLayout><Login /></AuthLayout>} />
-        <Route path="/unauthorized" element={<div>Unauthorized - You don&apos;t have permission to view this page</div>} />
+        <Route path="/unauthorized" element={
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            height: '100vh',
+            fontFamily: 'var(--font-family-primary)',
+            color: 'var(--color-text-primary)'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <h1 className="typography-h2" style={{ marginBottom: '16px' }}>Unauthorized</h1>
+              <p className="typography-body">You don&apos;t have permission to view this page</p>
+            </div>
+          </div>
+        } />
         
-        {/* Protected Routes */}
+        {/* Main Application - Professional Dashboard */}
         <Route
           path="/"
           element={
             <ProtectedRoute>
-              <CombinedLayout />
+              <ProfessionalDashboardRouter />
             </ProtectedRoute>
           }
-        >
-          <Route index element={<DashboardRedirect />} />
-          <Route path="my-requests" element={<MyRequests />} />
-          <Route path="requests/:id" element={<RequestDetails />} />
-          
-          {/* Submitter Routes */}
-          <Route 
-            path="submit-request" 
-            element={
-              <ProtectedRoute requiredRole="submitter">
-                <SubmitRequest />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Admin Routes */}
-          <Route path="admin">
-            <Route 
-              path="form-config" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <FormConfigPage />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="users" 
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <UsersPage />
-                </ProtectedRoute>
-              } 
-            />
-          </Route>
-          
-          {/* Reviewer Routes */}
-          <Route 
-            path="review-queue" 
-            element={
-              <ProtectedRoute requiredRole={['admin', 'reviewer']}>
-                <ReviewQueue />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Archive - Accessible to all authenticated users */}
-          <Route path="archive" element={<Archive />} />
-          
-          {/* 404 for any undefined routes under / */}
-          <Route path="*" element={<Navigate to="/my-requests" replace />} />
-        </Route>
+        />
+        
+        {/* Dashboard routes - all redirect to main dashboard */}
+        <Route path="/dashboard" element={<Navigate to="/" replace />} />
+        <Route path="/my-requests" element={<Navigate to="/" replace />} />
+        <Route path="/review-queue" element={<Navigate to="/" replace />} />
+        <Route path="/archive" element={<Navigate to="/" replace />} />
+        
+        {/* Specific functional routes */}
+        <Route
+          path="/submit-request"
+          element={
+            <ProtectedRoute>
+              <SubmitRequest />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Admin routes */}
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <UsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/form-config"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <FormConfigPage />
+            </ProtectedRoute>
+          }
+        />
         
         {/* Catch-all 404 Route */}
         <Route path="*" element={<NotFound />} />

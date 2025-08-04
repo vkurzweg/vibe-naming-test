@@ -8,7 +8,7 @@ import { DevRoleContext } from '../context/DevRoleContext';
  * In production it simply returns the authenticated role.
  */
 export const useEffectiveRole = () => {
-  const devRole = useContext(DevRoleContext);
+  const devRoleContext = useContext(DevRoleContext);
   const authRole = useSelector((state) => state.auth.role);
-  return devRole ?? authRole;
+  return devRoleContext?.role ?? authRole;
 };

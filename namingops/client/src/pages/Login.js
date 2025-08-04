@@ -191,7 +191,7 @@ const Login = () => {
               label="Email Address"
               name="email"
               autoComplete="email"
-              autoFocus
+
               error={!!errors.email}
               helperText={errors.email?.message}
               disabled={loading || ssoLoading}
@@ -299,7 +299,7 @@ const Login = () => {
 
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Link
                   component={RouterLink}
                   to="/register"
