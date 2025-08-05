@@ -237,12 +237,10 @@
 //           }}
 //         >
 //           <Typography variant="h4" component="h1" align="center" gutterBottom>
-//             Cognizant Naming Guidelines
+//             Welcome to naming at Cognizant!
 //           </Typography>
 //           <Typography variant="body1" align="center" sx={{ opacity: 0.9 }}>
-//             This interactive guide summarizes the key principles for creating names at Cognizant. The goal is to
-//             create clear, descriptive names that help our audiences understand our offerings and reinforce the
-//             Cognizant masterbrand.
+//             Our goal is to create clear, descriptive names that help our audiences understand Cognizant's offerings, capabilities and value.
 //           </Typography>
 //         </Box>
 
@@ -483,6 +481,6 @@
 
 // export default function App() {
 //   return (
-//     <NamingGuidelines />
+//     <Welcome />
 //   );
 // }

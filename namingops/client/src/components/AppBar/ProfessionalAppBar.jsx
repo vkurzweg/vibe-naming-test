@@ -35,6 +35,7 @@ import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import { DevRoleContext } from '../../context/DevRoleContext';
 import ThemeToggle from '../ThemeToggle/ThemeToggle';
 import SubmitRequestModal from '../Requests/SubmitRequestModal';
+import { ThemeContext } from '../ThemeIntegration/EnhancedThemeProvider';
 
 const ProfessionalAppBar = () => {
   const navigate = useNavigate();
@@ -42,7 +43,8 @@ const ProfessionalAppBar = () => {
   const { user } = useSelector((state) => state.auth);
   const effectiveRole = useEffectiveRole();
   const devRoleContext = useContext(DevRoleContext);
-  
+  const { isDarkMode } = useContext(ThemeContext);
+
   const [anchorEl, setAnchorEl] = useState(null);
   const [notificationAnchor, setNotificationAnchor] = useState(null);
   const [roleMenuAnchor, setRoleMenuAnchor] = useState(null);
@@ -119,19 +121,60 @@ const ProfessionalAppBar = () => {
       <Toolbar sx={{ justifyContent: 'space-between' }}>
         {/* Left side - Logo and Navigation */}
         <Box display="flex" alignItems="center" gap={2}>
-          <Typography
-            variant="h5"
-            component="div"
+          <Box 
             sx={{
-              fontWeight: 700,
-              letterSpacing: -0.5,
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              '&:hover': {
+                opacity: 0.8,
+              },
             }}
             onClick={() => navigate('/')}
           >
-            NamingHQ
-          </Typography>
-          
+            {isDarkMode ? (
+              <img 
+                src="/logos/cognizant-logo-dark.svg" 
+                alt="Cognizant"
+                style={{
+                  height: '32px',
+                  width: 'auto',
+                }}
+                onError={(e) => {
+                  // Fallback to text if logo fails to load
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'block';
+                }}
+              />
+            ) : (
+              <img 
+                src="/logos/cognizant-logo-light.svg" 
+                alt="Cognizant"
+                style={{
+                  height: '32px',
+                  width: 'auto',
+                }}
+                onError={(e) => {
+                  // Fallback to text if logo fails to load
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'block';
+                }}
+              />
+            )}
+            {/* Fallback text - hidden by default, shown if logo fails */}
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                fontWeight: 600,
+                letterSpacing: -0.5,
+                display: 'none', // Hidden by default, shown via onError
+                ml: 1,
+              }}
+            >
+              Naming HQ
+            </Typography>
+          </Box>
           {/* Quick Navigation - Removed Dashboard and New Request buttons as requested */}
           <Box display="flex" alignItems="center" gap={1}>
             {(effectiveRole === 'admin') && (

@@ -5,8 +5,8 @@ import { DevRoleProvider } from './context/DevRoleContext';
 import { useSelector } from 'react-redux';
 import { useEffectiveRole } from './hooks/useEffectiveRole';
 
-// Professional Theme Provider
-import ProfessionalThemeProvider from './components/ThemeProvider/ProfessionalThemeProvider';
+// Enhanced Theme Provider
+import EnhancedThemeProvider from './components/ThemeIntegration/EnhancedThemeProvider';
 
 // React Query Provider
 import QueryProvider from './providers/QueryProvider';
@@ -95,11 +95,11 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 const App = () => {
   return (
     <QueryProvider>
-      <ProfessionalThemeProvider>
+      <EnhancedThemeProvider>
         <DevRoleProvider>
           <AppRoutes />
         </DevRoleProvider>
-      </ProfessionalThemeProvider>
+      </EnhancedThemeProvider>
     </QueryProvider>
   );
 };

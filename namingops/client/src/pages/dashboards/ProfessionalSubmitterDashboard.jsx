@@ -83,7 +83,7 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
   } = useQuery({
     queryKey: ['formConfig'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/form-configurations/active', {
+      const response = await fetch('/api/form-configurations/active', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json',

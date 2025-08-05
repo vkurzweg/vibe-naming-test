@@ -5,7 +5,6 @@ import ProfessionalLayout from '../Layout/ProfessionalLayout';
 import ProfessionalSubmitterDashboard from '../../pages/dashboards/ProfessionalSubmitterDashboard';
 import ProfessionalReviewerDashboard from '../../pages/dashboards/ProfessionalReviewerDashboard';
 import ProfessionalAdminDashboard from '../../pages/dashboards/ProfessionalAdminDashboard';
-import EnhancedThemeProvider from '../ThemeIntegration/EnhancedThemeProvider';
 
 const ProfessionalDashboardRouter = () => {
   const effectiveRole = useEffectiveRole();
@@ -24,11 +23,9 @@ const ProfessionalDashboardRouter = () => {
   };
 
   return (
-    <EnhancedThemeProvider>
-      <ProfessionalLayout>
-        {renderDashboard()}
-      </ProfessionalLayout>
-    </EnhancedThemeProvider>
+    <ProfessionalLayout>
+      {renderDashboard()}
+    </ProfessionalLayout>
   );
 };
 

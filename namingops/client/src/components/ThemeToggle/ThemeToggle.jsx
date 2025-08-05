@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { IconButton, Tooltip } from '@mui/material';
 import { DarkMode, LightMode } from '@mui/icons-material';
-import { useThemeMode } from '../ThemeProvider/ProfessionalThemeProvider';
+import { ThemeContext } from '../ThemeIntegration/EnhancedThemeProvider';
 
 const ThemeToggle = ({ sx = {} }) => {
-  const { mode, toggleTheme } = useThemeMode();
+  const { isDarkMode, toggleTheme } = useContext(ThemeContext);
 
   return (
-    <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
+    <Tooltip title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}>
       <IconButton 
         onClick={toggleTheme} 
         color="inherit"
@@ -19,7 +19,7 @@ const ThemeToggle = ({ sx = {} }) => {
           ...sx 
         }}
       >
-        {mode === 'dark' ? <LightMode /> : <DarkMode />}
+        {isDarkMode ? <LightMode /> : <DarkMode />}
       </IconButton>
     </Tooltip>
   );

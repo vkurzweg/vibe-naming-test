@@ -112,7 +112,7 @@ app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/name-requests', nameRequestRoutes);
 app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/form-configurations', formConfigurationRoutes);
+app.use('/form-configurations', formConfigurationRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
