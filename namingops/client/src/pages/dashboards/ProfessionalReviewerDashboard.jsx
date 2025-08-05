@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  getPaginationRowModel,
+  flexRender,
+} from '@tanstack/react-table';
 import {
   Box,
   Card,
@@ -35,731 +44,658 @@ import {
   Select,
   TableSortLabel,
   LinearProgress,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  StepIcon,
+  Pagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Snackbar,
+  Skeleton,
+  Stack,
+  useMediaQuery,
 } from '@mui/material';
-import newColorPalette, { getStatusColor, getStatusIcon } from '../../theme/newColorPalette';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Assignment as AssignmentIcon,
-  Visibility as ViewIcon,
+  FilterList as FilterListIcon,
+  Sort as SortIcon,
+  Visibility as VisibilityIcon,
   Edit as EditIcon,
-  Person as PersonIcon,
-  Schedule as ScheduleIcon,
+  Assignment as AssignmentIcon,
   CheckCircle as CheckCircleIcon,
+  Schedule as ScheduleIcon,
+  Person as PersonIcon,
+  Business as BusinessIcon,
+  Gavel as GavelIcon,
   Cancel as CancelIcon,
+  PauseCircle as PauseCircleIcon,
+  PlayArrow as PlayArrowIcon,
+  Refresh as RefreshIcon,
+  Download as DownloadIcon,
   MoreVert as MoreVertIcon,
-  Notifications as NotificationsIcon,
-  TrendingUp as TrendingUpIcon,
-  Group as GroupIcon,
-  PendingActions as PendingActionsIcon,
 } from '@mui/icons-material';
-import { format, parseISO, isToday, isYesterday, differenceInDays } from 'date-fns';
-import { fetchReviewRequests, claimRequest, updateRequestStatus } from '../../features/review/reviewSlice';
-import { fetchUserRequests } from '../../features/requests/requestsSlice';
-import RequestDetailsModal from '../../components/Requests/RequestDetailsModal';
-import RequestStatusUpdate from '../../components/Requests/RequestStatusUpdate';
+import { toast } from 'react-hot-toast';
+import newColorPalette, { getStatusColor, getStatusIcon } from '../../theme/newColorPalette';
+import {
+  extractRequestTitle,
+  extractRequestDescription,
+  getDisplayableFormData,
+  extractSubmitterInfo,
+  formatRequestForRole,
+  searchRequest
+} from '../../utils/dynamicDataUtils';
+import { 
+  fetchReviewRequests, 
+  fetchUserRequests,
+  updateRequestStatus,
+  claimRequest,
+  unclaimRequest
+} from '../../features/review/reviewSlice';
+import { showSnackbar } from '../../features/ui/uiSlice';
 
-const ProfessionalReviewerDashboard = () => {
+const ProfessionalReviewerDashboard = React.memo(() => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const theme = useTheme();
+  const queryClient = useQueryClient();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   const { user } = useSelector((state) => state.auth);
-  const { requests: reviewRequests, loading: reviewLoading, error: reviewError } = useSelector((state) => state.review);
-  const { requests: allRequests, loading: requestsLoading, error: requestsError } = useSelector((state) => state.requests);
+  const { formConfig } = useSelector((state) => state.formConfig || {});
   
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
+  // Local state
   const [tabValue, setTabValue] = useState(0);
-  const [anchorEl, setAnchorEl] = useState(null);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [statusUpdateModalOpen, setStatusUpdateModalOpen] = useState(false);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sorting, setSorting] = useState([]);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
-  useEffect(() => {
-    console.log('Fetching review requests and user requests...');
-    
-    // Fetch review requests with detailed error handling
-    dispatch(fetchReviewRequests({
-      status: 'all',
-      page: 1,
-      limit: 100
-    }))
-      .unwrap()
-      .then(data => {
-        console.log('Review requests fetched successfully:', data);
-      })
-      .catch(error => {
-        console.error('Error fetching review requests:', error);
-        // Display error in UI instead of just console
+  // Fetch review queue requests (all requests, filtered client-side for reviewer)
+  const { data: allRequests = [], isLoading: requestsLoading, error: requestsError, refetch: refetchRequests } = useQuery({
+    queryKey: ['reviewer-requests'],
+    queryFn: async () => {
+      const response = await fetch('/api/name-requests', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
       });
-    
-    // Fetch user requests with detailed error handling  
-    dispatch(fetchUserRequests({
-      page: 1,
-      limit: 100
-    }))
-      .unwrap()
-      .then(data => {
-        console.log('User requests fetched successfully:', data);
-      })
-      .catch(error => {
-        console.error('Error fetching user requests:', error);
-        // Display error in UI instead of just console
-      });
-      
-    // Force refresh every 30 seconds to ensure data is current
-    const refreshInterval = setInterval(() => {
-      console.log('Auto-refreshing review data...');
-      dispatch(fetchReviewRequests({
-        status: 'all',
-        page: 1,
-        limit: 100
-      }));
-      dispatch(fetchUserRequests({
-        page: 1,
-        limit: 100
-      }));
-    }, 30000);
-    
-    return () => clearInterval(refreshInterval);
-  }, [dispatch]);
 
-  // Get all requests data with better error handling
-  const allRequestsData = Array.isArray(allRequests?.data) ? allRequests.data : [];
-  const reviewRequestsData = Array.isArray(reviewRequests) ? reviewRequests : [];
-  
-  console.log('All requests data:', allRequestsData);
-  console.log('All requests loading:', requestsLoading);
-  console.log('All requests error:', requestsError);
-  console.log('Review requests data:', reviewRequestsData);
-  console.log('Review requests loading:', reviewLoading);
-  console.log('Review requests error:', reviewError);
-  
-  // Combine and deduplicate requests
-  const combinedRequests = [...allRequestsData, ...reviewRequestsData].reduce((acc, request) => {
-    // Skip null or undefined requests
-    if (!request) return acc;
-    
-    // Ensure each request has an _id for deduplication
-    const requestId = request._id || request.id;
-    if (!requestId) {
-      // Generate a temporary ID if none exists
-      const tempId = `temp-${Math.random().toString(36).substr(2, 9)}`;
-      request._id = tempId;
-      acc.push(request);
-      return acc;
-    }
-    
-    // Deduplicate by ID
-    if (!acc.find(r => (r._id === requestId || r.id === requestId))) {
-      acc.push(request);
-    }
-    return acc;
-  }, []);
-  
-  console.log('Combined requests after processing:', combinedRequests);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-  // Show loading state if either data source is loading
-  const isLoading = requestsLoading || reviewLoading;
-  
-  // Show error if either data source has an error
-  const hasError = requestsError || reviewError;
-  const errorMessage = requestsError || reviewError || 'An error occurred while fetching requests';
-  
-  // Filter requests based on tab, search, and status with better error handling
-  const filteredRequests = combinedRequests.filter(request => {
-    // More robust search that handles any data structure
-    const matchesSearch = !searchQuery || (
-      // Search in title (multiple possible locations)
-      (request.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       request.formData?.requestTitle?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       request.formData?.title?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      // Search in description (multiple possible locations)
-      (request.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       (typeof request.description === 'object' && request.description?.text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-       request.formData?.description?.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-    
-    // More robust status matching
-    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
+      const data = await response.json();
+      return Array.isArray(data.data) ? data.data : data;
+    },
+    staleTime: 30000, // 30 seconds
+    cacheTime: 300000, // 5 minutes
+    retry: 2,
   });
 
-  // Calculate comprehensive stats
-  const stats = {
-    total: combinedRequests.length,
-    newRequests: combinedRequests.filter(r => r.status === 'pending' || r.status === 'new').length,
-    inProgress: combinedRequests.filter(r => r.status === 'in-progress').length,
-    myAssigned: combinedRequests.filter(r => r.assignedTo === user?.id).length,
-    urgent: combinedRequests.filter(r => {
-      const daysSinceCreated = differenceInDays(new Date(), new Date(r.createdAt));
-      return daysSinceCreated > 7 && !['approved', 'rejected'].includes(r.status);
-    }).length,
-  };
+  // Get user's own requests for "My Reviews" section
+  const { data: myRequests = [], isLoading: myRequestsLoading, error: myRequestsError, refetch: refetchMyRequests } = useQuery({
+    queryKey: ['my-requests'],
+    queryFn: async () => {
+      const response = await fetch('/api/name-requests/my-requests', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
 
-  const handleViewRequest = (requestId) => {
-    setSelectedRequest(combinedRequests.find(r => r._id === requestId));
-    setDetailsModalOpen(true);
-  };
-  
-  const handleUpdateStatus = (requestId) => {
-    setSelectedRequest(combinedRequests.find(r => r._id === requestId));
-    setStatusUpdateModalOpen(true);
-  };
-  
-  const handleCloseDetailsModal = () => {
-    setDetailsModalOpen(false);
-  };
-  
-  const handleCloseStatusModal = () => {
-    setStatusUpdateModalOpen(false);
-  };
-
-  const handleClaimRequest = (request) => {
-    // TODO: Implement claim functionality
-    console.log('Claiming request:', request._id);
-  };
-
-  const handleAssignRequest = (request) => {
-    // TODO: Implement assign functionality
-    console.log('Assigning request:', request._id);
-  };
-
-  const handleMenuClick = (event, request) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedRequest(request);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedRequest(null);
-  };
-
-  // Format date for display with better error handling
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      // Handle different date formats
-      if (dateString instanceof Date) {
-        return format(dateString, 'MMM dd, yyyy');
-      } else if (typeof dateString === 'string') {
-        return format(parseISO(dateString), 'MMM dd, yyyy');
-      } else if (typeof dateString === 'number') {
-        return format(new Date(dateString), 'MMM dd, yyyy');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      return format(parseISO(dateString.toString()), 'MMM dd, yyyy');
-    } catch (error) {
-      console.warn('Date formatting error:', error);
-      return 'Invalid date';
+
+      const data = await response.json();
+      return Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
+    },
+    staleTime: 30000,
+    cacheTime: 300000,
+    retry: 2,
+  });
+
+  // React Query mutations for request management
+  const claimRequestMutation = useMutation({
+    mutationFn: async (requestId) => {
+      const response = await fetch(`/api/name-requests/${requestId}/claim`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) throw new Error('Failed to claim request');
+      return response.json();
+    },
+    onMutate: async (requestId) => {
+      await queryClient.cancelQueries(['reviewer-requests']);
+      const previousRequests = queryClient.getQueryData(['reviewer-requests']);
+      
+      queryClient.setQueryData(['reviewer-requests'], (old = []) =>
+        old.map(request =>
+          request.id === requestId
+            ? { ...request, assignedTo: user?.id, status: 'in_review' }
+            : request
+        )
+      );
+      
+      return { previousRequests };
+    },
+    onError: (err, requestId, context) => {
+      queryClient.setQueryData(['reviewer-requests'], context.previousRequests);
+      toast.error('Failed to claim request. Please try again.');
+    },
+    onSuccess: () => {
+      toast.success('Request claimed successfully!');
+      queryClient.invalidateQueries(['reviewer-requests']);
+    },
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ requestId, status, comments }) => {
+      const response = await fetch(`/api/name-requests/${requestId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status, comments }),
+      });
+      if (!response.ok) throw new Error('Failed to update status');
+      return response.json();
+    },
+    onMutate: async ({ requestId, status }) => {
+      await queryClient.cancelQueries(['reviewer-requests']);
+      const previousRequests = queryClient.getQueryData(['reviewer-requests']);
+      
+      queryClient.setQueryData(['reviewer-requests'], (old = []) =>
+        old.map(request =>
+          request.id === requestId
+            ? { ...request, status, updatedAt: new Date().toISOString() }
+            : request
+        )
+      );
+      
+      return { previousRequests };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['reviewer-requests'], context.previousRequests);
+      toast.error('Failed to update status. Please try again.');
+    },
+    onSuccess: () => {
+      toast.success('Status updated successfully!');
+      queryClient.invalidateQueries(['reviewer-requests']);
+    },
+  });
+
+  // Status progression configuration
+  const getStatusSteps = useCallback(() => [
+    { 
+      label: 'Submitted', 
+      description: 'Request submitted for review', 
+      icon: <AssignmentIcon />, 
+      status: 'submitted' 
+    },
+    { 
+      label: 'Brand Review', 
+      description: 'Under brand team review', 
+      icon: <BusinessIcon />, 
+      status: 'brand_review' 
+    },
+    { 
+      label: 'Legal Review', 
+      description: 'Legal compliance check', 
+      icon: <GavelIcon />, 
+      status: 'legal_review' 
+    },
+    { 
+      label: 'Approved', 
+      description: 'Request approved and ready', 
+      icon: <CheckCircleIcon />, 
+      status: 'approved' 
     }
-  };
+  ], []);
 
-  const getUrgencyColor = (createdAt) => {
-    const daysSinceCreated = differenceInDays(new Date(), new Date(createdAt));
-    if (daysSinceCreated > 14) return theme.palette.error.main;
-    if (daysSinceCreated > 7) return theme.palette.warning.main;
-    return theme.palette.text.secondary;
-  };
+  // Dynamic request data rendering
+  const renderDynamicRequestData = useCallback((request) => {
+    if (!formConfig?.fields) {
+      return <Typography>Loading form configuration...</Typography>;
+    }
 
-  // Use the new color palette for status chips
-  
-  // Get status chip props with better error handling
-  const getStatusChipProps = (status) => {
-    // Default to 'pending' if status is undefined or invalid
-    const safeStatus = status && typeof status === 'string' ? status : 'pending';
-    
-    return {
-      label: safeStatus.replace('_', ' ').toUpperCase(),
-      sx: {
-        backgroundColor: getStatusColor(safeStatus),
-        color: '#fff',
-        fontWeight: 600,
-        fontSize: '0.75rem',
-      },
-      size: 'small',
-      icon: getStatusIcon(safeStatus),
-    };
-  };
-
-  if (reviewLoading || requestsLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress size={60} />
+      <Box sx={{ mt: 2 }}>
+        {formConfig.fields.map((field) => {
+          const value = request.formData?.[field.name] || request[field.name];
+          if (!value) return null;
+
+          return (
+            <Box key={field.name} sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {field.label || field.name}
+              </Typography>
+              <Typography variant="body2">
+                {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+    );
+  }, [formConfig]);
+
+  // TanStack Table columns configuration
+  const columns = useMemo(() => [
+    {
+      id: 'title',
+      header: 'Request',
+      accessorFn: (row) => extractRequestTitle(row, formConfig),
+      cell: ({ getValue, row }) => (
+        <Box>
+          <Typography variant="subtitle2" noWrap>
+            {getValue()}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {extractSubmitterInfo(row.original)?.name || 'Unknown'}
+          </Typography>
+        </Box>
+      ),
+      size: 200,
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessorKey: 'status',
+      cell: ({ getValue }) => {
+        const status = getValue();
+        return (
+          <Chip
+            label={status?.replace('_', ' ').toUpperCase()}
+            size="small"
+            sx={{
+              backgroundColor: getStatusColor(status),
+              color: theme.palette.getContrastText(getStatusColor(status)),
+              fontWeight: 600,
+            }}
+          />
+        );
+      },
+      size: 120,
+    },
+    {
+      id: 'assignedTo',
+      header: 'Assigned To',
+      accessorKey: 'assignedTo',
+      cell: ({ getValue }) => {
+        const assignedTo = getValue();
+        return assignedTo ? (
+          <Chip
+            avatar={<Avatar sx={{ width: 24, height: 24 }}>{assignedTo.charAt(0)}</Avatar>}
+            label={assignedTo}
+            size="small"
+            variant="outlined"
+          />
+        ) : (
+          <Typography variant="caption" color="text.secondary">
+            Unassigned
+          </Typography>
+        );
+      },
+      size: 150,
+    },
+    {
+      id: 'createdAt',
+      header: 'Created',
+      accessorKey: 'createdAt',
+      cell: ({ getValue }) => (
+        <Typography variant="caption">
+          {new Date(getValue()).toLocaleDateString()}
+        </Typography>
+      ),
+      size: 100,
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="View Details">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setSelectedRequest(row.original);
+                setDetailsModalOpen(true);
+              }}
+              aria-label={`View details for ${extractRequestTitle(row.original, formConfig)}`}
+            >
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          {!row.original.assignedTo && (
+            <Tooltip title="Claim Request">
+              <IconButton
+                size="small"
+                onClick={() => claimRequestMutation.mutate(row.original.id)}
+                disabled={claimRequestMutation.isLoading}
+                aria-label={`Claim ${extractRequestTitle(row.original, formConfig)}`}
+              >
+                <PersonIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      ),
+      size: 120,
+      enableSorting: false,
+    },
+  ], [formConfig, theme, claimRequestMutation]);
+
+  // Filtered data for table
+  const filteredData = useMemo(() => {
+    let data = tabValue === 0 ? allRequests : myRequests;
+    
+    if (statusFilter !== 'all') {
+      data = data.filter(request => request.status === statusFilter);
+    }
+    
+    return data;
+  }, [allRequests, myRequests, tabValue, statusFilter]);
+
+  // TanStack Table instance
+  const table = useReactTable({
+    data: filteredData,
+    columns,
+    state: {
+      sorting,
+      globalFilter,
+      pagination,
+    },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: false,
+  });
+
+  // Event handlers
+  const handleTabChange = useCallback((event, newValue) => {
+    setTabValue(newValue);
+    // Announce tab change for screen readers
+    const tabName = newValue === 0 ? 'Review Queue' : 'My Requests';
+    toast(`Switched to ${tabName}`, { duration: 1000 });
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    refetchRequests();
+    refetchMyRequests();
+    toast.success('Data refreshed!');
+  }, [refetchRequests, refetchMyRequests]);
+
+  // Loading state
+  if (requestsLoading || myRequestsLoading) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
+        <Skeleton variant="rectangular" height={400} />
       </Box>
     );
   }
 
+  // Error state
+  if (requestsError || myRequestsError) {
+    return (
+      <Alert 
+        severity="error" 
+        action={
+          <Button color="inherit" size="small" onClick={handleRefresh}>
+            Retry
+          </Button>
+        }
+      >
+        Failed to load data. Please try again.
+      </Alert>
+    );
+  }
+
   return (
-    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Header Section */}
-      <Box mb={4}>
-        <Typography variant="h3" gutterBottom sx={{ fontWeight: 700 }}>
-          Review Dashboard
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
+          Reviewer Dashboard
         </Typography>
-        <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-          Manage and prioritize naming requests across the organization
-        </Typography>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={handleRefresh}
+          aria-label="Refresh data"
+        >
+          Refresh
+        </Button>
       </Box>
 
-      {/* Stats Cards - Bento Grid Layout */}
-      <Grid container spacing={3} mb={4}>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.secondary.main}, ${theme.palette.secondary.dark})` }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                    {stats.newRequests}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    New Requests
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                  <NotificationsIcon sx={{ color: 'white' }} />
-                </Avatar>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+      {/* Tabs */}
+      <Card sx={{ mb: 3 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          aria-label="reviewer dashboard tabs"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab 
+            label={
+              <Badge badgeContent={allRequests.length} color="primary">
+                Review Queue
+              </Badge>
+            }
+            id="tab-0"
+            aria-controls="tabpanel-0"
+          />
+          <Tab 
+            label={
+              <Badge badgeContent={myRequests.length} color="secondary">
+                My Requests
+              </Badge>
+            }
+            id="tab-1"
+            aria-controls="tabpanel-1"
+          />
+        </Tabs>
 
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})` }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                    {stats.inProgress}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    In Progress
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                  <PendingActionsIcon sx={{ color: 'white' }} />
-                </Avatar>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})` }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                    {stats.myAssigned}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    My Assigned
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                  <PersonIcon sx={{ color: 'white' }} />
-                </Avatar>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})` }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                    {stats.urgent}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    Urgent
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                  <ScheduleIcon sx={{ color: 'white' }} />
-                </Avatar>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})` }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                    {stats.total}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    Total Active
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                  <TrendingUpIcon sx={{ color: 'white' }} />
-                </Avatar>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Main Content */}
-      <Card>
+        {/* Filters and Search */}
         <CardContent>
-          {/* Tabs for different views */}
-          <Box mb={3}>
-            <Tabs 
-              value={tabValue} 
-              onChange={(e, newValue) => setTabValue(newValue)}
-              sx={{ borderBottom: 1, borderColor: 'divider' }}
-            >
-              <Tab 
-                label={
-                  <Badge badgeContent={stats.total} color="primary" max={99}>
-                    All Active
-                  </Badge>
-                } 
-              />
-              <Tab 
-                label={
-                  <Badge badgeContent={stats.newRequests} color="secondary" max={99}>
-                    New Requests
-                  </Badge>
-                } 
-              />
-              <Tab 
-                label={
-                  <Badge badgeContent={stats.inProgress} color="info" max={99}>
-                    In Progress
-                  </Badge>
-                } 
-              />
-              <Tab 
-                label={
-                  <Badge badgeContent={stats.myAssigned} color="primary" max={99}>
-                    My Assigned
-                  </Badge>
-                } 
-              />
-            </Tabs>
-          </Box>
-
-          {/* Search and Filter Controls */}
-          <Box mb={3}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  placeholder="Search by title, submitter, or description..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth>
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={statusFilter}
-                    label="Status"
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                  >
-                    <MenuItem value="all">All Status</MenuItem>
-                    <MenuItem value="pending">Pending</MenuItem>
-                    <MenuItem value="new">New</MenuItem>
-                    <MenuItem value="in-progress">In Progress</MenuItem>
-                    <MenuItem value="approved">Approved</MenuItem>
-                    <MenuItem value="rejected">Rejected</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth>
-                  <InputLabel>Sort By</InputLabel>
-                  <Select
-                    value={sortBy}
-                    label="Sort By"
-                    onChange={(e) => setSortBy(e.target.value)}
-                  >
-                    <MenuItem value="createdAt">Date Created</MenuItem>
-                    <MenuItem value="updatedAt">Last Updated</MenuItem>
-                    <MenuItem value="title">Title</MenuItem>
-                    <MenuItem value="status">Status</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth>
-                  <InputLabel>Order</InputLabel>
-                  <Select
-                    value={sortOrder}
-                    label="Order"
-                    onChange={(e) => setSortOrder(e.target.value)}
-                  >
-                    <MenuItem value="desc">Newest First</MenuItem>
-                    <MenuItem value="asc">Oldest First</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={2}>
-                <Typography variant="body2" color="text.secondary" textAlign="center">
-                  {filteredRequests.length} request{filteredRequests.length !== 1 ? 's' : ''}
-                </Typography>
-              </Grid>
-            </Grid>
-          </Box>
-
-          <Divider sx={{ mb: 3 }} />
-
-          {/* Requests Table */}
-          {hasError ? (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {errorMessage}
-              <Button 
-                size="small" 
-                sx={{ mt: 1 }}
-                onClick={() => {
-                  dispatch(fetchReviewRequests());
-                  dispatch(fetchUserRequests());
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                placeholder="Search requests..."
+                value={globalFilter}
+                onChange={(e) => setGlobalFilter(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
                 }}
-              >
-                Retry
-              </Button>
-            </Alert>
-          ) : isLoading ? (
-            <Box display="flex" justifyContent="center" py={4}>
-              <CircularProgress />
-            </Box>
-          ) : filteredRequests.length === 0 ? (
-            <Box textAlign="center" py={6}>
-              <AssignmentIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                No requests found
-              </Typography>
+                aria-label="Search requests"
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Status Filter</InputLabel>
+                <Select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  label="Status Filter"
+                >
+                  <MenuItem value="all">All Statuses</MenuItem>
+                  <MenuItem value="submitted">Submitted</MenuItem>
+                  <MenuItem value="brand_review">Brand Review</MenuItem>
+                  <MenuItem value="legal_review">Legal Review</MenuItem>
+                  <MenuItem value="approved">Approved</MenuItem>
+                  <MenuItem value="on_hold">On Hold</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
               <Typography variant="body2" color="text.secondary">
-                {searchQuery || statusFilter !== 'all' 
-                  ? 'Try adjusting your search or filter criteria'
-                  : 'No requests match the current tab filter'
-                }
+                {table.getFilteredRowModel().rows.length} of {filteredData.length} requests
               </Typography>
-            </Box>
-          ) : (
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortBy === 'title'}
-                        direction={sortBy === 'title' ? sortOrder : 'asc'}
-                        onClick={() => {
-                          if (sortBy === 'title') {
-                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                          } else {
-                            setSortBy('title');
-                            setSortOrder('asc');
-                          }
-                        }}
-                      >
-                        Request Details
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>Submitter</TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortBy === 'status'}
-                        direction={sortBy === 'status' ? sortOrder : 'asc'}
-                        onClick={() => {
-                          if (sortBy === 'status') {
-                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                          } else {
-                            setSortBy('status');
-                            setSortOrder('asc');
-                          }
-                        }}
-                      >
-                        Status
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell>
-                      <TableSortLabel
-                        active={sortBy === 'createdAt'}
-                        direction={sortBy === 'createdAt' ? sortOrder : 'asc'}
-                        onClick={() => {
-                          if (sortBy === 'createdAt') {
-                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                          } else {
-                            setSortBy('createdAt');
-                            setSortOrder('asc');
-                          }
-                        }}
-                      >
-                        Date
-                      </TableSortLabel>
-                    </TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredRequests.map((request) => {
-                    const urgencyColor = getUrgencyColor(request.createdAt);
-                    const isUrgent = urgencyColor === theme.palette.error.main;
-                    
-                    return (
-                      <TableRow 
-                        key={request._id} 
-                        hover
-                        sx={{ 
-                          cursor: 'pointer',
-                          '&:hover': { backgroundColor: 'action.hover' },
-                          ...(isUrgent && {
-                            borderLeft: `4px solid ${theme.palette.error.main}`,
-                          }),
-                        }}
-                        onClick={() => handleViewRequest(request._id)}
-                      >
-                        <TableCell>
-                          <Box>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                {/* Handle any title format */}
-                                {request.title || request.formData?.requestTitle || request.formData?.title || 'Untitled Request'}
-                              </Typography>
-                              {isUrgent && (
-                                <Chip 
-                                  label="URGENT" 
-                                  size="small" 
-                                  color="error" 
-                                  sx={{ fontSize: '0.6rem', height: 20 }}
-                                />
-                              )}
-                            </Box>
-                            <Typography variant="body2" color="text.secondary" noWrap>
-                              {/* Handle any description format */}
-                              {typeof request.description === 'object' 
-                                ? request.description?.text || 'No description' 
-                                : request.description || request.formData?.description || 'No description'
-                              }
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Avatar sx={{ width: 32, height: 32, fontSize: '0.875rem' }}>
-                              {request.user?.name?.charAt(0) || '?'}
-                            </Avatar>
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                {request.user?.name || 'Unknown User'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {request.user?.email || 'No email'}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          {/* Handle any status format */}
-                          <Chip {...getStatusChipProps(request.status || 'pending')} />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {/* Handle any date format */}
-                            {formatDate(request.createdAt || request.date || request.submittedAt || new Date())}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Box display="flex" alignItems="center" gap={0.5}>
-                            <Tooltip title="View Details">
-                              <IconButton 
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewRequest(request._id);
-                                }}
-                              >
-                                <ViewIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="More Actions">
-                              <IconButton 
-                                size="small"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleMenuClick(e, request);
-                                }}
-                              >
-                                <MoreVertIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+            </Grid>
+          </Grid>
         </CardContent>
       </Card>
 
-      {/* Action Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={() => { handleViewRequest(selectedRequest?._id); handleMenuClose(); }}>
-          <ViewIcon sx={{ mr: 1 }} /> View Details
-        </MenuItem>
-        <MenuItem onClick={() => { handleClaimRequest(selectedRequest); handleMenuClose(); }}>
-          <AssignmentIcon sx={{ mr: 1 }} /> Claim Request
-        </MenuItem>
-        <MenuItem onClick={() => { handleAssignRequest(selectedRequest); handleMenuClose(); }}>
-          <GroupIcon sx={{ mr: 1 }} /> Assign to User
-        </MenuItem>
-        <Divider />
-        <MenuItem onClick={() => { 
-          handleUpdateStatus(selectedRequest?._id);
-          handleMenuClose(); 
-        }}>
-          <EditIcon sx={{ mr: 1, color: 'primary.main' }} /> Update Status
-        </MenuItem>
-        <MenuItem onClick={() => { /* TODO: Approve */ handleMenuClose(); }}>
-          <CheckCircleIcon sx={{ mr: 1, color: 'success.main' }} /> Approve
-        </MenuItem>
-        <MenuItem onClick={() => { /* TODO: Reject */ handleMenuClose(); }}>
-          <CancelIcon sx={{ mr: 1, color: 'error.main' }} /> Reject
-        </MenuItem>
-      </Menu>
-      
-      {/* Dynamic Request Details Modal */}
-      <RequestDetailsModal
+      {/* Table */}
+      <Card>
+        <TableContainer>
+          <Table stickyHeader aria-label="requests table">
+            <TableHead>
+              {table.getHeaderGroups().map(headerGroup => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map(header => (
+                    <TableCell
+                      key={header.id}
+                      sortDirection={
+                        header.column.getIsSorted() === 'asc' ? 'asc' :
+                        header.column.getIsSorted() === 'desc' ? 'desc' : false
+                      }
+                      sx={{ fontWeight: 600 }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <TableSortLabel
+                          active={!!header.column.getIsSorted()}
+                          direction={header.column.getIsSorted() || 'asc'}
+                          onClick={header.column.getToggleSortingHandler()}
+                          disabled={!header.column.getCanSort()}
+                        >
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableSortLabel>
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHead>
+            <TableBody>
+              {table.getRowModel().rows.map(row => (
+                <TableRow key={row.id} hover>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Pagination */}
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+          <Pagination
+            count={table.getPageCount()}
+            page={table.getState().pagination.pageIndex + 1}
+            onChange={(event, page) => table.setPageIndex(page - 1)}
+            color="primary"
+            showFirstButton
+            showLastButton
+            aria-label="Table pagination"
+          />
+        </Box>
+      </Card>
+
+      {/* Request Details Modal */}
+      <Dialog
         open={detailsModalOpen}
-        onClose={handleCloseDetailsModal}
-        requestId={selectedRequest?._id}
-      />
-      
-      {/* Dynamic Request Status Update Modal */}
-      <RequestStatusUpdate
-        open={statusUpdateModalOpen}
-        onClose={handleCloseStatusModal}
-        request={selectedRequest}
-      />
+        onClose={() => setDetailsModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        aria-labelledby="request-details-title"
+      >
+        <DialogTitle id="request-details-title">
+          {selectedRequest ? extractRequestTitle(selectedRequest, formConfig) : 'Request Details'}
+        </DialogTitle>
+        <DialogContent>
+          {selectedRequest && (
+            <Box>
+              {/* Status Progression */}
+              <Typography variant="h6" sx={{ mb: 2 }}>Status Progression</Typography>
+              <Stepper activeStep={getStatusSteps().findIndex(step => step.status === selectedRequest.status)} orientation="vertical">
+                {getStatusSteps().map((step, index) => (
+                  <Step key={step.status}>
+                    <StepLabel
+                      StepIconComponent={() => (
+                        <Box
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            backgroundColor: index <= getStatusSteps().findIndex(s => s.status === selectedRequest.status)
+                              ? getStatusColor(step.status)
+                              : theme.palette.grey[300],
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                          }}
+                        >
+                          {step.icon}
+                        </Box>
+                      )}
+                    >
+                      {step.label}
+                    </StepLabel>
+                    <StepContent>
+                      <Typography variant="body2" color="text.secondary">
+                        {step.description}
+                      </Typography>
+                    </StepContent>
+                  </Step>
+                ))}
+              </Stepper>
+
+              <Divider sx={{ my: 3 }} />
+
+              {/* Dynamic Request Data */}
+              <Typography variant="h6" sx={{ mb: 2 }}>Request Details</Typography>
+              {renderDynamicRequestData(selectedRequest)}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsModalOpen(false)}>Close</Button>
+          {selectedRequest && !selectedRequest.assignedTo && (
+            <Button
+              variant="contained"
+              onClick={() => {
+                claimRequestMutation.mutate(selectedRequest.id);
+                setDetailsModalOpen(false);
+              }}
+              disabled={claimRequestMutation.isLoading}
+            >
+              Claim Request
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
-};
+});
+
+ProfessionalReviewerDashboard.displayName = 'ProfessionalReviewerDashboard';
 
 export default ProfessionalReviewerDashboard;

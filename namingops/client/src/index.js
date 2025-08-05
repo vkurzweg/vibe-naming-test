@@ -8,6 +8,7 @@ import { store } from './app/store';
 import { ThemeProvider as AppThemeProviderWrapper } from './context/ThemeContext';
 import AppThemeProvider from './providers/AppThemeProvider';
 import reportWebVitals from './reportWebVitals';
+import './styles/radix-ui.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 

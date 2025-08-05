@@ -1,15 +1,16 @@
 import React from 'react';
+import { useSelector } from 'react-redux';
 import { useEffectiveRole } from '../../hooks/useEffectiveRole';
 import ProfessionalLayout from '../Layout/ProfessionalLayout';
 import ProfessionalSubmitterDashboard from '../../pages/dashboards/ProfessionalSubmitterDashboard';
 import ProfessionalReviewerDashboard from '../../pages/dashboards/ProfessionalReviewerDashboard';
 import ProfessionalAdminDashboard from '../../pages/dashboards/ProfessionalAdminDashboard';
+import EnhancedThemeProvider from '../ThemeIntegration/EnhancedThemeProvider';
 
 const ProfessionalDashboardRouter = () => {
   const effectiveRole = useEffectiveRole();
-  
-  // Route to appropriate dashboard based on role
-  const getDashboardComponent = () => {
+
+  const renderDashboard = () => {
     switch (effectiveRole) {
       case 'submitter':
         return <ProfessionalSubmitterDashboard />;
@@ -18,15 +19,16 @@ const ProfessionalDashboardRouter = () => {
       case 'admin':
         return <ProfessionalAdminDashboard />;
       default:
-        // Fallback to submitter dashboard
         return <ProfessionalSubmitterDashboard />;
     }
   };
 
   return (
-    <ProfessionalLayout>
-      {getDashboardComponent()}
-    </ProfessionalLayout>
+    <EnhancedThemeProvider>
+      <ProfessionalLayout>
+        {renderDashboard()}
+      </ProfessionalLayout>
+    </EnhancedThemeProvider>
   );
 };
 

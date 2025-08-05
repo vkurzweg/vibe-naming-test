@@ -1,5 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  getPaginationRowModel,
+  flexRender,
+} from '@tanstack/react-table';
 import {
   Box,
   Grid,
@@ -13,14 +22,8 @@ import {
   Tooltip,
   CircularProgress,
   Alert,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Switch,
   Chip,
   Divider,
-  FormControlLabel,
   Table,
   TableBody,
   TableCell,
@@ -30,388 +33,564 @@ import {
   Paper,
   TextField,
   InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Stepper,
+  Step,
+  StepLabel,
+  StepContent,
+  Badge,
+  Avatar,
+  Pagination,
+  Skeleton,
+  Stack,
+  useMediaQuery,
 } from '@mui/material';
-import newColorPalette, { getStatusColor, getStatusIcon } from '../../theme/newColorPalette';
 import {
-  Add as AddIcon,
+  Dashboard as DashboardIcon,
+  People as PeopleIcon,
+  Settings as SettingsIcon,
+  Analytics as AnalyticsIcon,
+  Assignment as AssignmentIcon,
+  CheckCircle as CheckCircleIcon,
+  Business as BusinessIcon,
+  Gavel as GavelIcon,
+  Search as SearchIcon,
+  Visibility as VisibilityIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  Settings as SettingsIcon,
-  Description as DescriptionIcon,
-  CheckCircle as CheckCircleIcon,
-  People as PeopleIcon,
-  AdminPanelSettings as AdminPanelSettingsIcon,
-  Assignment as AssignmentIcon,
-  Search as SearchIcon,
-  FilterList as FilterIcon,
-  Visibility as ViewIcon,
+  Refresh as RefreshIcon,
+  TrendingUp as TrendingUpIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material';
-import { format, parseISO } from 'date-fns';
-import { 
-  fetchFormConfigs, 
-  activateFormConfig, 
-  deleteFormConfig 
-} from '../../features/formConfig/formConfigSlice';
-import { fetchReviewRequests } from '../../features/review/reviewSlice';
-import { fetchUserRequests } from '../../features/requests/requestsSlice';
-import FormConfigModal from '../../components/FormConfig/FormConfigModal';
-import RequestDetailsModal from '../../components/Requests/RequestDetailsModal';
+import { useTheme } from '@mui/material/styles';
+import { toast } from 'react-hot-toast';
+import newColorPalette, { getStatusColor, getStatusIcon } from '../../theme/newColorPalette';
+import {
+  extractRequestTitle,
+  extractRequestDescription,
+  getDisplayableFormData,
+  extractSubmitterInfo,
+  formatRequestForRole,
+  searchRequest
+} from '../../utils/dynamicDataUtils';
 
-const ProfessionalAdminDashboard = () => {
+const ProfessionalAdminDashboard = React.memo(() => {
   const dispatch = useDispatch();
-  const { formConfigs, activeFormConfig, loading: formConfigLoading, error: formConfigError } = useSelector((state) => state.formConfig);
-  const { requests: reviewRequests, loading: reviewLoading, error: reviewError } = useSelector((state) => state.review);
-  const { requests: allRequests, loading: requestsLoading, error: requestsError } = useSelector((state) => state.requests);
+  const theme = useTheme();
+  const queryClient = useQueryClient();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
-  const [activeTab, setActiveTab] = useState(0);
-  const [formConfigModalOpen, setFormConfigModalOpen] = useState(false);
-  const [selectedFormConfig, setSelectedFormConfig] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const { user } = useSelector((state) => state.auth);
+  const { formConfig } = useSelector((state) => state.formConfig || {});
+  
+  // Local state
+  const [tabValue, setTabValue] = useState(0);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  
-  useEffect(() => {
-    dispatch(fetchFormConfigs());
-    
-    // Fetch review requests and user requests for the Review tab
-    if (activeTab === 1) {
-      console.log('Fetching review data for admin dashboard...');
-      dispatch(fetchReviewRequests({
-        status: 'all',
-        page: 1,
-        limit: 100
-      }));
-      
-      dispatch(fetchUserRequests({
-        page: 1,
-        limit: 100
-      }));
-    }
-  }, [dispatch, activeTab]);
-  
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-    
-    // Fetch data when switching to the Review tab
-    if (newValue === 1) {
-      dispatch(fetchReviewRequests({
-        status: 'all',
-        page: 1,
-        limit: 100
-      }));
-      
-      dispatch(fetchUserRequests({
-        page: 1,
-        limit: 100
-      }));
-    }
-  };
-  
-  // Handle viewing request details
-  const handleViewRequest = (requestId) => {
-    setSelectedRequestId(requestId);
-    setDetailsModalOpen(true);
-  };
-  
-  const handleCloseDetailsModal = () => {
-    setDetailsModalOpen(false);
-  };
-  
-  // Format date for display with better error handling
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      // Handle different date formats
-      if (dateString instanceof Date) {
-        return format(dateString, 'MMM dd, yyyy');
-      } else if (typeof dateString === 'string') {
-        return format(parseISO(dateString), 'MMM dd, yyyy');
-      } else if (typeof dateString === 'number') {
-        return format(new Date(dateString), 'MMM dd, yyyy');
-      }
-      return format(parseISO(dateString.toString()), 'MMM dd, yyyy');
-    } catch (error) {
-      console.warn('Date formatting error:', error);
-      return 'Invalid date';
-    }
-  };
-  
-  // Get status chip props with better error handling
-  const getStatusChipProps = (status) => {
-    // Default to 'pending' if status is undefined or invalid
-    const safeStatus = status && typeof status === 'string' ? status : 'pending';
-    
-    return {
-      label: safeStatus.replace('_', ' ').toUpperCase(),
-      sx: {
-        backgroundColor: getStatusColor(safeStatus),
-        color: '#fff',
-        fontWeight: 600,
-        fontSize: '0.75rem',
-      },
-      size: 'small',
-      icon: getStatusIcon(safeStatus),
-    };
-  };
-  
-  // Process review data with better error handling
-  const allRequestsData = Array.isArray(allRequests?.data) ? allRequests.data : [];
-  const reviewRequestsData = Array.isArray(reviewRequests) ? reviewRequests : [];
-  
-  console.log('Admin dashboard - All requests data:', allRequestsData);
-  console.log('Admin dashboard - Review requests data:', reviewRequestsData);
-  
-  // Combine and deduplicate requests
-  const combinedRequests = [...allRequestsData, ...reviewRequestsData].reduce((acc, request) => {
-    // Skip null or undefined requests
-    if (!request) return acc;
-    
-    // Ensure each request has an _id for deduplication
-    const requestId = request._id || request.id;
-    if (!requestId) {
-      // Generate a temporary ID if none exists
-      const tempId = `temp-${Math.random().toString(36).substr(2, 9)}`;
-      request._id = tempId;
-      acc.push(request);
-      return acc;
-    }
-    
-    // Deduplicate by ID
-    if (!acc.find(r => (r._id === requestId || r.id === requestId))) {
-      acc.push(request);
-    }
-    return acc;
-  }, []);
-  
-  console.log('Admin dashboard - Combined requests after processing:', combinedRequests);
-  
-  // Filter requests based on search and status with better error handling
-  const filteredRequests = combinedRequests.filter(request => {
-    // More robust search that handles any data structure
-    const matchesSearch = !searchQuery || (
-      // Search in title (multiple possible locations)
-      (request.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       request.formData?.requestTitle?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-       request.formData?.title?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      // Search in description (multiple possible locations)
-      (request.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-       (typeof request.description === 'object' && request.description?.text?.toLowerCase().includes(searchQuery.toLowerCase())) ||
-       request.formData?.description?.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-    
-    // More robust status matching
-    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
-  
-  // Show loading state if either data source is loading
-  const isRequestsLoading = requestsLoading || reviewLoading;
-  
-  // Show error if either data source has an error
-  const hasRequestsError = requestsError || reviewError;
-  const requestsErrorMessage = requestsError || reviewError || 'An error occurred while fetching requests';
-  
-  // Use formConfigLoading and formConfigError for form config tab
-  const loading = formConfigLoading;
-  const error = formConfigError;
-  
-  const handleCreateFormConfig = () => {
-    setSelectedFormConfig(null);
-    setFormConfigModalOpen(true);
-  };
-  
-  const handleEditFormConfig = (formConfig) => {
-    setSelectedFormConfig(formConfig);
-    setFormConfigModalOpen(true);
-  };
-  
-  const handleCloseFormConfigModal = () => {
-    setFormConfigModalOpen(false);
-    // Refresh form configs after modal is closed
-    dispatch(fetchFormConfigs());
-  };
-  
-  const handleActivateFormConfig = (id) => {
-    dispatch(activateFormConfig(id))
-      .unwrap()
-      .then(() => {
-        dispatch(fetchFormConfigs());
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sorting, setSorting] = useState([]);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 });
+  const [selectedRows, setSelectedRows] = useState({});
+
+  // Fetch all requests (admin has access to all)
+  const { data: requests = [], isLoading: requestsLoading, error: requestsError, refetch: refetchRequests } = useQuery({
+    queryKey: ['admin-requests'],
+    queryFn: async () => {
+      const response = await fetch('/api/name-requests', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
       });
-  };
-  
-  const handleDeleteFormConfig = (id) => {
-    if (window.confirm('Are you sure you want to delete this form configuration? This action cannot be undone.')) {
-      dispatch(deleteFormConfig(id))
-        .unwrap()
-        .then(() => {
-          dispatch(fetchFormConfigs());
-        });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return Array.isArray(data.data) ? data.data : data;
+    },
+    staleTime: 30000, // 30 seconds
+    cacheTime: 300000, // 5 minutes
+    retry: 2,
+  });
+
+  // Calculate stats client-side from requests data
+  const { data: stats = {}, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin-stats', requests],
+    queryFn: () => {
+      if (!requests || !Array.isArray(requests)) {
+        return {
+          totalRequests: 0,
+          pendingRequests: 0,
+          approvedRequests: 0,
+          rejectedRequests: 0,
+          activeUsers: 0
+        };
+      }
+
+      const totalRequests = requests.length;
+      const pendingRequests = requests.filter(req => req.status === 'submitted' || req.status === 'brand_review' || req.status === 'legal_review').length;
+      const approvedRequests = requests.filter(req => req.status === 'approved').length;
+      const rejectedRequests = requests.filter(req => req.status === 'rejected').length;
+      const activeUsers = new Set(requests.map(req => req.submittedBy)).size;
+
+      return {
+        totalRequests,
+        pendingRequests,
+        approvedRequests,
+        rejectedRequests,
+        activeUsers
+      };
+    },
+    enabled: !!requests && Array.isArray(requests),
+    staleTime: 30000,
+  });
+
+  // React Query mutations for admin operations
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ requestId, status, comments }) => {
+      const response = await fetch(`/api/name-requests/${requestId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status, comments }),
+      });
+      if (!response.ok) throw new Error('Failed to update status');
+      return response.json();
+    },
+    onMutate: async ({ requestId, status }) => {
+      await queryClient.cancelQueries(['admin-requests']);
+      const previousRequests = queryClient.getQueryData(['admin-requests']);
+      
+      queryClient.setQueryData(['admin-requests'], (old = []) =>
+        old.map(request =>
+          request.id === requestId
+            ? { ...request, status, updatedAt: new Date().toISOString() }
+            : request
+        )
+      );
+      
+      return { previousRequests };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['admin-requests'], context.previousRequests);
+      toast.error('Failed to update status. Please try again.');
+    },
+    onSuccess: () => {
+      toast.success('Status updated successfully!');
+      queryClient.invalidateQueries(['admin-requests']);
+      queryClient.invalidateQueries(['admin-stats', requests]);
+    },
+  });
+
+  const deleteRequestMutation = useMutation({
+    mutationFn: async (requestId) => {
+      const response = await fetch(`/api/name-requests/${requestId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) throw new Error('Failed to delete request');
+      return response.json();
+    },
+    onMutate: async (requestId) => {
+      await queryClient.cancelQueries(['admin-requests']);
+      const previousRequests = queryClient.getQueryData(['admin-requests']);
+      
+      queryClient.setQueryData(['admin-requests'], (old = []) =>
+        old.filter(request => request.id !== requestId)
+      );
+      
+      return { previousRequests };
+    },
+    onError: (err, requestId, context) => {
+      queryClient.setQueryData(['admin-requests'], context.previousRequests);
+      toast.error('Failed to delete request. Please try again.');
+    },
+    onSuccess: () => {
+      toast.success('Request deleted successfully!');
+      queryClient.invalidateQueries(['admin-requests']);
+      queryClient.invalidateQueries(['admin-stats', requests]);
+    },
+  });
+
+  // Status progression configuration
+  const getStatusSteps = useCallback(() => [
+    { 
+      label: 'Submitted', 
+      description: 'Request submitted for review', 
+      icon: <AssignmentIcon />, 
+      status: 'submitted' 
+    },
+    { 
+      label: 'Brand Review', 
+      description: 'Under brand team review', 
+      icon: <BusinessIcon />, 
+      status: 'brand_review' 
+    },
+    { 
+      label: 'Legal Review', 
+      description: 'Legal compliance check', 
+      icon: <GavelIcon />, 
+      status: 'legal_review' 
+    },
+    { 
+      label: 'Approved', 
+      description: 'Request approved and ready', 
+      icon: <CheckCircleIcon />, 
+      status: 'approved' 
     }
-  };
-  
+  ], []);
+
+  // Dynamic request data rendering
+  const renderDynamicRequestData = useCallback((request) => {
+    if (!formConfig?.fields) {
+      return <Typography>Loading form configuration...</Typography>;
+    }
+
+    return (
+      <Box sx={{ mt: 2 }}>
+        {formConfig.fields.map((field) => {
+          const value = request.formData?.[field.name] || request[field.name];
+          if (!value) return null;
+
+          return (
+            <Box key={field.name} sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {field.label || field.name}
+              </Typography>
+              <Typography variant="body2">
+                {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+              </Typography>
+            </Box>
+          );
+        })}
+      </Box>
+    );
+  }, [formConfig]);
+
+  // TanStack Table columns configuration
+  const requestColumns = useMemo(() => [
+    {
+      id: 'title',
+      header: 'Request',
+      accessorFn: (row) => extractRequestTitle(row, formConfig),
+      cell: ({ getValue, row }) => (
+        <Box>
+          <Typography variant="subtitle2" noWrap>
+            {getValue()}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {extractSubmitterInfo(row.original)?.name || 'Unknown'}
+          </Typography>
+        </Box>
+      ),
+      size: 200,
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      accessorKey: 'status',
+      cell: ({ getValue }) => {
+        const status = getValue();
+        return (
+          <Chip
+            label={status?.replace('_', ' ').toUpperCase()}
+            size="small"
+            sx={{
+              backgroundColor: getStatusColor(status),
+              color: theme.palette.getContrastText(getStatusColor(status)),
+              fontWeight: 600,
+            }}
+          />
+        );
+      },
+      size: 120,
+    },
+    {
+      id: 'assignedTo',
+      header: 'Assigned To',
+      accessorKey: 'assignedTo',
+      cell: ({ getValue }) => {
+        const assignedTo = getValue();
+        return assignedTo ? (
+          <Chip
+            avatar={<Avatar sx={{ width: 24, height: 24 }}>{assignedTo.charAt(0)}</Avatar>}
+            label={assignedTo}
+            size="small"
+            variant="outlined"
+          />
+        ) : (
+          <Typography variant="caption" color="text.secondary">
+            Unassigned
+          </Typography>
+        );
+      },
+      size: 150,
+    },
+    {
+      id: 'createdAt',
+      header: 'Created',
+      accessorKey: 'createdAt',
+      cell: ({ getValue }) => (
+        <Typography variant="caption">
+          {new Date(getValue()).toLocaleDateString()}
+        </Typography>
+      ),
+      size: 100,
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="View Details">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setSelectedRequest(row.original);
+                setDetailsModalOpen(true);
+              }}
+              aria-label={`View details for ${extractRequestTitle(row.original, formConfig)}`}
+            >
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton
+              size="small"
+              onClick={() => {
+                if (window.confirm('Are you sure you want to delete this request?')) {
+                  deleteRequestMutation.mutate(row.original.id);
+                }
+              }}
+              disabled={deleteRequestMutation.isLoading}
+              aria-label={`Delete ${extractRequestTitle(row.original, formConfig)}`}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+      size: 120,
+      enableSorting: false,
+    },
+  ], [formConfig, theme, deleteRequestMutation]);
+
+  // Filtered data for table
+  const filteredData = useMemo(() => {
+    let data = requests;
+    
+    if (statusFilter !== 'all') {
+      data = data.filter(request => request.status === statusFilter);
+    }
+    
+    return data;
+  }, [requests, statusFilter]);
+
+  // TanStack Table instance
+  const table = useReactTable({
+    data: filteredData,
+    columns: requestColumns,
+    state: {
+      sorting,
+      globalFilter,
+      pagination,
+    },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: false,
+  });
+
+  // Event handlers
+  const handleTabChange = useCallback((event, newValue) => {
+    setTabValue(newValue);
+    const tabNames = ['Dashboard', 'User Management', 'System Config', 'Analytics'];
+    toast(`Switched to ${tabNames[newValue]}`, { duration: 1000 });
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    refetchRequests();
+    queryClient.invalidateQueries(['admin-stats', requests]);
+    toast.success('Data refreshed!');
+  }, [refetchRequests, queryClient, requests]);
+
+  // Loading state
+  if (requestsLoading || statsLoading) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
+        <Skeleton variant="rectangular" height={400} />
+      </Box>
+    );
+  }
+
+  // Error state
+  if (requestsError) {
+    return (
+      <Alert 
+        severity="error" 
+        action={
+          <Button color="inherit" size="small" onClick={handleRefresh}>
+            Retry
+          </Button>
+        }
+      >
+        Failed to load admin data. Please try again.
+      </Alert>
+    );
+  }
+
   return (
-    <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Header Section */}
-      <Box mb={4}>
-        <Typography variant="h3" gutterBottom sx={{ fontWeight: 700 }}>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
           Admin Dashboard
         </Typography>
-        <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-          Manage system settings, form configurations, and user roles
-        </Typography>
-        
-        {/* Tab Navigation */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 3 }}>
-          <Tabs 
-            value={activeTab} 
-            onChange={handleTabChange} 
-            aria-label="admin dashboard tabs"
-            variant="scrollable"
-            scrollButtons="auto"
-          >
-            <Tab 
-              label="Form Configurations" 
-              icon={<DescriptionIcon />} 
-              iconPosition="start"
-            />
-            <Tab 
-              label="Review Requests" 
-              icon={<AssignmentIcon />} 
-              iconPosition="start"
-            />
-            <Tab 
-              label="User Management" 
-              icon={<PeopleIcon />} 
-              iconPosition="start"
-            />
-            <Tab 
-              label="System Settings" 
-              icon={<SettingsIcon />} 
-              iconPosition="start"
-            />
-          </Tabs>
-        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<RefreshIcon />}
+          onClick={handleRefresh}
+          aria-label="Refresh data"
+        >
+          Refresh
+        </Button>
       </Box>
-      
-      {/* Tab Content */}
-      <Box sx={{ mt: 2, flexGrow: 1 }}>
-        {/* Tab 1: Form Configurations */}
-        {activeTab === 0 && (
-          <>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h5" fontWeight={600}>
-                Form Configurations
-              </Typography>
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<AddIcon />}
-                onClick={handleCreateFormConfig}
-              >
-                New Form Configuration
-              </Button>
-            </Box>
-            
-            {loading ? (
-              <Box display="flex" justifyContent="center" alignItems="center" py={4}>
-                <CircularProgress />
+
+      {/* System Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})` }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {stats.totalRequests || requests.length}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Total Requests
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
+                  <AssignmentIcon sx={{ color: 'white' }} />
+                </Avatar>
               </Box>
-            ) : error ? (
-              <Alert severity="error">{error}</Alert>
-            ) : formConfigs.length === 0 ? (
-              <Alert severity="info">
-                No form configurations found. Click &quot;New Form Configuration&quot; to create one.
-              </Alert>
-            ) : (
-              <Grid container spacing={3}>
-                {formConfigs.map((formConfig) => (
-                  <Grid item xs={12} md={6} lg={4} key={formConfig._id}>
-                    <Card sx={{ height: '100%' }}>
-                      <CardContent>
-                        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                          <Box>
-                            <Typography variant="h6" gutterBottom>
-                              {formConfig.name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" paragraph>
-                              {formConfig.description || 'No description provided'}
-                            </Typography>
-                          </Box>
-                          {formConfig.isActive && (
-                            <Chip 
-                              label="Active" 
-                              color="primary" 
-                              size="small" 
-                              icon={<CheckCircleIcon />} 
-                            />
-                          )}
-                        </Box>
-                        
-                        <Typography variant="subtitle2" gutterBottom>
-                          Fields: {formConfig.fields?.length || 0}
-                        </Typography>
-                        
-                        <Box mt={2} display="flex" justifyContent="space-between">
-                          <Box>
-                            <Tooltip title="Edit">
-                              <IconButton 
-                                color="primary" 
-                                onClick={() => handleEditFormConfig(formConfig)}
-                              >
-                                <EditIcon />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton 
-                                color="error" 
-                                onClick={() => handleDeleteFormConfig(formConfig._id)}
-                                disabled={formConfig.isActive}
-                              >
-                                <DeleteIcon />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={formConfig.isActive}
-                                onChange={() => !formConfig.isActive && handleActivateFormConfig(formConfig._id)}
-                                color="primary"
-                                disabled={formConfig.isActive}
-                              />
-                            }
-                            label="Active"
-                          />
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            )}
-          </>
-        )}
-        
-        {/* Tab 2: Review Requests */}
-        {activeTab === 1 && (
-          <Box>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-              <Typography variant="h5" fontWeight={600}>
-                Review Requests
-              </Typography>
-            </Box>
-            
-            {/* Search and Filter */}
-            <Box mb={3}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={8}>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})` }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {stats.activeUsers || '24'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Active Users
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
+                  <PeopleIcon sx={{ color: 'white' }} />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})` }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {requests.filter(r => ['submitted', 'brand_review', 'legal_review'].includes(r.status)).length}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Pending Reviews
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
+                  <ScheduleIcon sx={{ color: 'white' }} />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})` }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
+                    {stats.systemHealth || '99%'}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    System Health
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
+                  <TrendingUpIcon sx={{ color: 'white' }} />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Main Content */}
+      <Card>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          aria-label="admin dashboard tabs"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab 
+            label={
+              <Badge badgeContent={requests.length} color="primary">
+                Request Management
+              </Badge>
+            }
+            id="tab-0"
+            aria-controls="tabpanel-0"
+          />
+          <Tab label="Analytics" id="tab-1" aria-controls="tabpanel-1" />
+        </Tabs>
+
+        <CardContent>
+          {tabValue === 0 && (
+            <>
+              {/* Filters and Search */}
+              <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+                <Grid item xs={12} md={6}>
                   <TextField
-                    placeholder="Search requests..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
                     fullWidth
+                    placeholder="Search requests..."
+                    value={globalFilter}
+                    onChange={(e) => setGlobalFilter(e.target.value)}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
@@ -419,168 +598,171 @@ const ProfessionalAdminDashboard = () => {
                         </InputAdornment>
                       ),
                     }}
+                    aria-label="Search requests"
                   />
                 </Grid>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    select
-                    label="Status"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    fullWidth
-                    SelectProps={{ native: true }}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="approved">Approved</option>
-                    <option value="rejected">Rejected</option>
-                  </TextField>
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth>
+                    <InputLabel>Status Filter</InputLabel>
+                    <Select
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      label="Status Filter"
+                    >
+                      <MenuItem value="all">All Statuses</MenuItem>
+                      <MenuItem value="submitted">Submitted</MenuItem>
+                      <MenuItem value="brand_review">Brand Review</MenuItem>
+                      <MenuItem value="legal_review">Legal Review</MenuItem>
+                      <MenuItem value="approved">Approved</MenuItem>
+                      <MenuItem value="on_hold">On Hold</MenuItem>
+                      <MenuItem value="rejected">Rejected</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={3}>
+                  <Typography variant="body2" color="text.secondary">
+                    {table.getFilteredRowModel().rows.length} of {filteredData.length} requests
+                  </Typography>
                 </Grid>
               </Grid>
-            </Box>
-            
-            <Divider sx={{ mb: 3 }} />
-            
-            {/* Requests Table */}
-            {hasRequestsError ? (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {requestsErrorMessage}
-                <Button 
-                  size="small" 
-                  sx={{ mt: 1 }}
-                  onClick={() => {
-                    dispatch(fetchReviewRequests());
-                    dispatch(fetchUserRequests());
-                  }}
-                >
-                  Retry
-                </Button>
-              </Alert>
-            ) : isRequestsLoading ? (
-              <Box display="flex" justifyContent="center" py={4}>
-                <CircularProgress />
-              </Box>
-            ) : filteredRequests.length === 0 ? (
-              <Alert severity="info" sx={{ mb: 3 }}>
-                No requests found. Try adjusting your search or filter criteria.
-              </Alert>
-            ) : (
-              <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
-                <Table>
+
+              {/* Table */}
+              <TableContainer component={Paper}>
+                <Table stickyHeader aria-label="admin requests table">
                   <TableHead>
-                    <TableRow>
-                      <TableCell>Request</TableCell>
-                      <TableCell>Requestor</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell>Submitted</TableCell>
-                      <TableCell align="right">Actions</TableCell>
-                    </TableRow>
+                    {table.getHeaderGroups().map(headerGroup => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map(header => (
+                          <TableCell key={header.id} sx={{ fontWeight: 600 }}>
+                            {header.isPlaceholder ? null : (
+                              flexRender(header.column.columnDef.header, header.getContext())
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
                   </TableHead>
                   <TableBody>
-                    {filteredRequests.map((request) => (
-                      <TableRow 
-                        key={request._id} 
-                        hover
-                        sx={{ 
-                          cursor: 'pointer',
-                          '&:hover': { backgroundColor: 'action.hover' }
-                        }}
-                        onClick={() => handleViewRequest(request._id)}
-                      >
-                        <TableCell>
-                          <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                              {/* Handle any title format */}
-                              {request.title || request.formData?.requestTitle || request.formData?.title || 'Untitled Request'}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" noWrap>
-                              {/* Handle any description format */}
-                              {typeof request.description === 'object' 
-                                ? request.description?.text || 'No description' 
-                                : request.description || request.formData?.description || 'No description'
-                              }
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {/* Handle any requestor format */}
-                            {request.requestor?.name || request.user?.name || request.formData?.requestorName || 'Unknown'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          {/* Handle any status format */}
-                          <Chip {...getStatusChipProps(request.status || 'pending')} />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {/* Handle any date format */}
-                            {formatDate(request.createdAt || request.date || request.submittedAt || new Date())}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Tooltip title="View Details">
-                            <IconButton 
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewRequest(request._id);
-                              }}
-                            >
-                              <ViewIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
+                    {table.getRowModel().rows.map(row => (
+                      <TableRow key={row.id} hover>
+                        {row.getVisibleCells().map(cell => (
+                          <TableCell key={cell.id}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </TableContainer>
-            )}
-          </Box>
-        )}
-        
-        {/* Tab 3: User Management */}
-        {activeTab === 2 && (
-          <Box>
-            <Typography variant="h5" fontWeight={600} mb={3}>
-              User Management
-            </Typography>
-            <Alert severity="info">
-              User management functionality will be implemented in a future update.
-            </Alert>
-          </Box>
-        )}
-        
-        {/* Tab 4: System Settings */}
-        {activeTab === 3 && (
-          <Box>
-            <Typography variant="h5" fontWeight={600} mb={3}>
-              System Settings
-            </Typography>
-            <Alert severity="info">
-              System settings functionality will be implemented in a future update.
-            </Alert>
-          </Box>
-        )}
-      </Box>
-      
-      {/* Form Config Modal */}
-      <FormConfigModal
-        open={formConfigModalOpen}
-        onClose={handleCloseFormConfigModal}
-        formConfig={selectedFormConfig}
-      />
-      
+
+              {/* Pagination */}
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                <Pagination
+                  count={table.getPageCount()}
+                  page={table.getState().pagination.pageIndex + 1}
+                  onChange={(event, page) => table.setPageIndex(page - 1)}
+                  color="primary"
+                  showFirstButton
+                  showLastButton
+                  aria-label="Table pagination"
+                />
+              </Box>
+            </>
+          )}
+
+          {tabValue === 1 && (
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>Analytics Dashboard</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Advanced analytics and reporting features will be displayed here.
+              </Typography>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Request Details Modal */}
-      <RequestDetailsModal
+      <Dialog
         open={detailsModalOpen}
-        onClose={handleCloseDetailsModal}
-        requestId={selectedRequestId}
-      />
+        onClose={() => setDetailsModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        aria-labelledby="admin-request-details-title"
+      >
+        <DialogTitle id="admin-request-details-title">
+          {selectedRequest ? extractRequestTitle(selectedRequest, formConfig) : 'Request Details'}
+        </DialogTitle>
+        <DialogContent>
+          {selectedRequest && (
+            <Box>
+              {/* Status Progression */}
+              <Typography variant="h6" sx={{ mb: 2 }}>Status Progression</Typography>
+              <Stepper activeStep={getStatusSteps().findIndex(step => step.status === selectedRequest.status)} orientation="vertical">
+                {getStatusSteps().map((step, index) => (
+                  <Step key={step.status}>
+                    <StepLabel
+                      StepIconComponent={() => (
+                        <Box
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            backgroundColor: index <= getStatusSteps().findIndex(s => s.status === selectedRequest.status)
+                              ? getStatusColor(step.status)
+                              : theme.palette.grey[300],
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                          }}
+                        >
+                          {step.icon}
+                        </Box>
+                      )}
+                    >
+                      {step.label}
+                    </StepLabel>
+                    <StepContent>
+                      <Typography variant="body2" color="text.secondary">
+                        {step.description}
+                      </Typography>
+                    </StepContent>
+                  </Step>
+                ))}
+              </Stepper>
+
+              <Divider sx={{ my: 3 }} />
+
+              {/* Dynamic Request Data */}
+              <Typography variant="h6" sx={{ mb: 2 }}>Request Details</Typography>
+              {renderDynamicRequestData(selectedRequest)}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsModalOpen(false)}>Close</Button>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => {
+              updateStatusMutation.mutate({ 
+                requestId: selectedRequest.id, 
+                status: 'approved',
+                comments: 'Approved by admin'
+              });
+              setDetailsModalOpen(false);
+            }}
+            disabled={updateStatusMutation.isLoading}
+          >
+            Approve
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
-};
+});
+
+ProfessionalAdminDashboard.displayName = 'ProfessionalAdminDashboard';
 
 export default ProfessionalAdminDashboard;

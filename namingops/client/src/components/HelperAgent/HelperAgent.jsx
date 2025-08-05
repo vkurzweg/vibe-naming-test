@@ -15,6 +15,7 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  Chip,
 } from '@mui/material';
 import {
   Send as SendIcon,

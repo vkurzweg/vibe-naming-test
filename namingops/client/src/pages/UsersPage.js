@@ -480,7 +480,6 @@ const UsersPage = () => {
             onClick={handleDeleteConfirm} 
             color="error"
             variant="contained"
-            autoFocus
           >
             Delete
           </Button>

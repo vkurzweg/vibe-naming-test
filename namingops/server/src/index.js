@@ -110,7 +110,7 @@ io.on('connection', (socket) => {
 // Routes
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/requests', nameRequestRoutes);
+app.use('/name-requests', nameRequestRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/form-configurations', formConfigurationRoutes);
 

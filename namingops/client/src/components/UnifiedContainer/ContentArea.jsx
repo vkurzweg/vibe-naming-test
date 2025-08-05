@@ -1,9 +1,65 @@
-import React from 'react';
-import { Container, Row, Col, Card, Button, Badge, Spinner } from 'react-bootstrap';
-import { getStatusColor } from '../../theme/appleTheme';
-import './ContentArea.css';
+import React, { useState } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Chip,
+  Button,
+  CircularProgress,
+  Alert,
+  Fade,
+  Grow,
+  useTheme,
+  alpha,
+  Paper,
+  Container,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Visibility as ViewIcon,
+  Edit as EditIcon,
+  CheckCircle as ApprovedIcon,
+  Schedule as PendingIcon,
+  Warning as ReviewIcon,
+} from '@mui/icons-material';
+import { getStatusColor } from '../../theme/newColorPalette';
+import NamingGuidelines from '../Guidelines/NamingGuidelines';
+import DynamicFormRenderer from '../DynamicForm/DynamicFormRenderer';
+import StatusProgressionStepper from '../StatusProgression/StatusProgressionStepper';
+import AdvancedRequestTable from '../RequestTable/AdvancedRequestTable';
+import RequestDetailModal from '../RequestModal/RequestDetailModal';
+import { useQuery } from '@tanstack/react-query';
 
 const ContentArea = ({ role, context, requests, isLoading, activeFormConfig, onContextChange }) => {
+  const theme = useTheme();
+  
+  // Modal state
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // For now, use the passed requests data directly
+  // TODO: Integrate React Query hooks properly in Phase 4
+  const effectiveRequests = requests || [];
+  const effectiveLoading = isLoading || false;
+
+  // Get most recent active request for submitters
+  const getMostRecentActiveRequest = () => {
+    if (!effectiveRequests || effectiveRequests.length === 0) return null;
+    
+    // Filter out cancelled and rejected requests, then sort by creation date
+    const activeRequests = effectiveRequests.filter(req => 
+      !['cancelled', 'rejected'].includes(req.status)
+    );
+    
+    if (activeRequests.length === 0) return null;
+    
+    return activeRequests.sort((a, b) => 
+      new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at)
+    )[0];
+  };
+
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -14,164 +70,295 @@ const ContentArea = ({ role, context, requests, isLoading, activeFormConfig, onC
     });
   };
 
-  // Get status badge variant
-  const getStatusBadge = (status) => {
-    return status === 'approved' ? 'success' : 'secondary';
-  };
-
   // Render loading state
   const renderLoading = () => (
-    <div className="loading-container">
-      <Spinner animation="border" variant="primary" />
-      <p className="typography-caption mt-3">Loading...</p>
-    </div>
+    <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="200px">
+      <CircularProgress size={20} />
+      <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>Loading...</Typography>
+    </Box>
   );
 
   // Render empty state
   const renderEmptyState = (title, description, actionLabel, actionHandler) => (
-    <div className="empty-state">
-      <div className="empty-state-content">
-        <h3 className="typography-h3">{title}</h3>
-        <p className="typography-body text-muted">{description}</p>
-        {actionLabel && actionHandler && (
-          <Button variant="primary" onClick={actionHandler} className="mt-3">
-            {actionLabel}
-          </Button>
-        )}
-      </div>
-    </div>
+    <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="200px" textAlign="center">
+      <Typography variant="h6" gutterBottom>{title}</Typography>
+      <Typography variant="body2" color="text.secondary" gutterBottom>{description}</Typography>
+      {actionLabel && actionHandler && (
+        <Button variant="contained" onClick={actionHandler} sx={{ mt: 2 }}>
+          {actionLabel}
+        </Button>
+      )}
+    </Box>
   );
 
-  // Render request list
-  const renderRequestList = (filteredRequests, showActions = false) => (
-    <div className="request-list">
-      {filteredRequests.map((request) => (
-        <Card key={request._id} className="request-card mb-3">
-          <Card.Body>
-            <Row className="align-items-center">
-              <Col xs={12} md={6}>
-                <div className="request-info">
-                  <h5 className="typography-h3 mb-1">{request.title || 'Untitled Request'}</h5>
-                  <p className="typography-caption text-muted mb-2">
-                    Submitted {formatDate(request.createdAt)} by {request.user?.name || 'Unknown User'}
-                  </p>
-                  {request.formData && Object.keys(request.formData).length > 0 && (
-                    <div className="form-data-preview">
-                      {Object.entries(request.formData).slice(0, 2).map(([key, value]) => (
-                        <span key={key} className="typography-small text-muted">
-                          {key}: {Array.isArray(value) ? value.join(', ') : (typeof value === 'object' ? JSON.stringify(value) : value)} • 
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </Col>
-              <Col xs={12} md={3}>
-                <Badge 
-                  bg={getStatusBadge(request.status)} 
-                  className="status-badge"
-                  style={{ backgroundColor: getStatusColor(request.status) }}
-                >
-                  {request.status?.replace('_', ' ').toUpperCase()}
-                </Badge>
-              </Col>
-              <Col xs={12} md={3}>
+  // Render single request with dynamic form and status progression
+  const renderRequestDetail = (request) => (
+    <Paper elevation={1} sx={{ p: 3, mb: 3 }}>
+      <Grid container spacing={3}>
+        {/* Left side: Request data using dynamic form */}
+        <Grid item xs={12} md={8}>
+          <Typography variant="h6" gutterBottom>
+            {request.title || 'Naming Request'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Submitted {formatDate(request.createdAt || request.created_at)} by {request.user?.name || request.submitterName || 'Unknown User'}
+          </Typography>
+          
+          {/* Dynamic form renderer for request data */}
+          <Box mt={2}>
+            <DynamicFormRenderer
+              formConfig={activeFormConfig}
+              formData={request.formData || {}}
+              role={role}
+              readonly={role === 'submitter' && !['draft', 'submitted'].includes(request.status)}
+              showSubmitButton={false}
+            />
+          </Box>
+        </Grid>
+        
+        {/* Right side: Status progression */}
+        <Grid item xs={12} md={4}>
+          <StatusProgressionStepper
+            status={request.status}
+            timestamps={{
+              submitted: request.submittedAt || request.createdAt,
+              under_review: request.reviewStartedAt,
+              final_review: request.finalReviewStartedAt,
+              approved: request.approvedAt,
+              rejected: request.rejectedAt,
+              cancelled: request.cancelledAt,
+              on_hold: request.heldAt
+            }}
+            orientation="vertical"
+            compact={false}
+          />
+          
+          {/* Action buttons for reviewers/admins */}
+          {(role === 'reviewer' || role === 'admin') && (
+            <Box mt={3}>
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => console.log('Claim request:', request._id)}
+                disabled={false}
+                sx={{ mr: 1, mb: 1 }}
+              >
+                Claim
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => console.log('Hold request:', request._id)}
+                disabled={false}
+                sx={{ mr: 1, mb: 1 }}
+              >
+                Hold
+              </Button>
+            </Box>
+          )}
+          
+          {/* Cancel button for submitters */}
+          {role === 'submitter' && ['submitted', 'under_review'].includes(request.status) && (
+            <Box mt={3}>
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                onClick={() => console.log('Cancel request:', request._id)}
+                disabled={false}
+              >
+                Cancel Request
+              </Button>
+            </Box>
+          )}
+        </Grid>
+      </Grid>
+    </Paper>
+  );
+
+  // Handle request actions
+  const handleRequestAction = (action, request) => {
+    switch (action) {
+      case 'view':
+      case 'edit':
+        setSelectedRequest(request);
+        setIsModalOpen(true);
+        break;
+      case 'claim':
+        // TODO: Implement requestActions.claimRequest in Phase 4
+        console.log('Claim request:', request._id);
+        break;
+      case 'hold':
+        // TODO: Implement requestActions.holdRequest in Phase 4
+        console.log('Hold request:', request._id);
+        break;
+      case 'cancel':
+        // TODO: Implement requestActions.cancelRequest in Phase 4
+        console.log('Cancel request:', request._id);
+        break;
+      default:
+        console.log('Unknown action:', action);
+    }
+  };
+
+  // Handle request selection
+  const handleRequestSelect = (request) => {
+    setSelectedRequest(request);
+    setIsModalOpen(true);
+  };
+
+  // Handle modal close
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedRequest(null);
+  };
+
+  // Handle request update from modal
+  const handleRequestUpdate = (updatedRequest) => {
+    // The React Query cache will be updated automatically by the mutation
+    // This callback can be used for additional UI updates if needed
+    console.log('Request updated:', updatedRequest);
+  };
+
+  // Render request list - use AdvancedRequestTable for reviewers/admins, simple list for submitters
+  const renderRequestList = (filteredRequests, showActions = false) => {
+    // For reviewers and admins, use the advanced table
+    if (role !== 'submitter' && showActions) {
+      return (
+        <AdvancedRequestTable
+          requests={filteredRequests}
+          role={role}
+          onRequestAction={handleRequestAction}
+          onRequestSelect={handleRequestSelect}
+          isLoading={effectiveLoading || isLoading}
+        />
+      );
+    }
+
+    // For submitters or simple lists, use the card-based layout
+    return (
+      <Box>
+        {filteredRequests.map((request) => (
+          <Paper key={request._id} elevation={1} sx={{ p: 2, mb: 2 }}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={6}>
+                <Typography variant="h6">
+                  {request.title || 'Untitled Request'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Submitted {formatDate(request.createdAt)} by {request.user?.name || 'Unknown User'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <Chip
+                  label={request.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                  sx={{
+                    backgroundColor: getStatusColor(request.status),
+                    color: '#fff',
+                    fontWeight: 600
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
                 {showActions && (
-                  <div className="request-actions">
-                    <Button variant="outline-primary" size="sm" className="me-2">
+                  <Box>
+                    <Button variant="outlined" size="small" sx={{ mr: 1 }}>
                       Review
                     </Button>
-                    <Button variant="outline-secondary" size="sm">
+                    <Button variant="outlined" size="small">
                       Details
                     </Button>
-                  </div>
+                  </Box>
                 )}
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
-      ))}
-    </div>
-  );
+              </Grid>
+            </Grid>
+          </Paper>
+        ))}
+      </Box>
+    );
+  };
 
   // Render overview content
   const renderOverview = () => {
-    const recentRequests = requests.slice(0, 5);
+    if (effectiveLoading || isLoading) {
+      return renderLoading();
+    }
+
+    // For submitters: show most recent active request or naming guidelines
+    if (role === 'submitter') {
+      const mostRecentRequest = getMostRecentActiveRequest();
+      
+      return (
+        <Box>
+          <Box mb={4}>
+            <Typography variant="h4" gutterBottom>
+              Your Dashboard
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {mostRecentRequest ? 'Your most recent active request' : 'Welcome to the naming system'}
+            </Typography>
+          </Box>
+
+          {mostRecentRequest ? (
+            renderRequestDetail(mostRecentRequest)
+          ) : (
+            <Box>
+              <NamingGuidelines onSubmitClick={() => onContextChange('submit')} />
+            </Box>
+          )}
+        </Box>
+      );
+    }
+
+    // For reviewers/admins: show recent activity and key metrics
+    const recentRequests = effectiveRequests.slice(0, 5);
     
     return (
-      <div className="overview-content">
-        <Row>
-          <Col xs={12} lg={8}>
-            <Card className="overview-card">
-              <Card.Header>
-                <h4 className="typography-h3">Recent Activity</h4>
-              </Card.Header>
-              <Card.Body>
-                {isLoading ? (
-                  renderLoading()
-                ) : recentRequests.length > 0 ? (
-                  renderRequestList(recentRequests, role !== 'submitter')
-                ) : (
-                  renderEmptyState(
-                    'No Recent Activity',
-                    'No requests have been submitted recently.',
-                    role === 'submitter' ? 'Submit Your First Request' : null,
-                    role === 'submitter' ? () => onContextChange('submit') : null
-                  )
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col xs={12} lg={4}>
-            <Card className="overview-card">
-              <Card.Header>
-                <h4 className="typography-h3">Quick Stats</h4>
-              </Card.Header>
-              <Card.Body>
-                <div className="stats-list">
-                  <div className="stat-item">
-                    <span className="stat-value typography-h3">{requests.length}</span>
-                    <span className="stat-label typography-caption">Total Requests</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value typography-h3">
-                      {requests.filter(r => r.status === 'approved').length}
-                    </span>
-                    <span className="stat-label typography-caption">Approved</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value typography-h3">
-                      {requests.filter(r => ['submitted', 'under_review'].includes(r.status)).length}
-                    </span>
-                    <span className="stat-label typography-caption">In Progress</span>
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </div>
+      <Box>
+        <Box mb={4}>
+          <Typography variant="h4" gutterBottom>
+            {role === 'admin' ? 'System Overview' : 'Review Dashboard'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Recent activity and pending reviews
+          </Typography>
+        </Box>
+
+        {recentRequests.length > 0 ? (
+          <>
+            <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+              Recent Requests
+            </Typography>
+            {renderRequestList(recentRequests, true)}
+          </>
+        ) : (
+          renderEmptyState(
+            'No Recent Activity',
+            'No requests have been submitted recently.',
+            null,
+            null
+          )
+        )}
+      </Box>
     );
   };
 
   // Render requests content
   const renderRequests = () => {
-    const userRequests = role === 'submitter' 
-      ? requests.filter(r => r.user?.id === 'current-user') // Simplified for demo
-      : requests;
+    const userRequests = effectiveRequests || [];
 
     return (
-      <div className="requests-content">
-        <div className="content-header mb-4">
-          <h2 className="typography-h2">
+      <Box>
+        <Box mb={4}>
+          <Typography variant="h4" gutterBottom>
             {role === 'submitter' ? 'My Requests' : 'All Requests'}
-          </h2>
-          <p className="typography-caption text-muted">
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
             {userRequests.length} request{userRequests.length !== 1 ? 's' : ''} found
-          </p>
-        </div>
+          </Typography>
+        </Box>
 
-        {isLoading ? (
+        {effectiveLoading || isLoading ? (
           renderLoading()
         ) : userRequests.length > 0 ? (
           renderRequestList(userRequests, role !== 'submitter')
@@ -185,24 +372,24 @@ const ContentArea = ({ role, context, requests, isLoading, activeFormConfig, onC
             role === 'submitter' ? () => onContextChange('submit') : null
           )
         )}
-      </div>
+      </Box>
     );
   };
 
   // Render review queue content
   const renderReviewQueue = () => {
-    const pendingRequests = requests.filter(r => ['submitted', 'under_review'].includes(r.status));
+    const pendingRequests = effectiveRequests.filter(r => ['submitted', 'under_review'].includes(r.status));
 
     return (
-      <div className="review-content">
-        <div className="content-header mb-4">
-          <h2 className="typography-h2">Review Queue</h2>
-          <p className="typography-caption text-muted">
+      <Box>
+        <Box mb={4}>
+          <Typography variant="h4" gutterBottom>Review Queue</Typography>
+          <Typography variant="body2" color="text.secondary">
             {pendingRequests.length} request{pendingRequests.length !== 1 ? 's' : ''} awaiting review
-          </p>
-        </div>
+          </Typography>
+        </Box>
 
-        {isLoading ? (
+        {effectiveLoading || isLoading ? (
           renderLoading()
         ) : pendingRequests.length > 0 ? (
           renderRequestList(pendingRequests, true)
@@ -214,66 +401,54 @@ const ContentArea = ({ role, context, requests, isLoading, activeFormConfig, onC
             null
           )
         )}
-      </div>
+      </Box>
     );
   };
 
-  // Render placeholder content for new features
-  const renderPlaceholder = (title, description, features) => (
-    <div className="placeholder-content">
-      <Card className="placeholder-card">
-        <Card.Body className="text-center">
-          <h2 className="typography-h2 mb-3">{title}</h2>
-          <p className="typography-body text-muted mb-4">{description}</p>
-          
-          <div className="feature-list">
-            {features.map((feature, index) => (
-              <div key={index} className="feature-item mb-3">
-                <div className="feature-icon">{feature.icon}</div>
-                <div className="feature-info">
-                  <h5 className="typography-h3">{feature.name}</h5>
-                  <p className="typography-caption text-muted">{feature.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <Badge bg="info" className="coming-soon-badge">
-            Coming Soon
-          </Badge>
-        </Card.Body>
-      </Card>
-    </div>
+  // Render submit content
+  const renderSubmit = () => (
+    <Box>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h5" gutterBottom>
+          Submit New Request
+        </Typography>
+        {activeFormConfig ? (
+          <Box>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Form configuration loaded: {activeFormConfig.name}
+            </Typography>
+            <DynamicFormRenderer
+              formConfig={activeFormConfig}
+              formData={{}}
+              role={role}
+              readonly={false}
+              showSubmitButton={true}
+              submitButtonText="Submit Request"
+            />
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            Loading form configuration...
+          </Typography>
+        )}
+      </Paper>
+    </Box>
   );
 
-  // Render colored tiles
-  const renderColoredTiles = () => (
-    <Row className="colored-tiles">
-      <Col md={4} className="mb-4">
-        <Card className="tile tile-blue">
-          <Card.Body>
-            <h5 className="tile-title">Tile 1</h5>
-            <p className="tile-description">Description for Tile 1</p>
-          </Card.Body>
-        </Card>
-      </Col>
-      <Col md={4} className="mb-4">
-        <Card className="tile tile-green">
-          <Card.Body>
-            <h5 className="tile-title">Tile 2</h5>
-            <p className="tile-description">Description for Tile 2</p>
-          </Card.Body>
-        </Card>
-      </Col>
-      <Col md={4} className="mb-4">
-        <Card className="tile tile-gradient">
-          <Card.Body>
-            <h5 className="tile-title">Gradient Tile</h5>
-            <p className="tile-description">Description for Gradient Tile</p>
-          </Card.Body>
-        </Card>
-      </Col>
-    </Row>
+  // Render placeholder content
+  const renderPlaceholder = (title, description, features) => (
+    <Box>
+      <Box mb={4}>
+        <Typography variant="h4" gutterBottom>{title}</Typography>
+        <Typography variant="body2" color="text.secondary">{description}</Typography>
+      </Box>
+      <Paper sx={{ p: 3 }}>
+        <Typography variant="h6" gutterBottom>Coming Soon</Typography>
+        <Typography variant="body2" color="text.secondary">
+          This feature is under development and will be available in a future update.
+        </Typography>
+      </Paper>
+    </Box>
   );
 
   // Main content renderer
@@ -292,69 +467,23 @@ const ContentArea = ({ role, context, requests, isLoading, activeFormConfig, onC
         return renderReviewQueue();
       
       case 'submit':
-        return (
-          <div className="submit-content">
-            <Card>
-              <Card.Header>
-                <h3 className="typography-h3">Submit New Request</h3>
-              </Card.Header>
-              <Card.Body>
-                {activeFormConfig ? (
-                  <p className="typography-body">Form configuration loaded: {activeFormConfig.name}</p>
-                ) : (
-                  <p className="typography-body text-muted">Loading form configuration...</p>
-                )}
-                <Badge bg="info">Form Integration Coming Soon</Badge>
-              </Card.Body>
-            </Card>
-          </div>
-        );
+        return renderSubmit();
       
       case 'archive':
         return renderPlaceholder(
           'Archive Portfolio',
           'Searchable portfolio of all active company names with data visualization and dependency tracking.',
-          [
-            { icon: '🔍', name: 'Advanced Search', description: 'Search through all archived requests and approved names' },
-            { icon: '📊', name: 'Data Visualization', description: 'Visual insights into naming patterns and trends' },
-            { icon: '🔗', name: 'Dependency Network', description: 'Inter-product dependency visualization' }
-          ]
-        );
-      
-      case 'guidelines':
-        return renderPlaceholder(
-          'Naming Guidelines',
-          'Comprehensive guidelines for submitting naming requests, managed through a headless CMS.',
-          [
-            { icon: '📋', name: 'Best Practices', description: 'Guidelines for effective naming conventions' },
-            { icon: '✅', name: 'Approval Criteria', description: 'What makes a name likely to be approved' },
-            { icon: '🚫', name: 'Common Mistakes', description: 'Pitfalls to avoid when submitting requests' }
-          ]
-        );
-      
-      case 'resources':
-        return renderPlaceholder(
-          'Resources & Documentation',
-          'Centralized resources for reviewers and administrators.',
-          [
-            { icon: '📚', name: 'Documentation', description: 'Comprehensive guides and references' },
-            { icon: '🔧', name: 'Tools', description: 'Helpful tools for review and analysis' },
-            { icon: '📞', name: 'Support', description: 'Contact information and help resources' }
-          ]
+          []
         );
       
       case 'configure':
         if (role !== 'admin') {
-          return renderEmptyState('Access Denied', 'You don\'t have permission to access system configuration.');
+          return renderEmptyState('Access Denied', 'You don\'t have permission to configure the system.');
         }
         return renderPlaceholder(
           'System Configuration',
-          'Administrative controls for managing forms, users, and system settings.',
-          [
-            { icon: '📝', name: 'Form Builder', description: 'Create and manage dynamic request forms' },
-            { icon: '👥', name: 'User Management', description: 'Manage user roles and permissions' },
-            { icon: '⚙️', name: 'System Settings', description: 'Configure application behavior and preferences' }
-          ]
+          'Configure form templates, user roles, and system settings.',
+          []
         );
       
       default:
@@ -363,16 +492,19 @@ const ContentArea = ({ role, context, requests, isLoading, activeFormConfig, onC
   };
 
   return (
-    <div className="content-area">
-      <Container fluid className="h-100">
-        {isLoading ? renderLoading() : (
-          <>
-            {renderColoredTiles()}
-            {renderContent()}
-          </>
-        )}
-      </Container>
-    </div>
+    <Container fluid className="content-area p-4">
+      {renderContent()}
+      
+      {/* Request Detail Modal */}
+      <RequestDetailModal
+        request={selectedRequest}
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        role={role}
+        activeFormConfig={activeFormConfig}
+        onRequestUpdate={handleRequestUpdate}
+      />
+    </Container>
   );
 };
 

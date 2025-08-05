@@ -1,0 +1,163 @@
+/* Radix UI Styles for Accessibility and Consistency */
+
+/* Dialog Animations */
+@keyframes overlayShow {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes contentShow {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* Color Palette - Using CSS Variables for Theme Consistency */
+:root {
+  --mauve1: hsl(300, 20%, 99%);
+  --mauve2: hsl(300, 7%, 97%);
+  --mauve3: hsl(300, 6%, 94%);
+  --mauve4: hsl(300, 5%, 91%);
+  --mauve5: hsl(300, 4%, 88%);
+  --mauve6: hsl(300, 3%, 84%);
+  --mauve7: hsl(300, 3%, 79%);
+  --mauve8: hsl(300, 4%, 72%);
+  --mauve9: hsl(300, 6%, 56%);
+  --mauve10: hsl(300, 5%, 52%);
+  --mauve11: hsl(300, 4%, 46%);
+  --mauve12: hsl(300, 6%, 13%);
+
+  --violet1: hsl(252, 100%, 99%);
+  --violet2: hsl(252, 100%, 98%);
+  --violet3: hsl(252, 94%, 96%);
+  --violet4: hsl(252, 86%, 93%);
+  --violet5: hsl(252, 78%, 90%);
+  --violet6: hsl(252, 70%, 86%);
+  --violet7: hsl(252, 61%, 81%);
+  --violet8: hsl(252, 52%, 75%);
+  --violet9: hsl(252, 56%, 57%);
+  --violet10: hsl(252, 50%, 53%);
+  --violet11: hsl(252, 42%, 47%);
+  --violet12: hsl(252, 24%, 10%);
+
+  --blackA9: hsla(0, 0%, 0%, 0.6);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mauve1: hsl(300, 20%, 7%);
+    --mauve2: hsl(300, 7%, 9%);
+    --mauve3: hsl(300, 6%, 11%);
+    --mauve4: hsl(300, 5%, 14%);
+    --mauve5: hsl(300, 4%, 16%);
+    --mauve6: hsl(300, 3%, 19%);
+    --mauve7: hsl(300, 3%, 24%);
+    --mauve8: hsl(300, 4%, 31%);
+    --mauve9: hsl(300, 6%, 43%);
+    --mauve10: hsl(300, 5%, 49%);
+    --mauve11: hsl(300, 4%, 62%);
+    --mauve12: hsl(300, 6%, 93%);
+
+    --violet1: hsl(252, 24%, 9%);
+    --violet2: hsl(252, 24%, 10%);
+    --violet3: hsl(252, 24%, 13%);
+    --violet4: hsl(252, 24%, 15%);
+    --violet5: hsl(252, 24%, 17%);
+    --violet6: hsl(252, 24%, 20%);
+    --violet7: hsl(252, 24%, 25%);
+    --violet8: hsl(252, 24%, 33%);
+    --violet9: hsl(252, 56%, 57%);
+    --violet10: hsl(252, 50%, 62%);
+    --violet11: hsl(252, 42%, 69%);
+    --violet12: hsl(252, 87%, 96%);
+
+    --blackA9: hsla(0, 0%, 0%, 0.8);
+  }
+}
+
+/* Radix UI Component Styles */
+.mauve1 { background-color: var(--mauve1); }
+.mauve2 { background-color: var(--mauve2); }
+.mauve3 { background-color: var(--mauve3); }
+.mauve4 { background-color: var(--mauve4); }
+.mauve5 { background-color: var(--mauve5); }
+.mauve6 { background-color: var(--mauve6); }
+.mauve7 { background-color: var(--mauve7); }
+.mauve8 { background-color: var(--mauve8); }
+.mauve9 { background-color: var(--mauve9); }
+.mauve10 { background-color: var(--mauve10); }
+.mauve11 { background-color: var(--mauve11); }
+.mauve12 { background-color: var(--mauve12); }
+
+.violet1 { background-color: var(--violet1); }
+.violet2 { background-color: var(--violet2); }
+.violet3 { background-color: var(--violet3); }
+.violet4 { background-color: var(--violet4); }
+.violet5 { background-color: var(--violet5); }
+.violet6 { background-color: var(--violet6); }
+.violet7 { background-color: var(--violet7); }
+.violet8 { background-color: var(--violet8); }
+.violet9 { background-color: var(--violet9); }
+.violet10 { background-color: var(--violet10); }
+.violet11 { background-color: var(--violet11); }
+.violet12 { background-color: var(--violet12); }
+
+/* Text colors */
+.text-mauve8 { color: var(--mauve8); }
+.text-mauve11 { color: var(--mauve11); }
+.text-violet1 { color: var(--violet1); }
+.text-violet9 { color: var(--violet9); }
+.text-violet11 { color: var(--violet11); }
+
+/* Background colors */
+.bg-white { background-color: white; }
+.bg-mauve3 { background-color: var(--mauve3); }
+.bg-violet9 { background-color: var(--violet9); }
+.bg-blackA9 { background-color: var(--blackA9); }
+
+/* Focus and interaction states */
+.focus-visible:focus-visible {
+  outline: 2px solid var(--violet9);
+  outline-offset: 2px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --mauve11: hsl(300, 4%, 20%);
+    --violet11: hsl(252, 42%, 30%);
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --mauve11: hsl(300, 4%, 80%);
+      --violet11: hsl(252, 42%, 80%);
+    }
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes overlayShow {
+    from, to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes contentShow {
+    from, to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+}

@@ -8,6 +8,9 @@ import { useEffectiveRole } from './hooks/useEffectiveRole';
 // Professional Theme Provider
 import ProfessionalThemeProvider from './components/ThemeProvider/ProfessionalThemeProvider';
 
+// React Query Provider
+import QueryProvider from './providers/QueryProvider';
+
 // Professional Dashboard Router
 import ProfessionalDashboardRouter from './components/DashboardRouter/ProfessionalDashboardRouter';
 
@@ -91,11 +94,13 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
 const App = () => {
   return (
-    <ProfessionalThemeProvider>
-      <DevRoleProvider>
-        <AppRoutes />
-      </DevRoleProvider>
-    </ProfessionalThemeProvider>
+    <QueryProvider>
+      <ProfessionalThemeProvider>
+        <DevRoleProvider>
+          <AppRoutes />
+        </DevRoleProvider>
+      </ProfessionalThemeProvider>
+    </QueryProvider>
   );
 };
 

@@ -10,6 +10,7 @@ import {
   Alert
 } from '@mui/material';
 import { hideSnackbar } from '../features/ui/uiSlice';
+import UnifiedContainer from '../components/UnifiedContainer'; // Import UnifiedContainer
 
 // Dashboards
 import SubmitterDashboard from '../pages/dashboards/SubmitterDashboard';
@@ -35,34 +36,10 @@ const CombinedLayout = () => {
     dispatch(hideSnackbar());
   };
 
-  // Render the correct dashboard based on role
-  const renderDashboard = () => {
-    switch (currentRole) {
-      case 'submitter':
-        return <SubmitterDashboard />;
-      case 'reviewer':
-        return <ReviewerDashboard />;
-      case 'admin':
-        return <AdminDashboard />;
-      default:
-        // Fallback for any unexpected roles
-        return <SubmitterDashboard />;
-    }
-  };
-
   return (
     <Box sx={{ width: '100%' }}>
-
+      <UnifiedContainer />
       
-      <Box sx={{ display: 'flex', width: '100%' }}>
-        <Box sx={{ width: isMobile ? '100%' : '300px', p: 2, borderRight: `1px solid ${theme.palette.divider}` }}>
-          {renderDashboard()} 
-        </Box>
-        <Box sx={{ flexGrow: 1, p: 3 }}>
-          <Outlet /> {/* Render nested routes here */}
-        </Box>
-      </Box>
-
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
