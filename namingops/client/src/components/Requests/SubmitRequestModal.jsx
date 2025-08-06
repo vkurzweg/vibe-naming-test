@@ -8,322 +8,322 @@ import {
   DialogActions,
   Box,
   Button,
-  TextField,
   Typography,
-  Grid,
-  Chip,
-  Divider,
-  IconButton,
   CircularProgress,
   Alert,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  FormHelperText,
+  IconButton,
+  LinearProgress,
+  Divider,
 } from '@mui/material';
 import { 
-  Add as AddIcon, 
-  Delete as DeleteIcon, 
-  Refresh as RefreshIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Send as SendIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { createNamingRequest } from '../../features/naming/namingSlice';
-import { loadActiveFormConfig } from '../../features/formConfig/formConfigSlice';
+import { loadActiveFormConfig, selectActiveFormConfig, selectIsLoading } from '../../features/formConfig/formConfigSlice';
+import DynamicFormRenderer from '../DynamicForm/DynamicFormRenderer';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const SubmitRequestModal = ({ open, onClose }) => {
   const dispatch = useDispatch();
   
-  // Get the form config state
-  const { activeFormConfig, loading: formConfigLoading, error: formConfigError } = useSelector((state) => state.formConfig);
+  // Get the form config state from Redux using selectors
+  const activeFormConfig = useSelector(selectActiveFormConfig);
+  const formConfigLoading = useSelector(selectIsLoading);
   const { loading: submitting } = useSelector((state) => state.naming);
+  const [formConfigError, setFormConfigError] = useState(null);
   
-  const [formData, setFormData] = useState({});
-  const [formErrors, setFormErrors] = useState({});
+  // React Hook Form setup
+  const { control, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm({
+    defaultValues: {}
+  });
+  
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
   
+  // Animation for success message
+  const successVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        type: 'spring', 
+        stiffness: 280, 
+        damping: 20 
+      }
+    }
+  };
+
   // Load active form config when modal opens
   useEffect(() => {
     if (open) {
-      dispatch(loadActiveFormConfig());
-      // Reset form data when modal opens
-      setFormData({});
-      setFormErrors({});
+      console.log('SubmitRequestModal opened - loading form config');
+      dispatch(loadActiveFormConfig())
+        .unwrap()
+        .then(data => {
+          console.log('Form config loaded successfully:', data);
+          setFormConfigError(null);
+          
+          // If form config has default values, set them
+          if (data && data.fields) {
+            const defaultValues = {};
+            data.fields.forEach(field => {
+              if (field.defaultValue !== undefined) {
+                defaultValues[field.name] = field.defaultValue;
+                setValue(field.name, field.defaultValue);
+              }
+            });
+            console.log('Setting default values:', defaultValues);
+          }
+        })
+        .catch(error => {
+          console.error('Error loading form config:', error);
+          setFormConfigError(error.message || 'Failed to load form configuration');
+        });
+      
+      // Reset form and states when modal opens
+      reset();
       setSubmitSuccess(false);
+      setSubmitError(null);
     }
-  }, [open, dispatch]);
-  
-  // Handle form field changes
-  const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  }, [open, dispatch, reset, setValue]);
+
+  // Test validation function - can be used for debugging
+  const testValidation = () => {
+    console.log('Current form errors:', errors);
+    console.log('Current form values:', watch());
+    console.log('Active form config:', activeFormConfig);
     
-    // Clear error for this field if it exists
-    if (formErrors[field]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [field]: null
-      }));
-    }
-  };
-  
-  // Validate form before submission
-  const validateForm = () => {
-    const errors = {};
-    let isValid = true;
-    
-    // Always validate required default fields
-    if (!formData.requestTitle || formData.requestTitle.trim() === '') {
-      errors.requestTitle = 'Request Title is required';
-      isValid = false;
-    }
-    
-    if (!formData.description || formData.description.trim() === '') {
-      errors.description = 'Description is required';
-      isValid = false;
-    }
-    
-    // Validate fields that are in the active form config
+    // Check if required fields are filled
     if (activeFormConfig && activeFormConfig.fields) {
-      activeFormConfig.fields.forEach(field => {
-        if (field.required && (!formData[field.name] || formData[field.name].trim() === '')) {
-          errors[field.name] = `${field.label} is required`;
-          isValid = false;
-        }
+      const requiredFields = activeFormConfig.fields.filter(field => field.required);
+      const formValues = watch();
+      
+      requiredFields.forEach(field => {
+        const value = formValues[field.name];
+        console.log(`Field ${field.name} (required): ${value ? 'Filled' : 'Empty'}`);
       });
     }
-    
-    setFormErrors(errors);
-    return isValid;
   };
-  
-  // Handle form submission
-  const handleSubmit = () => {
-    if (!validateForm()) return;
-    
-    const payload = {
-      title: formData.requestTitle || 'Naming Request',
-      description: formData.description || '',
-      formData
-    };
-    
-    dispatch(createNamingRequest(payload))
-      .unwrap()
-      .then(() => {
-        setSubmitSuccess(true);
-        setTimeout(() => {
-          onClose();
-        }, 2000);
-      })
-      .catch((error) => {
-        console.error('Error submitting request:', error);
-        // Show error to user
-        setFormErrors(prev => ({
-          ...prev,
-          submit: error.message || 'Failed to submit request. Please try again.'
-        }));
-      });
-  };
-  
-  // Render form fields based on active form config
-  const renderFormFields = () => {
-    if (formConfigLoading) {
-      return (
-        <Box display="flex" justifyContent="center" py={4}>
-          <CircularProgress />
-        </Box>
-      );
-    }
-    
-    if (formConfigError) {
-      return (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {formConfigError}
-          <Button 
-            size="small" 
-            sx={{ mt: 1 }}
-            onClick={() => dispatch(loadActiveFormConfig())}
-          >
-            Retry
-          </Button>
-        </Alert>
-      );
-    }
-    
-    if (!activeFormConfig || !activeFormConfig.fields || activeFormConfig.fields.length === 0) {
-      return (
-        <Alert severity="warning">
-          No form configuration available. Please contact an administrator.
-        </Alert>
-      );
-    }
-    
-    // Add default fields if not present in form config
-    const defaultFields = [
-      {
-        name: 'requestTitle',
-        label: 'Request Title',
-        type: 'text',
-        required: true,
-        fullWidth: true,
-        helperText: 'Enter a title for your naming request'
-      },
-      {
-        name: 'description',
-        label: 'Description',
-        type: 'text',
-        required: true,
-        fullWidth: true,
-        multiline: true,
-        rows: 4,
-        helperText: 'Describe what you need named and any relevant details'
+
+  // Handle form submission with React Hook Form
+  const onSubmit = async (formData) => {
+    try {
+      console.log('Submitting form with data:', formData);
+      
+      if (!activeFormConfig) {
+        throw new Error('No active form configuration available');
       }
-    ];
-    
-    // Combine default fields with form config fields
-    const allFields = [...defaultFields, ...activeFormConfig.fields];
-    
-    return (
-      <Grid container spacing={3}>
-        {allFields.map((field) => (
-          <Grid item xs={12} sm={field.fullWidth ? 12 : 6} key={field.name}>
-            {field.type === 'text' && (
-              <TextField
-                label={field.label}
-                name={field.name}
-                value={formData[field.name] || ''}
-                onChange={(e) => handleChange(field.name, e.target.value)}
-                fullWidth
-                variant="outlined"
-                required={field.required}
-                error={!!formErrors[field.name]}
-                helperText={formErrors[field.name] || field.helperText}
-                multiline={field.multiline}
-                rows={field.multiline ? 4 : 1}
-              />
-            )}
-            {field.type === 'select' && (
-              <FormControl 
-                fullWidth 
-                variant="outlined"
-                required={field.required}
-                error={!!formErrors[field.name]}
-              >
-                <InputLabel>{field.label}</InputLabel>
-                <Select
-                  label={field.label}
-                  name={field.name}
-                  value={formData[field.name] || ''}
-                  onChange={(e) => handleChange(field.name, e.target.value)}
-                >
-                  {field.options && field.options.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {(formErrors[field.name] || field.helperText) && (
-                  <FormHelperText>
-                    {formErrors[field.name] || field.helperText}
-                  </FormHelperText>
-                )}
-              </FormControl>
-            )}
-          </Grid>
-        ))}
-      </Grid>
-    );
+      
+      // Validate required fields
+      const requiredFields = activeFormConfig.fields.filter(field => field.required);
+      const missingFields = requiredFields.filter(field => !formData[field.name]);
+      
+      if (missingFields.length > 0) {
+        throw new Error(`Please fill in all required fields: ${missingFields.map(f => f.label).join(', ')}`);
+      }
+      
+      const payload = {
+        title: activeFormConfig?.header || 'Naming Request',
+        description: activeFormConfig?.description || '',
+        formData,
+        formConfigId: activeFormConfig?._id,
+        formConfigName: activeFormConfig?.name
+      };
+      
+      console.log('Submitting request with payload:', payload);
+      
+      const result = await dispatch(createNamingRequest(payload)).unwrap();
+      console.log('Request submitted successfully:', result);
+      
+      setSubmitSuccess(true);
+      setTimeout(() => {
+        onClose();
+        // Reset form after closing
+        reset();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error submitting request:', error);
+      setSubmitError(error.message || 'Failed to submit request. Please try again.');
+    }
   };
-  
+
+  // Success state
   if (submitSuccess) {
     return (
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogContent>
-          <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" py={4}>
-            <Typography variant="h5" gutterBottom color="primary">
-              Request Submitted Successfully!
-            </Typography>
-            <Typography variant="body1" color="text.secondary" align="center">
-              Your naming request has been submitted and will be reviewed by our team.
-            </Typography>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={onClose}
-              sx={{ mt: 3 }}
-            >
-              Close
-            </Button>
-          </Box>
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={successVariants}
+          >
+            <Box textAlign="center" py={4}>
+              <CheckCircleIcon color="success" sx={{ fontSize: 60, mb: 2 }} />
+              <Typography variant="h6" color="success.main" gutterBottom>
+                Request Submitted Successfully!
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Your naming request has been submitted and is now under review.
+              </Typography>
+            </Box>
+          </motion.div>
         </DialogContent>
       </Dialog>
     );
   }
-  
+
+  // Loading state
   if (formConfigLoading) {
     return (
       <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Loading Form</Typography>
+            <IconButton onClick={onClose} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
         <DialogContent>
-          <Box display="flex" justifyContent="center" alignItems="center" py={4}>
-            <CircularProgress />
+          <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" py={4}>
+            <CircularProgress sx={{ mb: 2 }} />
+            <Typography variant="body2" color="text.secondary">
+              Loading form configuration...
+            </Typography>
           </Box>
         </DialogContent>
       </Dialog>
     );
   }
-  
+
+  // Error state
+  if (formConfigError) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Form Configuration Error</Typography>
+            <IconButton onClick={onClose} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {formConfigError}
+          </Alert>
+          <Button 
+            variant="outlined"
+            onClick={() => dispatch(loadActiveFormConfig())}
+            fullWidth
+          >
+            Retry Loading Form Configuration
+          </Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // No form configuration available
+  if (!activeFormConfig || !activeFormConfig.fields || activeFormConfig.fields.length === 0) {
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">No Form Available</Typography>
+            <IconButton onClick={onClose} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning">
+            No form configuration is currently available. Please contact an administrator to set up the form configuration.
+          </Alert>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">New Naming Request</Typography>
-          <IconButton onClick={onClose} size="small">
+          <Typography variant="h6">
+            {activeFormConfig.header || 'Submit Name Request'}
+          </Typography>
+          <IconButton onClick={onClose} size="small" aria-label="close">
             <CloseIcon />
           </IconButton>
         </Box>
       </DialogTitle>
       
       <DialogContent>
-        {formConfigError && (
+        {activeFormConfig.description && (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {activeFormConfig.description}
+            </Typography>
+            <Divider sx={{ mb: 3 }} />
+          </>
+        )}
+        
+        {submitError && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            {formConfigError}
+            {submitError}
           </Alert>
         )}
         
-        <Box mb={3}>
-          <Typography variant="subtitle1" gutterBottom>
-            {activeFormConfig?.description || 'Please fill out the form below to submit a new naming request.'}
-          </Typography>
-          
-          {activeFormConfig && (
-            <Chip 
-              label={`Form: ${activeFormConfig.name}`} 
-              size="small" 
-              color="primary" 
-              variant="outlined"
-            />
-          )}
-        </Box>
-        
-        <Divider sx={{ my: 2 }} />
-        
-        {renderFormFields()}
+        <form id="submit-request-form" onSubmit={handleSubmit(onSubmit)}>
+          <DynamicFormRenderer
+            formConfig={activeFormConfig}
+            control={control}
+            errors={errors}
+            setValue={setValue}
+            watch={watch}
+          />
+        </form>
       </DialogContent>
       
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
         <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={handleSubmit}
+          onClick={onClose} 
           disabled={submitting}
-          startIcon={submitting ? <CircularProgress size={20} /> : null}
+          aria-label="cancel"
+        >
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSubmit(onSubmit)}
+          variant="contained"
+          disabled={submitting}
+          startIcon={submitting ? <CircularProgress size={20} /> : <SendIcon />}
+          aria-label="submit request"
+          form="submit-request-form"
+          type="submit"
         >
           {submitting ? 'Submitting...' : 'Submit Request'}
         </Button>
+        {process.env.NODE_ENV === 'development' && (
+          <Button
+            onClick={testValidation}
+            color="secondary"
+            variant="outlined"
+            size="small"
+            sx={{ ml: 1 }}
+          >
+            Test Validation
+          </Button>
+        )}
       </DialogActions>
+      
+      {submitting && (
+        <LinearProgress />
+      )}
     </Dialog>
   );
 };

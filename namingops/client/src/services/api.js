@@ -1,9 +1,13 @@
 import axios from 'axios';
 
-// Use REACT_APP_API_URL if set, otherwise default to http://localhost:5000
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+// In development, use relative URLs to enable proxy functionality
+// In production, use REACT_APP_API_URL or default to current origin
+const BASE_URL = process.env.NODE_ENV === 'development' 
+  ? '' // Use relative URLs to enable proxy
+  : (process.env.REACT_APP_API_URL || window.location.origin);
 
 console.log('API Base URL:', BASE_URL);
+console.log('Environment:', process.env.NODE_ENV);
 
 // Create a single, centralized axios instance
 const api = axios.create({
@@ -23,20 +27,9 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Normalize API paths to prevent duplicate prefixes
-    // If the path starts with /v1/ and we're in development mode, ensure it's correctly prefixed
-    if (config.url?.startsWith('/v1/') && process.env.NODE_ENV === 'development') {
-      // Remove any existing /api prefix from the baseURL to prevent duplication
-      const baseUrlHasApiPrefix = BASE_URL.endsWith('/api');
-      
-      // Log the request details for debugging
-      console.log(`API Request - Original URL: ${config.url}, Base URL: ${BASE_URL}, Has API Prefix: ${baseUrlHasApiPrefix}`);
-      
-      // If we're using the proxy (empty or localhost BASE_URL), ensure the path is correctly prefixed with /api
-      if (BASE_URL === '' || BASE_URL === 'http://localhost:5000') {
-        config.url = `/api${config.url}`;
-        console.log(`API Request - Normalized URL: ${config.url}`);
-      }
+    // In development mode, just log the request - let proxy handle routing
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     }
     
     return config;

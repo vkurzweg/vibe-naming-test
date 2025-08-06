@@ -110,9 +110,16 @@ io.on('connection', (socket) => {
 // Routes
 app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
-app.use('/name-requests', nameRequestRoutes);
+app.use('/api/v1/name-requests', nameRequestRoutes);
+// Duplicate mount without /api prefix to accommodate proxy stripping in development
+if (process.env.NODE_ENV === 'development') {
+  app.use('/v1/name-requests', nameRequestRoutes);
+}
 app.use('/api/v1/users', userRoutes);
-app.use('/form-configurations', formConfigurationRoutes);
+app.use('/api/v1/form-configurations', formConfigurationRoutes);
+if (process.env.NODE_ENV === 'development') {
+  app.use('/v1/form-configurations', formConfigurationRoutes);
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -17,6 +17,7 @@ import {
   ListItemText,
   Tooltip,
   Badge,
+  Container,
 } from '@mui/material';
 import {
   AccountCircle,
@@ -117,241 +118,226 @@ const ProfessionalAppBar = () => {
   const userInitial = user?.name?.charAt(0)?.toUpperCase() || '?';
 
   return (
-    <AppBar position="sticky" elevation={2}>
-      <Toolbar sx={{ justifyContent: 'space-between' }}>
-        {/* Left side - Logo and Navigation */}
-        <Box display="flex" alignItems="center" gap={2}>
-          <Box 
-            sx={{
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              '&:hover': {
-                opacity: 0.8,
-              },
-            }}
-            onClick={() => navigate('/')}
-          >
-            {isDarkMode ? (
+    <AppBar 
+      position="static" 
+      elevation={0}
+      sx={{
+        background: isDarkMode 
+          ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+          : 'transparent',
+        borderBottom: isDarkMode 
+          ? '1px solid rgba(255, 255, 255, 0.1)'
+          : '1px solid rgba(0, 0, 0, 0.1)',
+        borderRadius: 0,
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        color: isDarkMode ? 'inherit' : '#1a1a1a',
+      }}
+    >
+      <Toolbar 
+        disableGutters 
+        sx={{ 
+          minHeight: '64px',
+          justifyContent: 'space-between',
+          width: '100%',
+        }}
+      >
+        <Container fluid className="px-4">
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            width: '100%'
+          }}>
+            {/* Logo and App Name */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <img 
-                src="/logos/cognizant-logo-dark.svg" 
-                alt="Cognizant"
-                style={{
-                  height: '32px',
-                  width: 'auto',
-                }}
-                onError={(e) => {
-                  // Fallback to text if logo fails to load
-                  e.target.style.display = 'none';
-                  e.target.nextElementSibling.style.display = 'block';
+                src={isDarkMode ? "/cog_logo_darkmode.png" : "/cog_logo.png"}
+                alt="Company Logo"
+                style={{ 
+                  height: '45px',
+                  maxWidth: '100%',
+                  objectFit: 'contain'
                 }}
               />
-            ) : (
-              <img 
-                src="/logos/cognizant-logo-light.svg" 
-                alt="Cognizant"
-                style={{
-                  height: '32px',
-                  width: 'auto',
-                }}
-                onError={(e) => {
-                  // Fallback to text if logo fails to load
-                  e.target.style.display = 'none';
-                  e.target.nextElementSibling.style.display = 'block';
-                }}
-              />
-            )}
-            {/* Fallback text - hidden by default, shown if logo fails */}
-            <Typography
-              variant="h6"
-              component="div"
-              sx={{
-                fontWeight: 600,
-                letterSpacing: -0.5,
-                display: 'none', // Hidden by default, shown via onError
-                ml: 1,
-              }}
-            >
-              Naming HQ
-            </Typography>
-          </Box>
-          {/* Quick Navigation - Removed Dashboard and New Request buttons as requested */}
-          <Box display="flex" alignItems="center" gap={1}>
-            {(effectiveRole === 'admin') && (
-              <Button
-                color="inherit"
-                startIcon={<People />}
-                onClick={() => navigate('/admin/users')}
-                sx={{ textTransform: 'none' }}
-              >
-                Users
-              </Button>
-            )}
-          </Box>
-        </Box>
-
-        {/* Right side - User controls */}
-        <Box display="flex" alignItems="center" gap={2}>
-          {/* Theme Toggle */}
-          <ThemeToggle />
-          
-          {/* Notifications */}
-          <Tooltip title="Notifications">
-            <IconButton 
-              color="inherit"
-              onClick={handleNotificationOpen}
-              size="small"
-            >
-              <Badge badgeContent={3} color="error">
-                <Notifications />
-              </Badge>
-            </IconButton>
-          </Tooltip>
-          
-          {/* Role Indicator */}
-          <Tooltip title={process.env.NODE_ENV === 'development' ? 'Change Role (Development Only)' : 'Current Role'}>
-            <Chip 
-              label={effectiveRole || 'Guest'} 
-              color={getRoleColor(effectiveRole)}
-              size="small"
-              icon={getRoleIcon(effectiveRole)}
-              sx={{ 
-                textTransform: 'capitalize',
-                cursor: process.env.NODE_ENV === 'development' ? 'pointer' : 'default'
-              }}
-              onClick={process.env.NODE_ENV === 'development' ? handleRoleMenuOpen : undefined}
-            />
-          </Tooltip>
-          
-          {/* User Menu */}
-          <Tooltip title="Account">
-            <IconButton
-              edge="end"
-              color="inherit"
-              onClick={handleMenuOpen}
-              size="small"
-            >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                {userInitial}
-              </Avatar>
-            </IconButton>
-          </Tooltip>
-        </Box>
-        
-        {/* User Menu Dropdown */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleMenuClose}
-          onClick={handleMenuClose}
-          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        >
-          <Box sx={{ px: 2, py: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              {user?.name || 'User'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {user?.email || 'user@example.com'}
-            </Typography>
-          </Box>
-          <Divider />
-          <MenuItem onClick={() => navigate('/profile')}>
-            <ListItemIcon>
-              <AccountCircle fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Profile</ListItemText>
-          </MenuItem>
-          <MenuItem onClick={() => navigate('/settings')}>
-            <ListItemIcon>
-              <Settings fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Settings</ListItemText>
-          </MenuItem>
-          <Divider />
-          <MenuItem onClick={handleLogout}>
-            <ListItemIcon>
-              <Logout fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Logout</ListItemText>
-          </MenuItem>
-        </Menu>
-        
-        {/* Notifications Menu */}
-        <Menu
-          anchorEl={notificationAnchor}
-          open={Boolean(notificationAnchor)}
-          onClose={handleNotificationClose}
-          onClick={handleNotificationClose}
-          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-        >
-          <Box sx={{ px: 2, py: 1 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              Notifications
-            </Typography>
-          </Box>
-          <Divider />
-          <MenuItem>
-            <ListItemText primary="New request submitted" secondary="2 minutes ago" />
-          </MenuItem>
-          <MenuItem>
-            <ListItemText primary="Request approved" secondary="1 hour ago" />
-          </MenuItem>
-          <MenuItem>
-            <ListItemText primary="System update completed" secondary="1 day ago" />
-          </MenuItem>
-          <Divider />
-          <MenuItem>
-            <Typography variant="body2" color="primary" sx={{ width: '100%', textAlign: 'center' }}>
-              View all notifications
-            </Typography>
-          </MenuItem>
-        </Menu>
-        
-        {/* Role Switcher Menu (Dev Only) */}
-        {process.env.NODE_ENV === 'development' && (
-          <Menu
-            anchorEl={roleMenuAnchor}
-            open={Boolean(roleMenuAnchor)}
-            onClose={handleRoleMenuClose}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-          >
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                Switch Role (Dev)
-              </Typography>
             </Box>
-            <Divider />
-            <MenuItem onClick={() => handleRoleChange(null)}>
-              <ListItemIcon>
-                <AccountCircle fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Use Auth Role</ListItemText>
-            </MenuItem>
-            {ROLES.map((role) => (
-              <MenuItem key={role} onClick={() => handleRoleChange(role)}>
+
+            {/* Right side - User controls with improved light mode visibility */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {/* Theme Toggle with improved visibility */}
+              <ThemeToggle 
+                sx={{ 
+                  color: isDarkMode ? 'inherit' : '#1a1a1a',
+                  '&:hover': {
+                    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                  },
+                }} 
+              />
+              
+              {/* Notifications with improved visibility */}
+              <Tooltip title="Notifications">
+                <IconButton
+                  color="inherit"
+                  onClick={(e) => setNotificationAnchor(e.currentTarget)}
+                  sx={{
+                    color: isDarkMode ? 'inherit' : '#1a1a1a',
+                    '&:hover': {
+                      backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    },
+                  }}
+                >
+                  <Badge badgeContent={0} color="error">
+                    <Notifications />
+                  </Badge>
+                </IconButton>
+              </Tooltip>
+              
+              {/* Role Indicator */}
+              <Tooltip title={process.env.NODE_ENV === 'development' ? 'Change Role (Development Only)' : 'Current Role'}>
+                <Chip 
+                  label={effectiveRole || 'Guest'} 
+                  color={getRoleColor(effectiveRole)}
+                  size="small"
+                  icon={getRoleIcon(effectiveRole)}
+                  sx={{ 
+                    textTransform: 'capitalize',
+                    cursor: process.env.NODE_ENV === 'development' ? 'pointer' : 'default'
+                  }}
+                  onClick={process.env.NODE_ENV === 'development' ? handleRoleMenuOpen : undefined}
+                />
+              </Tooltip>
+              
+              {/* User Menu */}
+              <Tooltip title="Account">
+                <IconButton
+                  edge="end"
+                  color="inherit"
+                  onClick={handleMenuOpen}
+                  size="small"
+                >
+                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+                    {userInitial}
+                  </Avatar>
+                </IconButton>
+              </Tooltip>
+            </Box>
+            
+            {/* User Menu Dropdown */}
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+              onClick={handleMenuClose}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            >
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {user?.name || 'User'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {user?.email || 'user@example.com'}
+                </Typography>
+              </Box>
+              <Divider />
+              <MenuItem onClick={() => navigate('/profile')}>
                 <ListItemIcon>
-                  {getRoleIcon(role)}
+                  <AccountCircle fontSize="small" />
                 </ListItemIcon>
-                <ListItemText sx={{ textTransform: 'capitalize' }}>
-                  {role}
-                </ListItemText>
-                {devRoleContext?.role === role && (
-                  <SwapHoriz fontSize="small" color="primary" />
-                )}
+                <ListItemText>Profile</ListItemText>
               </MenuItem>
-            ))}
-          </Menu>
-        )}
+              <MenuItem onClick={() => navigate('/settings')}>
+                <ListItemIcon>
+                  <Settings fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Settings</ListItemText>
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleLogout}>
+                <ListItemIcon>
+                  <Logout fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Logout</ListItemText>
+              </MenuItem>
+            </Menu>
+            
+            {/* Notifications Menu */}
+            <Menu
+              anchorEl={notificationAnchor}
+              open={Boolean(notificationAnchor)}
+              onClose={handleNotificationClose}
+              onClick={handleNotificationClose}
+              transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+              anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            >
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  Notifications
+                </Typography>
+              </Box>
+              <Divider />
+              <MenuItem>
+                <ListItemText primary="New request submitted" secondary="2 minutes ago" />
+              </MenuItem>
+              <MenuItem>
+                <ListItemText primary="Request approved" secondary="1 hour ago" />
+              </MenuItem>
+              <MenuItem>
+                <ListItemText primary="System update completed" secondary="1 day ago" />
+              </MenuItem>
+              <Divider />
+              <MenuItem>
+                <Typography variant="body2" color="primary" sx={{ width: '100%', textAlign: 'center' }}>
+                  View all notifications
+                </Typography>
+              </MenuItem>
+            </Menu>
+            
+            {/* Role Switcher Menu (Dev Only) */}
+            {process.env.NODE_ENV === 'development' && (
+              <Menu
+                anchorEl={roleMenuAnchor}
+                open={Boolean(roleMenuAnchor)}
+                onClose={handleRoleMenuClose}
+                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+              >
+                <Box sx={{ px: 2, py: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    Switch Role (Dev)
+                  </Typography>
+                </Box>
+                <Divider />
+                <MenuItem onClick={() => handleRoleChange(null)}>
+                  <ListItemIcon>
+                    <AccountCircle fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Use Auth Role</ListItemText>
+                </MenuItem>
+                {ROLES.map((role) => (
+                  <MenuItem key={role} onClick={() => handleRoleChange(role)}>
+                    <ListItemIcon>
+                      {getRoleIcon(role)}
+                    </ListItemIcon>
+                    <ListItemText sx={{ textTransform: 'capitalize' }}>
+                      {role}
+                    </ListItemText>
+                    {devRoleContext?.role === role && (
+                      <SwapHoriz fontSize="small" color="primary" />
+                    )}
+                  </MenuItem>
+                ))}
+              </Menu>
+            )}
+          </Box>
+        </Container>
+        
+        {/* Dynamic Submit Request Modal */}
+        <SubmitRequestModal 
+          open={submitRequestModalOpen} 
+          onClose={() => setSubmitRequestModalOpen(false)} 
+        />
       </Toolbar>
-      
-      {/* Dynamic Submit Request Modal */}
-      <SubmitRequestModal 
-        open={submitRequestModalOpen} 
-        onClose={() => setSubmitRequestModalOpen(false)} 
-      />
     </AppBar>
   );
 };

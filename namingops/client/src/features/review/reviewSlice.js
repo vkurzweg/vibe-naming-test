@@ -7,9 +7,9 @@ export const fetchReviewRequests = createAsyncThunk(
   async (filters = {}, { rejectWithValue }) => {
     try {
       console.log('Fetching review requests with filters:', filters);
-      // Use the correct API endpoint with /v1/requests prefix
+      // Use the correct API endpoint with /api/v1/requests prefix
       // Remove role filter to get all requests for review
-      const response = await api.get('/v1/requests', { 
+      const response = await api.get('/api/v1/requests', { 
         params: {
           ...filters,
           status: filters.status || 'all',
@@ -31,8 +31,8 @@ export const claimRequest = createAsyncThunk(
   async (requestId, { rejectWithValue, getState }) => {
     try {
       const { auth } = getState();
-      // Use the correct API endpoint with /v1/requests prefix
-      const response = await api.patch(`/v1/requests/${requestId}/claim`, {
+      // Use the correct API endpoint with /api/v1/requests prefix
+      const response = await api.patch(`/api/v1/requests/${requestId}/claim`, {
         reviewerId: auth.user.id,
         reviewerName: `${auth.user.firstName} ${auth.user.lastName}`
       });
@@ -48,8 +48,8 @@ export const updateRequestStatus = createAsyncThunk(
   async ({ requestId, status, notes }, { rejectWithValue, getState }) => {
     try {
       const { auth } = getState();
-      // Use the correct API endpoint with /v1/requests prefix
-      const response = await api.patch(`/v1/requests/${requestId}/status`, {
+      // Use the correct API endpoint with /api/v1/requests prefix
+      const response = await api.patch(`/api/v1/requests/${requestId}/status`, {
         status,
         notes,
         userId: auth.user.id,

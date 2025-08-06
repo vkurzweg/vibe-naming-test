@@ -3,14 +3,14 @@ import { IconButton, Tooltip } from '@mui/material';
 import { DarkMode, LightMode } from '@mui/icons-material';
 import { ThemeContext } from '../ThemeIntegration/EnhancedThemeProvider';
 
-const ThemeToggle = ({ sx = {} }) => {
+const ThemeToggle = ({ sx = {}, ...props }) => {
   const { isDarkMode, toggleTheme } = useContext(ThemeContext);
 
   return (
     <Tooltip title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}>
       <IconButton 
         onClick={toggleTheme} 
-        color="inherit"
+        color={isDarkMode ? 'primary' : 'inherit'}
         sx={{ 
           transition: 'all 0.3s ease-in-out',
           '&:hover': {
@@ -18,6 +18,7 @@ const ThemeToggle = ({ sx = {} }) => {
           },
           ...sx 
         }}
+        {...props}
       >
         {isDarkMode ? <LightMode /> : <DarkMode />}
       </IconButton>

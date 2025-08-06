@@ -10,16 +10,16 @@ const createMaterialTheme = (isDarkMode = true) => {
       mode: isDarkMode ? 'dark' : 'light',
       // Material Design 3 Primary Colors
       primary: {
-        main: isDarkMode ? '#BB86FC' : '#6200EE',
-        light: isDarkMode ? '#E1BEE7' : '#9C4DCC',
-        dark: isDarkMode ? '#985EFF' : '#3700B3',
+        main: isDarkMode ? '#BB86FC' : '#29819c',
+        light: isDarkMode ? '#E1BEE7' : '#4A9BB8',
+        dark: isDarkMode ? '#985EFF' : '#1F6B7A',
         contrastText: isDarkMode ? '#000000' : '#FFFFFF',
       },
       // Material Design 3 Secondary Colors
       secondary: {
-        main: isDarkMode ? '#03DAC6' : '#018786',
-        light: isDarkMode ? '#66FFF9' : '#4DB6AC',
-        dark: isDarkMode ? '#00A896' : '#00695C',
+        main: isDarkMode ? '#03DAC6' : '#29819c',
+        light: isDarkMode ? '#66FFF9' : '#4A9BB8',
+        dark: isDarkMode ? '#00A896' : '#1F6B7A',
         contrastText: isDarkMode ? '#000000' : '#FFFFFF',
       },
       // Material Design 3 Background Colors
@@ -258,11 +258,11 @@ const createMaterialTheme = (isDarkMode = true) => {
               borderRadius: 12,
               transition: 'all 0.2s ease-in-out',
               '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: isDarkMode ? '#BB86FC' : '#6200EE',
+                borderColor: isDarkMode ? '#BB86FC' : '#29819c',
                 borderWidth: 2,
               },
               '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: isDarkMode ? '#BB86FC' : '#6200EE',
+                borderColor: isDarkMode ? '#BB86FC' : '#29819c',
                 borderWidth: 2,
                 boxShadow: isDarkMode
                   ? '0 0 0 4px rgba(187, 134, 252, 0.2)'
@@ -374,108 +374,110 @@ const EnhancedThemeProvider = ({ children }) => {
   }, []);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <GlobalStyles
-        styles={{
-          // Material Design 3 Keyframe Animations
-          '@keyframes fadeIn': {
-            from: { opacity: 0 },
-            to: { opacity: 1 },
-          },
-          '@keyframes slideUp': {
-            from: { 
-              opacity: 0, 
-              transform: 'translateY(32px)' 
+    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <GlobalStyles
+          styles={{
+            // Material Design 3 Keyframe Animations
+            '@keyframes fadeIn': {
+              from: { opacity: 0 },
+              to: { opacity: 1 },
             },
-            to: { 
-              opacity: 1, 
-              transform: 'translateY(0)' 
+            '@keyframes slideUp': {
+              from: { 
+                opacity: 0, 
+                transform: 'translateY(32px)' 
+              },
+              to: { 
+                opacity: 1, 
+                transform: 'translateY(0)' 
+              },
             },
-          },
-          '@keyframes scaleIn': {
-            from: { 
-              opacity: 0, 
-              transform: 'scale(0.8)' 
+            '@keyframes scaleIn': {
+              from: { 
+                opacity: 0, 
+                transform: 'scale(0.8)' 
+              },
+              to: { 
+                opacity: 1, 
+                transform: 'scale(1)' 
+              },
             },
-            to: { 
-              opacity: 1, 
-              transform: 'scale(1)' 
+            '@keyframes bounce': {
+              '0%': { transform: 'scale(1)' },
+              '50%': { transform: 'scale(1.05)' },
+              '100%': { transform: 'scale(1)' },
             },
-          },
-          '@keyframes bounce': {
-            '0%': { transform: 'scale(1)' },
-            '50%': { transform: 'scale(1.05)' },
-            '100%': { transform: 'scale(1)' },
-          },
-          // Material Design 3 Global Styles
-          html: {
-            scrollBehavior: 'smooth',
-            fontFamily: theme.typography.fontFamily,
-          },
-          body: {
-            backgroundColor: theme.palette.background.default,
-            color: theme.palette.text.primary,
-            fontFamily: theme.typography.fontFamily,
-            margin: 0,
-            padding: 0,
-            overflowX: 'hidden',
-          },
-          // Accessibility improvements
-          '.sr-only': {
-            position: 'absolute !important',
-            width: '1px !important',
-            height: '1px !important',
-            padding: '0 !important',
-            margin: '-1px !important',
-            overflow: 'hidden !important',
-            clip: 'rect(0, 0, 0, 0) !important',
-            whiteSpace: 'nowrap !important',
-            border: '0 !important',
-          },
-          // Focus improvements for accessibility
-          '*:focus-visible': {
-            outline: `2px solid ${theme.palette.primary.main} !important`,
-            outlineOffset: '2px !important',
-            borderRadius: '4px !important',
-          },
-          // Custom scrollbar for Material Design 3
-          '::-webkit-scrollbar': {
-            width: '8px',
-            height: '8px',
-          },
-          '::-webkit-scrollbar-track': {
-            background: isDarkMode ? '#2D2D2D' : '#F5F5F5',
-            borderRadius: '4px',
-          },
-          '::-webkit-scrollbar-thumb': {
-            background: isDarkMode ? '#BB86FC' : '#6200EE',
-            borderRadius: '4px',
-            '&:hover': {
-              background: isDarkMode ? '#E1BEE7' : '#9C4DCC',
+            // Material Design 3 Global Styles
+            html: {
+              scrollBehavior: 'smooth',
+              fontFamily: theme.typography.fontFamily,
             },
-          },
-          // Bento Grid Animation Classes
-          '.bento-item': {
-            animation: `${theme.custom.animations.fadeIn}`,
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: theme.custom.shadows.bento,
+            body: {
+              backgroundColor: theme.palette.background.default,
+              color: theme.palette.text.primary,
+              fontFamily: theme.typography.fontFamily,
+              margin: 0,
+              padding: 0,
+              overflowX: 'hidden',
             },
-          },
-          // Status indicator animations
-          '.status-indicator': {
-            animation: `${theme.custom.animations.scaleIn}`,
-            transition: 'all 0.2s ease-in-out',
-            '&:hover': {
-              animation: `${theme.custom.animations.bounce}`,
+            // Accessibility improvements
+            '.sr-only': {
+              position: 'absolute !important',
+              width: '1px !important',
+              height: '1px !important',
+              padding: '0 !important',
+              margin: '-1px !important',
+              overflow: 'hidden !important',
+              clip: 'rect(0, 0, 0, 0) !important',
+              whiteSpace: 'nowrap !important',
+              border: '0 !important',
             },
-          },
-        }}
-      />
-      {children}
-    </ThemeProvider>
+            // Focus improvements for accessibility
+            '*:focus-visible': {
+              outline: `2px solid ${theme.palette.primary.main} !important`,
+              outlineOffset: '2px !important',
+              borderRadius: '4px !important',
+            },
+            // Custom scrollbar for Material Design 3
+            '::-webkit-scrollbar': {
+              width: '8px',
+              height: '8px',
+            },
+            '::-webkit-scrollbar-track': {
+              background: isDarkMode ? '#2D2D2D' : '#F5F5F5',
+              borderRadius: '4px',
+            },
+            '::-webkit-scrollbar-thumb': {
+              background: isDarkMode ? '#BB86FC' : '#29819c',
+              borderRadius: '4px',
+              '&:hover': {
+                background: isDarkMode ? '#E1BEE7' : '#4A9BB8',
+              },
+            },
+            // Bento Grid Animation Classes
+            '.bento-item': {
+              animation: `${theme.custom.animations.fadeIn}`,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: theme.custom.shadows.bento,
+              },
+            },
+            // Status indicator animations
+            '.status-indicator': {
+              animation: `${theme.custom.animations.scaleIn}`,
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                animation: `${theme.custom.animations.bounce}`,
+              },
+            },
+          }}
+        />
+        {children}
+      </ThemeProvider>
+    </ThemeContext.Provider>
   );
 };
 

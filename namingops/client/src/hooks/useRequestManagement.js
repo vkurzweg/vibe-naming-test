@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../services/api';
 import { useSelector, useDispatch } from 'react-redux';
 import { useEffectiveRole } from './useEffectiveRole';
 import { getMyRequests, getAllRequests } from '../features/requests/requestsSlice';
@@ -7,7 +8,7 @@ import { showSnackbar } from '../features/ui/uiSlice';
 // Enhanced API functions with better error handling and Redux integration
 const fetchMyRequests = async () => {
   try {
-    const response = await fetch('/api/requests/my', {
+    const response = await api.get('/api/v1/requests/my-requests', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json',
@@ -26,7 +27,7 @@ const fetchMyRequests = async () => {
 
 const fetchAllRequests = async () => {
   try {
-    const response = await fetch('/api/requests/all', {
+    const response = await api.get('/api/v1/requests', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json',
@@ -45,7 +46,7 @@ const fetchAllRequests = async () => {
 
 const updateRequestStatus = async ({ requestId, status, reason, reviewerNotes }) => {
   try {
-    const response = await fetch(`/api/requests/${requestId}/status`, {
+    const response = await api.put(`/api/v1/requests/${requestId}/status`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -65,7 +66,7 @@ const updateRequestStatus = async ({ requestId, status, reason, reviewerNotes })
 
 const claimRequest = async ({ requestId, reviewerId, reviewerName }) => {
   try {
-    const response = await fetch(`/api/requests/${requestId}/claim`, {
+    const response = await api.post(`/api/v1/requests/${requestId}/claim`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -85,7 +86,7 @@ const claimRequest = async ({ requestId, reviewerId, reviewerName }) => {
 
 const holdRequest = async ({ requestId, reason }) => {
   try {
-    const response = await fetch(`/api/requests/${requestId}/hold`, {
+    const response = await api.post(`/api/v1/requests/${requestId}/hold`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -105,7 +106,7 @@ const holdRequest = async ({ requestId, reason }) => {
 
 const cancelRequest = async ({ requestId, reason }) => {
   try {
-    const response = await fetch(`/api/requests/${requestId}/cancel`, {
+    const response = await api.post(`/api/v1/requests/${requestId}/cancel`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -125,18 +126,8 @@ const cancelRequest = async ({ requestId, reason }) => {
 
 const updateRequestData = async ({ requestId, formData }) => {
   try {
-    const response = await fetch(`/api/requests/${requestId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ formData }),
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to update request data: ${response.statusText}`);
-    }
-    return response.json();
+    const response = await api.put(`/api/v1/requests/${requestId}`, formData);
+    return response.data;
   } catch (error) {
     console.error('Error updating request data:', error);
     throw error;
@@ -174,17 +165,8 @@ export const useRequest = (requestId) => {
   return useQuery({
     queryKey: REQUEST_QUERY_KEYS.request(requestId),
     queryFn: async () => {
-      const response = await fetch(`/api/requests/${requestId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch request: ${response.statusText}`);
-      }
-      const data = await response.json();
-      return data.data || data;
+      const { data } = await api.get(`/api/v1/requests/${requestId}`);
+      return data;
     },
     enabled: !!requestId,
   });

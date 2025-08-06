@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
 import api from '../../services/api';
 
-
 const initialState = {
   formConfigs: [],
   activeFormConfig: null,
@@ -94,9 +93,14 @@ export const fetchFormConfigurations = createAsyncThunk(
   'formConfig/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/v1/form-configurations');
-      return response.data || [];
+      console.log('Fetching all form configurations...');
+      const response = await api.get('/api/v1/form-configurations');
+      console.log('Form configurations response:', response.data);
+      // Server returns data directly, ensure it's an array
+      const data = response.data;
+      return Array.isArray(data) ? data : [];
     } catch (error) {
+      console.error('Error fetching form configurations:', error);
       return rejectWithValue(createSerializableError(error));
     }
   }
@@ -106,8 +110,8 @@ export const loadActiveFormConfig = createAsyncThunk(
   'formConfig/loadActive',
   async (_, { rejectWithValue }) => {
     try {
-      console.log('loadActiveFormConfig - Making API call to /v1/form-configurations/active');
-      const response = await api.get('/v1/form-configurations/active');
+      console.log('loadActiveFormConfig - Making API call to /api/form-configurations/active');
+      const response = await api.get('/api/v1/form-configurations/active');
       console.log('loadActiveFormConfig - API response:', response.data);
       
       const data = response.data;
@@ -134,8 +138,8 @@ export const saveFormConfiguration = createAsyncThunk(
     try {
       const method = formData._id ? 'put' : 'post';
       const url = formData._id 
-        ? `/v1/form-configurations/${formData._id}`
-        : '/v1/form-configurations';
+        ? `/api/v1/form-configurations/${formData._id}`
+        : '/api/v1/form-configurations';
       
       console.log('Sending form data:', formData); 
       const response = await api[method](url, formData);
@@ -156,7 +160,7 @@ export const deleteFormConfiguration = createAsyncThunk(
   'formConfig/delete',
   async (id, { rejectWithValue }) => {
     try {
-      await api.delete(`/v1/form-configurations/${id}`);
+      await api.delete(`/api/v1/form-configurations/${id}`);
       return id;
     } catch (error) {
       return rejectWithValue(createSerializableError(error));
@@ -169,7 +173,7 @@ export const activateFormConfiguration = createAsyncThunk(
   async (id, { rejectWithValue, dispatch }) => {
     try {
       console.log(`activateFormConfiguration - Activating form config with ID: ${id}`);
-      const response = await api.put(`/v1/form-configurations/${id}/activate`);
+      const response = await api.put(`/api/v1/form-configurations/${id}/activate`);
       console.log('activateFormConfiguration - API response:', response.data);
       
       // After activation, refetch all configs to ensure state is consistent

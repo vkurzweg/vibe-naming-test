@@ -27,7 +27,15 @@ import {
   Skeleton,
   useMediaQuery,
   alpha,
+  Modal,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
+import api from '../../services/api';
+
+// Icons
 import {
   Assignment as AssignmentIcon,
   Business as BusinessIcon,
@@ -61,15 +69,10 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
   } = useQuery({
     queryKey: ['userRequests'],
     queryFn: async () => {
-      const response = await fetch('/api/name-requests/my-requests', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch user requests');
-      const data = await response.json();
-      return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      const response = await api.get('/api/v1/name-requests/my-requests');
+      // Server returns data directly, ensure it's an array
+      const data = response.data;
+      return Array.isArray(data) ? data : [];
     },
     staleTime: 30000,
     cacheTime: 300000,
@@ -83,15 +86,10 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
   } = useQuery({
     queryKey: ['formConfig'],
     queryFn: async () => {
-      const response = await fetch('/api/form-configurations/active', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) throw new Error('Failed to fetch form configuration');
-      const data = await response.json();
-      return data?.data || {};
+      const response = await api.get('/api/v1/form-configurations/active');
+      // Server returns data directly, handle both nested and direct structure
+      const data = response.data;
+      return data?.data || data || {};
     },
     staleTime: 300000,
     cacheTime: 600000,
@@ -183,18 +181,8 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
   // Performance optimization: Memoized mutation handlers
   const holdRequestMutation = useMutation({
     mutationFn: async (requestId) => {
-      const response = await fetch(`/api/name-requests/${requestId}/hold`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to hold request');
-      }
-      const data = await response.json();
-      return data.data || {};
+      const response = await api.patch(`/api/name-requests/${requestId}/hold`);
+      return response.data;
     },
     onMutate: async (requestId) => {
       await queryClient.cancelQueries(['userRequests']);
@@ -222,18 +210,8 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
 
   const cancelRequestMutation = useMutation({
     mutationFn: async (requestId) => {
-      const response = await fetch(`/api/name-requests/${requestId}/cancel`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        throw new Error('Failed to cancel request');
-      }
-      const data = await response.json();
-      return data.data || {};
+      const response = await api.patch(`/api/name-requests/${requestId}/cancel`);
+      return response.data;
     },
     onMutate: async (requestId) => {
       await queryClient.cancelQueries(['userRequests']);
@@ -282,7 +260,7 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
   const handleTabChange = useCallback((event, newValue) => {
     setActiveTab(newValue);
     // Accessibility: Announce tab change to screen readers
-    const tabNames = ['Overview', 'My Requests', 'Guidelines', 'Archive'];
+    const tabNames = ['Overview', 'Name Requests', 'Guidelines', 'Archive'];
     const announcement = `Switched to ${tabNames[newValue]} tab`;
     
     // Create temporary element for screen reader announcement
@@ -329,13 +307,15 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
   // Enhanced request card with accessibility features
   const renderRequestWithStatusProgression = useCallback((request) => (
     <Card
-      key={request.id}
+      id={`request-card-${request.id}`}
+      onClick={() => handleViewRequest(request.id)}
       sx={{
         mb: 2,
         borderRadius: 2,
         border: `1px solid ${alpha(getStatusColor(request.status), 0.2)}`,
         background: `linear-gradient(135deg, ${alpha(getStatusColor(request.status), 0.05)}, transparent)`,
         transition: 'all 0.3s ease',
+        cursor: 'pointer',
         '&:hover': {
           transform: 'translateY(-2px)',
           boxShadow: theme.shadows[4],
@@ -347,11 +327,16 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
         }
       }}
       // Accessibility: Proper ARIA attributes
-      role="article"
+      role="button"
       aria-labelledby={`request-title-${request.id}`}
       aria-describedby={`request-status-${request.id}`}
       tabIndex={0}
-      onKeyDown={(e) => handleKeyDown(e, handleViewRequest, request.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleViewRequest(request.id);
+        }
+      }}
     >
       <CardContent sx={{ p: 3 }}>
         {/* Request Header */}
@@ -488,22 +473,6 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
 
         {/* Action Buttons */}
         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }} role="group" aria-label="Request actions">
-          <Button
-            size="small"
-            onClick={() => handleViewRequest(request.id)}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 500,
-              color: theme.palette.primary.main,
-              '&:focus': {
-                outline: `2px solid ${theme.palette.primary.main}`,
-                outlineOffset: '2px',
-              }
-            }}
-            aria-describedby={`request-title-${request.id}`}
-          >
-            View Details
-          </Button>
           {(request.status === 'draft' || request.status === 'submitted') && (
             <Button
               size="small"
@@ -576,116 +545,116 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
   }, [formConfig]);
 
   return (
-    <Container maxWidth="xl">
-      {/* Accessibility: Screen reader announcements */}
-      <div 
-        id="search-results-announcement" 
-        aria-live="polite" 
-        aria-atomic="true"
-        style={{ 
-          position: 'absolute', 
-          left: '-10000px',
-          width: '1px',
-          height: '1px',
-          overflow: 'hidden'
-        }}
-      />
+    <Container fluid className="px-4">
+      {/* Dashboard Header */}
+      <Row className="mb-4">
+        <Col xs={12}>
+          <Box sx={{ pt: 2 }}>
+            <Typography 
+              variant="h5" 
+              component="h1" 
+              sx={{ 
+                fontWeight: 700,
+                color: (theme) => theme.palette.mode === 'light' ? '#030048' : 'text.primary',
+                mb: 1,
+              }}
+            >
+              Naming HQ
+            </Typography>
+          </Box>
+        </Col>
+      </Row>
       
-      <Box sx={{ width: '100%', mb: 3 }}>
-        {/* Enhanced Tabs with proper accessibility */}
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          aria-label="Dashboard navigation tabs"
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 500,
-              fontSize: '0.9rem',
-              minHeight: 48,
-              '&:focus': {
-                outline: `2px solid ${theme.palette.primary.main}`,
-                outlineOffset: '2px',
-              }
-            },
-            '& .MuiTabs-indicator': {
-              height: 3,
-              borderRadius: '3px 3px 0 0',
-            }
-          }}
-        >
-          <Tab 
-            icon={<SupportIcon />} 
-            label="Overview" 
-            id="tab-0"
-            aria-controls="tabpanel-0"
-          />
-          <Tab 
-            icon={<AssignmentIcon />} 
-            label="My Requests" 
-            id="tab-1"
-            aria-controls="tabpanel-1"
-          />
-          <Tab 
-            icon={<SupportIcon />} 
-            label="Guidelines" 
-            id="tab-2"
-            aria-controls="tabpanel-2"
-          />
-          <Tab 
-            icon={<ArchiveIcon />} 
-            label="Archive" 
-            id="tab-3"
-            aria-controls="tabpanel-3"
-          />
-        </Tabs>
-      </Box>
+      <Row className="mb-3">
+        <Col xs={12}>
+          <Box sx={{ width: '100%' }}>
+            {/* Enhanced Tabs with proper accessibility */}
+            <Tabs
+              value={activeTab}
+              onChange={handleTabChange}
+              aria-label="Dashboard navigation tabs"
+              sx={{
+                borderBottom: 1,
+                borderColor: 'divider',
+                '& .MuiTab-root': {
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  fontSize: '0.9rem',
+                  minHeight: 48,
+                  '&:focus': {
+                    outline: `2px solid ${theme.palette.primary.main}`,
+                    outlineOffset: '2px',
+                  }
+                },
+                '& .MuiTabs-indicator': {
+                  height: 3,
+                  borderRadius: '3px 3px 0 0',
+                }
+              }}
+            >
+              <Tab 
+                icon={<SupportIcon />} 
+                label="Overview" 
+                id="tab-0"
+                aria-controls="tabpanel-0"
+              />
+              <Tab 
+                icon={<AssignmentIcon />} 
+                label="Name Requests" 
+                id="tab-1"
+                aria-controls="tabpanel-1"
+              />
+              <Tab 
+                icon={<SupportIcon />} 
+                label="Guidelines" 
+                id="tab-2"
+                aria-controls="tabpanel-2"
+              />
+              <Tab 
+                icon={<ArchiveIcon />} 
+                label="Archive" 
+                id="tab-3"
+                aria-controls="tabpanel-3"
+              />
+            </Tabs>
+          </Box>
+        </Col>
+      </Row>
 
       {/* Tab Panels with proper accessibility */}
       <div role="tabpanel" id="tabpanel-1" aria-labelledby="tab-1" hidden={activeTab !== 1}>
         {activeTab === 1 && (
           <>
-            {/* Enhanced Search with accessibility */}
-            <Box sx={{ mb: 3 }}>
-              <TextField
-                fullWidth
-                placeholder="Search your requests..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
+            {/* Submit Request Button */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3 }}>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => setSubmitRequestModalOpen(true)}
                 sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                    '&:focus-within': {
-                      outline: `2px solid ${theme.palette.primary.main}`,
-                      outlineOffset: '2px',
-                    }
-                  }
+                  py: 1.2,
+                  px: 3,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontSize: '0.95rem',
+                  background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                  boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #1565c0 0%, #1e88e5 100%)',
+                    boxShadow: '0 6px 16px rgba(25, 118, 210, 0.4)',
+                    transform: 'translateY(-1px)',
+                  },
+                  transition: 'all 0.3s ease',
+                  fontWeight: 600,
                 }}
-                aria-label="Search requests"
-                aria-describedby="search-results-announcement"
-              />
+              >
+                Submit a Name Request
+              </Button>
             </Box>
             
             {/* Results with proper heading structure */}
             <Box component="section" aria-labelledby="requests-heading">
-              <Typography 
-                id="requests-heading"
-                variant="h6" 
-                sx={{ fontWeight: 600, mb: 2 }}
-                component="h2"
-              >
-                My Requests ({filteredRequests.length})
-              </Typography>
-              
               {filteredRequests.length === 0 ? (
                 <Box textAlign="center" py={4} role="status" aria-live="polite">
                   <Typography 

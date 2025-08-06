@@ -1,6 +1,9 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
+// Bootstrap CSS - CRITICAL for React Bootstrap components to work
+import 'bootstrap/dist/css/bootstrap.min.css';
+
 import { DevRoleProvider } from './context/DevRoleContext';
 import { useSelector } from 'react-redux';
 import { useEffectiveRole } from './hooks/useEffectiveRole';

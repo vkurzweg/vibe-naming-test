@@ -6,6 +6,7 @@ module.exports = function(app) {
   app.use(
     '/api',
     createProxyMiddleware({
+      pathRewrite: (path, req) => path, // keep entire path including /api prefix
       target: 'http://localhost:5000', // Your backend server URL
       changeOrigin: true,
       secure: false,

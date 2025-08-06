@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../../services/api';
 import {
   useReactTable,
   getCoreRowModel,
@@ -80,6 +81,8 @@ import {
   formatRequestForRole,
   searchRequest
 } from '../../utils/dynamicDataUtils';
+import { Container, Row, Col } from 'react-bootstrap';
+import FormConfigManager from '../../features/admin/FormConfigManager';
 
 const ProfessionalAdminDashboard = React.memo(() => {
   const dispatch = useDispatch();
@@ -104,20 +107,10 @@ const ProfessionalAdminDashboard = React.memo(() => {
   const { data: requests = [], isLoading: requestsLoading, error: requestsError, refetch: refetchRequests } = useQuery({
     queryKey: ['admin-requests'],
     queryFn: async () => {
-      const response = await fetch('/api/name-requests', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return Array.isArray(data.data) ? data.data : data;
+      const response = await api.get('/api/v1/name-requests');
+      // Server returns data directly, ensure it's an array
+      const data = response.data;
+      return Array.isArray(data) ? data : [];
     },
     staleTime: 30000, // 30 seconds
     cacheTime: 300000, // 5 minutes
@@ -159,16 +152,9 @@ const ProfessionalAdminDashboard = React.memo(() => {
   // React Query mutations for admin operations
   const updateStatusMutation = useMutation({
     mutationFn: async ({ requestId, status, comments }) => {
-      const response = await fetch(`/api/name-requests/${requestId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status, comments }),
-      });
+      const response = await api.put(`/api/name-requests/${requestId}/status`, { status, comments });
       if (!response.ok) throw new Error('Failed to update status');
-      return response.json();
+      return response.data;
     },
     onMutate: async ({ requestId, status }) => {
       await queryClient.cancelQueries(['admin-requests']);
@@ -197,15 +183,9 @@ const ProfessionalAdminDashboard = React.memo(() => {
 
   const deleteRequestMutation = useMutation({
     mutationFn: async (requestId) => {
-      const response = await fetch(`/api/name-requests/${requestId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await api.delete(`/api/name-requests/${requestId}`);
       if (!response.ok) throw new Error('Failed to delete request');
-      return response.json();
+      return response.data;
     },
     onMutate: async (requestId) => {
       await queryClient.cancelQueries(['admin-requests']);
@@ -461,25 +441,43 @@ const ProfessionalAdminDashboard = React.memo(() => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-          Admin Dashboard
-        </Typography>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={handleRefresh}
-          aria-label="Refresh data"
-        >
-          Refresh
-        </Button>
-      </Box>
-
+    <Container fluid className="px-4">
+      {/* Accessibility: Screen reader announcements */}
+      <div 
+        id="search-results-announcement" 
+        aria-live="polite" 
+        aria-atomic="true"
+        style={{ 
+          position: 'absolute', 
+          left: '-100vw',
+          width: '0.1rem',
+          height: '0.1rem',
+          overflow: 'hidden'
+        }}
+      />
+      
+      {/* Dashboard Header */}
+      <Row className="mb-4">
+        <Col xs={12}>
+          <Box sx={{ pt: 2 }}>
+            <Typography 
+              variant="h5" 
+              component="h1" 
+              sx={{ 
+                fontWeight: 700,
+                color: (theme) => theme.palette.mode === 'light' ? '#030048' : 'text.primary',
+                mb: 1,
+              }}
+            >
+              Global Naming HQ
+            </Typography>
+          </Box>
+        </Col>
+      </Row>
+      
       {/* System Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+      <Row className="mb-3 g-3">
+        <Col xs={12} sm={6} md={3}>
           <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})` }}>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -497,9 +495,9 @@ const ProfessionalAdminDashboard = React.memo(() => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Col>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Col xs={12} sm={6} md={3}>
           <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})` }}>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -517,9 +515,9 @@ const ProfessionalAdminDashboard = React.memo(() => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Col>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Col xs={12} sm={6} md={3}>
           <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})` }}>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -537,9 +535,9 @@ const ProfessionalAdminDashboard = React.memo(() => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Col>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Col xs={12} sm={6} md={3}>
           <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})` }}>
             <CardContent>
               <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -557,8 +555,8 @@ const ProfessionalAdminDashboard = React.memo(() => {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Col>
+      </Row>
 
       {/* Main Content */}
       <Card>
@@ -578,14 +576,15 @@ const ProfessionalAdminDashboard = React.memo(() => {
             aria-controls="tabpanel-0"
           />
           <Tab label="Analytics" id="tab-1" aria-controls="tabpanel-1" />
+          <Tab label="Form Configuration" id="tab-2" aria-controls="tabpanel-2" />
         </Tabs>
 
         <CardContent>
           {tabValue === 0 && (
             <>
               {/* Filters and Search */}
-              <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-                <Grid item xs={12} md={6}>
+              <Row>
+                <Col xs={12} md={6}>
                   <TextField
                     fullWidth
                     placeholder="Search requests..."
@@ -600,8 +599,8 @@ const ProfessionalAdminDashboard = React.memo(() => {
                     }}
                     aria-label="Search requests"
                   />
-                </Grid>
-                <Grid item xs={12} md={3}>
+                </Col>
+                <Col xs={12} md={3}>
                   <FormControl fullWidth>
                     <InputLabel>Status Filter</InputLabel>
                     <Select
@@ -618,13 +617,13 @@ const ProfessionalAdminDashboard = React.memo(() => {
                       <MenuItem value="rejected">Rejected</MenuItem>
                     </Select>
                   </FormControl>
-                </Grid>
-                <Grid item xs={12} md={3}>
+                </Col>
+                <Col xs={12} md={3}>
                   <Typography variant="body2" color="text.secondary">
                     {table.getFilteredRowModel().rows.length} of {filteredData.length} requests
                   </Typography>
-                </Grid>
-              </Grid>
+                </Col>
+              </Row>
 
               {/* Table */}
               <TableContainer component={Paper}>
@@ -677,6 +676,13 @@ const ProfessionalAdminDashboard = React.memo(() => {
               <Typography variant="body2" color="text.secondary">
                 Advanced analytics and reporting features will be displayed here.
               </Typography>
+            </Box>
+          )}
+
+          {tabValue === 2 && (
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>Form Configuration Management</Typography>
+              <FormConfigManager />
             </Box>
           )}
         </CardContent>
@@ -759,7 +765,7 @@ const ProfessionalAdminDashboard = React.memo(() => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Container>
   );
 });
 

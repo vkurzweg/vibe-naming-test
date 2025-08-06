@@ -18,8 +18,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import AddIcon from '@mui/icons-material/Add';
 import { 
   fetchFormConfigurations,
-  createFormConfiguration,
-  updateFormConfiguration,
+  saveFormConfiguration,
   deleteFormConfiguration,
   clearFormConfigError,
 } from './formConfigSlice';
@@ -74,7 +73,7 @@ const FormConfigManager = () => {
   const handleSave = async (formData) => {
     try {
       if (editingConfig) {
-        await dispatch(updateFormConfiguration({ 
+        await dispatch(saveFormConfiguration({ 
           id: editingConfig._id, 
           formData: {
             ...formData,
@@ -88,7 +87,7 @@ const FormConfigManager = () => {
           severity: 'success'
         });
       } else {
-        await dispatch(createFormConfiguration(formData)).unwrap();
+        await dispatch(saveFormConfiguration(formData)).unwrap();
         setSnackbar({
           open: true,
           message: 'Form configuration created successfully',
