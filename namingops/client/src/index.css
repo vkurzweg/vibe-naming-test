@@ -234,3 +234,15 @@ textarea,
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
+
+/* Dashboard Container Styles */
+.dashboard-container {
+  /* Using Bootstrap's responsive padding classes in the component instead of hard-coded values here */
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* Ensure consistent padding for content areas */
+.content-area {
+  padding: 1.5rem;
+}

@@ -1,25 +1,74 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline, GlobalStyles } from '@mui/material';
-import { getStatusColor } from '../../theme/newColorPalette';
+import { DevRoleContext } from '../../context/DevRoleContext';
+
+// Create a ThemeContext for toggling between dark and light mode
+export const ThemeContext = React.createContext({
+  isDarkMode: true,
+  toggleTheme: () => {},
+});
+
+// Helper function to get role-based colors
+const getRoleBasedColors = (role, isDarkMode) => {
+  console.log(`Getting colors for role: ${role}, isDarkMode: ${isDarkMode}`);
+  
+  switch (role) {
+    case 'submitter':
+      return {
+        main: isDarkMode ? '#6EB4FF' : '#0e61ba',
+        light: isDarkMode ? '#9ECFFF' : '#3C85D8',
+        dark: isDarkMode ? '#4A99F8' : '#0A4C94',
+        name: 'Associate'
+      };
+    case 'reviewer':
+      return {
+        main: isDarkMode ? '#41c7cb' : '#29819c',
+        light: isDarkMode ? '#65DEE2' : '#4A9BB8',
+        dark: isDarkMode ? '#35A4A7' : '#1F6B7A',
+        name: 'Reviewer'
+      };
+    case 'admin':
+      return {
+        main: isDarkMode ? '#7373d9' : '#7373d9', // Using #7373d9 for both modes per user request
+        light: isDarkMode ? '#9191E9' : '#9191E9',
+        dark: isDarkMode ? '#5A5AB9' : '#5A5AB9',
+        name: 'Admin'
+      };
+    default:
+      // Default to submitter/associate
+      return {
+        main: isDarkMode ? '#6EB4FF' : '#0e61ba',
+        light: isDarkMode ? '#9ECFFF' : '#3C85D8',
+        dark: isDarkMode ? '#4A99F8' : '#0A4C94',
+        name: 'Associate'
+      };
+  }
+};
 
 // Material Design 3 Color Palette with Dark Mode as Default
-const createMaterialTheme = (isDarkMode = true) => {
-  const baseTheme = createTheme({
+const createMaterialTheme = (isDarkMode = true, role = 'submitter') => {
+  console.log(`Creating theme with role: ${role}, isDarkMode: ${isDarkMode}`);
+  
+  // Get role-specific colors
+  const roleColors = getRoleBasedColors(role, isDarkMode);
+  console.log('Role colors:', roleColors);
+  
+  return createTheme({
     palette: {
       mode: isDarkMode ? 'dark' : 'light',
-      // Material Design 3 Primary Colors
+      // Material Design 3 Primary Colors (now based on role)
       primary: {
-        main: isDarkMode ? '#BB86FC' : '#29819c',
-        light: isDarkMode ? '#E1BEE7' : '#4A9BB8',
-        dark: isDarkMode ? '#985EFF' : '#1F6B7A',
+        main: roleColors.main,
+        light: roleColors.light,
+        dark: roleColors.dark,
         contrastText: isDarkMode ? '#000000' : '#FFFFFF',
       },
-      // Material Design 3 Secondary Colors
+      // Material Design 3 Secondary Colors (now based on role)
       secondary: {
-        main: isDarkMode ? '#03DAC6' : '#29819c',
-        light: isDarkMode ? '#66FFF9' : '#4A9BB8',
-        dark: isDarkMode ? '#00A896' : '#1F6B7A',
+        main: roleColors.main,
+        light: roleColors.light,
+        dark: roleColors.dark,
         contrastText: isDarkMode ? '#000000' : '#FFFFFF',
       },
       // Material Design 3 Background Colors
@@ -73,8 +122,9 @@ const createMaterialTheme = (isDarkMode = true) => {
         on_hold: isDarkMode ? '#9C27B0' : '#7B1FA2',
         cancelled: isDarkMode ? '#607D8B' : '#455A64',
       },
+      // Role-specific colors
+      role: roleColors,
     },
-    // Material Design 3 Typography
     typography: {
       fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
       // Display styles
@@ -154,337 +204,289 @@ const createMaterialTheme = (isDarkMode = true) => {
       overline: {
         fontFamily: '"Roboto", sans-serif',
         fontWeight: 500,
-        fontSize: '0.75rem',
+        fontSize: '0.625rem',
         lineHeight: 2.66,
-        letterSpacing: '0.08333em',
+        letterSpacing: '0.08em',
         textTransform: 'uppercase',
       },
     },
-    // Material Design 3 Shape System
     shape: {
-      borderRadius: 12, // Medium corner radius
+      borderRadius: 4,
     },
-    spacing: 8, // 8px base spacing unit
-    // Material Design 3 Component Overrides
+    spacing: (factor) => `${0.25 * factor}rem`, // 0.25rem base unit for spacing
+    breakpoints: {
+      values: {
+        xs: 0,
+        sm: 600,
+        md: 960,
+        lg: 1280,
+        xl: 1920,
+      },
+    },
+    // Customize MUI components
     components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          body: {
+            scrollbarColor: isDarkMode ? '#6B6B6B transparent' : '#DDDDDD transparent',
+            '&::-webkit-scrollbar, & *::-webkit-scrollbar': {
+              backgroundColor: 'transparent',
+              width: '0.5rem',
+              height: '0.5rem',
+            },
+            '&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb': {
+              borderRadius: '0.5rem',
+              backgroundColor: isDarkMode ? '#6B6B6B' : '#DDDDDD',
+              minHeight: 24,
+            },
+            '&::-webkit-scrollbar-thumb:focus, & *::-webkit-scrollbar-thumb:focus': {
+              backgroundColor: isDarkMode ? '#909090' : '#BBBBBB',
+            },
+            '&::-webkit-scrollbar-thumb:active, & *::-webkit-scrollbar-thumb:active': {
+              backgroundColor: isDarkMode ? '#909090' : '#BBBBBB',
+            },
+            '&::-webkit-scrollbar-thumb:hover, & *::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: isDarkMode ? '#909090' : '#BBBBBB',
+            },
+            '&::-webkit-scrollbar-corner, & *::-webkit-scrollbar-corner': {
+              backgroundColor: 'transparent',
+            },
+          },
+          // Apply Bootstrap-like container padding to improve responsive layout
+          '.dashboard-container': {
+            paddingRight: 'calc(var(--bs-gutter-x) * 3)',
+            paddingLeft: 'calc(var(--bs-gutter-x) * 3)',
+          },
+          // Match AppBar padding with dashboard container
+          '.MuiToolbar-root': {
+            paddingRight: 'calc(var(--bs-gutter-x) * 3)',
+            '& .MuiBox-root': {
+              '&:first-of-type': {  // Logo container
+                paddingLeft: 'calc(var(--bs-gutter-x) * 3)',
+              },
+            },
+          },
+          // Avatar padding
+          '.user-avatar': {
+            paddingRight: 'calc(var(--bs-gutter-x) * 3)',
+          },
+        },
+      },
+      // Button styling based on role colors
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: 20, // Pill shape for buttons
             textTransform: 'none',
             fontWeight: 500,
-            minHeight: 48,
-            paddingX: 24,
-            paddingY: 12,
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            borderRadius: '0.25rem',
+            padding: '0.5rem 1rem',
+            boxSizing: 'border-box',
+            minHeight: '2rem',
+            fontSize: '0.875rem',
+          },
+          containedPrimary: {
+            backgroundColor: roleColors.main,
+            color: isDarkMode ? '#000000' : '#FFFFFF',
             '&:hover': {
-              transform: 'translateY(-2px)',
-              boxShadow: isDarkMode 
-                ? '0 8px 24px rgba(187, 134, 252, 0.3)'
-                : '0 8px 24px rgba(98, 0, 238, 0.2)',
+              backgroundColor: roleColors.dark,
             },
           },
-          contained: {
-            boxShadow: isDarkMode
-              ? '0 4px 12px rgba(187, 134, 252, 0.2)'
-              : '0 4px 12px rgba(98, 0, 238, 0.15)',
-          },
-          outlined: {
-            borderWidth: 2,
+          outlinedPrimary: {
+            borderColor: roleColors.main,
+            color: roleColors.main,
             '&:hover': {
+              backgroundColor: `${roleColors.main}11`,
+            },
+          },
+          textPrimary: {
+            color: roleColors.main,
+          },
+        },
+      },
+      // Tab styling based on role colors
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            textTransform: 'none',
+            fontWeight: 500,
+            minWidth: '100px',
+            padding: '0.75rem 1rem',
+            borderRadius: '0.25rem 0.25rem 0 0',
+            '&.Mui-selected': {
+              color: roleColors.main,
+            },
+          },
+        },
+      },
+      MuiTabs: {
+        styleOverrides: {
+          indicator: {
+            backgroundColor: roleColors.main,
+          },
+        },
+      },
+      // Checkbox styling based on role colors
+      MuiCheckbox: {
+        styleOverrides: {
+          colorPrimary: {
+            '&.Mui-checked': {
+              color: roleColors.main,
+            },
+          },
+        },
+      },
+      // Switch styling based on role colors
+      MuiSwitch: {
+        styleOverrides: {
+          colorPrimary: {
+            '&.Mui-checked': {
+              '& + .MuiSwitch-track': {
+                backgroundColor: roleColors.main,
+                opacity: 0.5,
+              },
+              color: roleColors.main,
+            },
+          },
+        },
+      },
+      // Radio styling based on role colors
+      MuiRadio: {
+        styleOverrides: {
+          colorPrimary: {
+            '&.Mui-checked': {
+              color: roleColors.main,
+            },
+          },
+        },
+      },
+      // Chip styling based on role colors
+      MuiChip: {
+        styleOverrides: {
+          colorPrimary: {
+            backgroundColor: roleColors.main,
+            color: isDarkMode ? '#000000' : '#FFFFFF',
+          },
+          outlinedPrimary: {
+            borderColor: roleColors.main,
+            color: roleColors.main,
+          },
+        },
+      },
+      // Avatar styling
+      MuiAvatar: {
+        styleOverrides: {
+          colorDefault: {
+            backgroundColor: roleColors.main,
+            color: isDarkMode ? '#000000' : '#FFFFFF',
+          },
+        },
+      },
+      // Paper styling for better shadowing and borders
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundImage: 'none',
+          },
+          elevation1: {
+            boxShadow: isDarkMode 
+              ? '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2)' 
+              : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+          },
+          elevation2: {
+            boxShadow: isDarkMode 
+              ? '0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2)' 
+              : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+          },
+        },
+      },
+      // Dialog styling for better content organization
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            borderRadius: '0.5rem',
+            boxShadow: isDarkMode 
+              ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' 
+              : '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          },
+        },
+      },
+      // Input styling for consistent borders and focus states
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: '0.25rem',
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: roleColors.main,
               borderWidth: 2,
             },
           },
         },
       },
-      MuiPaper: {
+      // Form label styling to match focused state with role color
+      MuiFormLabel: {
         styleOverrides: {
           root: {
-            borderRadius: 16,
-            backgroundImage: 'none',
-            boxShadow: isDarkMode 
-              ? '0 4px 20px rgba(0, 0, 0, 0.4)'
-              : '0 4px 20px rgba(0, 0, 0, 0.08)',
-          },
-          elevation1: {
-            boxShadow: isDarkMode
-              ? '0 2px 8px rgba(0, 0, 0, 0.3)'
-              : '0 2px 8px rgba(0, 0, 0, 0.06)',
-          },
-          elevation2: {
-            boxShadow: isDarkMode
-              ? '0 4px 16px rgba(0, 0, 0, 0.35)'
-              : '0 4px 16px rgba(0, 0, 0, 0.08)',
-          },
-          elevation3: {
-            boxShadow: isDarkMode
-              ? '0 8px 24px rgba(0, 0, 0, 0.4)'
-              : '0 8px 24px rgba(0, 0, 0, 0.12)',
-          },
-        },
-      },
-      MuiCard: {
-        styleOverrides: {
-          root: {
-            borderRadius: 16,
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            cursor: 'pointer',
-            '&:hover': {
-              transform: 'translateY(-4px) scale(1.02)',
-              boxShadow: isDarkMode
-                ? '0 12px 40px rgba(0, 0, 0, 0.5)'
-                : '0 12px 40px rgba(0, 0, 0, 0.15)',
+            '&.Mui-focused': {
+              color: roleColors.main,
             },
           },
         },
       },
-      MuiChip: {
+      // AppBar styling
+      MuiAppBar: {
         styleOverrides: {
           root: {
-            borderRadius: 16,
-            fontWeight: 500,
-            height: 32,
-            transition: 'all 0.2s ease-in-out',
-            '&:hover': {
-              transform: 'scale(1.05)',
-            },
-          },
-        },
-      },
-      MuiTextField: {
-        styleOverrides: {
-          root: {
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 12,
-              transition: 'all 0.2s ease-in-out',
-              '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: isDarkMode ? '#BB86FC' : '#29819c',
-                borderWidth: 2,
-              },
-              '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: isDarkMode ? '#BB86FC' : '#29819c',
-                borderWidth: 2,
-                boxShadow: isDarkMode
-                  ? '0 0 0 4px rgba(187, 134, 252, 0.2)'
-                  : '0 0 0 4px rgba(98, 0, 238, 0.1)',
-              },
-            },
-          },
-        },
-      },
-      MuiTableCell: {
-        styleOverrides: {
-          root: {
-            borderBottom: `1px solid ${isDarkMode ? '#2D2D2D' : '#E0E0E0'}`,
-            padding: '16px',
-          },
-          head: {
-            fontWeight: 600,
-            backgroundColor: isDarkMode ? '#2D2D2D' : '#F5F5F5',
-            color: isDarkMode ? '#E1E1E1' : '#1C1B1F',
-          },
-        },
-      },
-      MuiFab: {
-        styleOverrides: {
-          root: {
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              transform: 'scale(1.1)',
-            },
+            backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+            boxShadow: 'none',
+            borderBottom: `1px solid ${isDarkMode ? '#333333' : '#E0E0E0'}`,
           },
         },
       },
     },
   });
-
-  // Add Material Design 3 custom extensions
-  return {
-    ...baseTheme,
-    custom: {
-      // Status color helper
-      getStatusColor: (status) => {
-        const statusColors = baseTheme.palette.status;
-        return statusColors[status] || statusColors.draft;
-      },
-      // Material Design 3 Gradients
-      gradients: {
-        primary: `linear-gradient(135deg, ${baseTheme.palette.primary.main} 0%, ${baseTheme.palette.primary.light} 100%)`,
-        secondary: `linear-gradient(135deg, ${baseTheme.palette.secondary.main} 0%, ${baseTheme.palette.secondary.light} 100%)`,
-        surface: isDarkMode
-          ? `linear-gradient(135deg, #1E1E1E 0%, #2D2D2D 100%)`
-          : `linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%)`,
-        background: isDarkMode
-          ? `linear-gradient(135deg, #121212 0%, #1E1E1E 100%)`
-          : `linear-gradient(135deg, #FAFAFA 0%, #FFFFFF 100%)`,
-      },
-      // Material Design 3 Shadows
-      shadows: {
-        card: isDarkMode
-          ? '0 4px 20px rgba(0, 0, 0, 0.4)'
-          : '0 4px 20px rgba(0, 0, 0, 0.08)',
-        button: isDarkMode
-          ? '0 4px 12px rgba(187, 134, 252, 0.2)'
-          : '0 4px 12px rgba(98, 0, 238, 0.15)',
-        modal: isDarkMode
-          ? '0 24px 48px rgba(0, 0, 0, 0.6)'
-          : '0 24px 48px rgba(0, 0, 0, 0.15)',
-        bento: isDarkMode
-          ? '0 8px 32px rgba(0, 0, 0, 0.5)'
-          : '0 8px 32px rgba(0, 0, 0, 0.12)',
-      },
-      // Material Design 3 Animations
-      animations: {
-        fadeIn: 'fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        slideUp: 'slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        scaleIn: 'scaleIn 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        bounce: 'bounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-      },
-      // Bento Grid System
-      bento: {
-        gap: 16,
-        borderRadius: 16,
-        padding: 24,
-      },
-    },
-  };
 };
 
 const EnhancedThemeProvider = ({ children }) => {
-  const [isDarkMode, setIsDarkMode] = useState(true); // Dark mode as default
-  const theme = createMaterialTheme(isDarkMode);
+  // Add a fallback for when DevRoleContext is null
+  const devRoleContext = useContext(DevRoleContext) || { role: 'submitter' };
+  const { role } = devRoleContext;
+  
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [theme, setTheme] = useState(createMaterialTheme(true, role || 'submitter'));
 
-  // Theme toggle function
+  // Create the theme toggle function
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
+    setIsDarkMode((prevMode) => !prevMode);
   };
 
-  // Provide theme toggle context
+  // Effect to update theme when dark mode or role changes
   useEffect(() => {
-    // Store theme preference
-    localStorage.setItem('darkMode', isDarkMode.toString());
-  }, [isDarkMode]);
-
-  // Load theme preference on mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('darkMode');
-    if (savedTheme !== null) {
-      setIsDarkMode(savedTheme === 'true');
-    }
-  }, []);
+    console.log(`Updating theme with role: ${role}, isDarkMode: ${isDarkMode}`);
+    setTheme(createMaterialTheme(isDarkMode, role || 'submitter'));
+  }, [isDarkMode, role]);
+  
+  // Combine ThemeContext with ThemeProvider
+  const themeContextValue = {
+    isDarkMode,
+    toggleTheme,
+  };
 
   return (
-    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+    <ThemeContext.Provider value={themeContextValue}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <GlobalStyles
+        <GlobalStyles 
           styles={{
-            // Material Design 3 Keyframe Animations
-            '@keyframes fadeIn': {
-              from: { opacity: 0 },
-              to: { opacity: 1 },
+            '.dashboard-container': {
+              paddingRight: 'calc(var(--bs-gutter-x) * 3)',
+              paddingLeft: 'calc(var(--bs-gutter-x) * 3)',
             },
-            '@keyframes slideUp': {
-              from: { 
-                opacity: 0, 
-                transform: 'translateY(32px)' 
-              },
-              to: { 
-                opacity: 1, 
-                transform: 'translateY(0)' 
-              },
-            },
-            '@keyframes scaleIn': {
-              from: { 
-                opacity: 0, 
-                transform: 'scale(0.8)' 
-              },
-              to: { 
-                opacity: 1, 
-                transform: 'scale(1)' 
-              },
-            },
-            '@keyframes bounce': {
-              '0%': { transform: 'scale(1)' },
-              '50%': { transform: 'scale(1.05)' },
-              '100%': { transform: 'scale(1)' },
-            },
-            // Material Design 3 Global Styles
-            html: {
-              scrollBehavior: 'smooth',
-              fontFamily: theme.typography.fontFamily,
-            },
-            body: {
-              backgroundColor: theme.palette.background.default,
-              color: theme.palette.text.primary,
-              fontFamily: theme.typography.fontFamily,
-              margin: 0,
-              padding: 0,
-              overflowX: 'hidden',
-            },
-            // Accessibility improvements
-            '.sr-only': {
-              position: 'absolute !important',
-              width: '1px !important',
-              height: '1px !important',
-              padding: '0 !important',
-              margin: '-1px !important',
-              overflow: 'hidden !important',
-              clip: 'rect(0, 0, 0, 0) !important',
-              whiteSpace: 'nowrap !important',
-              border: '0 !important',
-            },
-            // Focus improvements for accessibility
-            '*:focus-visible': {
-              outline: `2px solid ${theme.palette.primary.main} !important`,
-              outlineOffset: '2px !important',
-              borderRadius: '4px !important',
-            },
-            // Custom scrollbar for Material Design 3
-            '::-webkit-scrollbar': {
-              width: '8px',
-              height: '8px',
-            },
-            '::-webkit-scrollbar-track': {
-              background: isDarkMode ? '#2D2D2D' : '#F5F5F5',
-              borderRadius: '4px',
-            },
-            '::-webkit-scrollbar-thumb': {
-              background: isDarkMode ? '#BB86FC' : '#29819c',
-              borderRadius: '4px',
-              '&:hover': {
-                background: isDarkMode ? '#E1BEE7' : '#4A9BB8',
-              },
-            },
-            // Bento Grid Animation Classes
-            '.bento-item': {
-              animation: `${theme.custom.animations.fadeIn}`,
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: theme.custom.shadows.bento,
-              },
-            },
-            // Status indicator animations
-            '.status-indicator': {
-              animation: `${theme.custom.animations.scaleIn}`,
-              transition: 'all 0.2s ease-in-out',
-              '&:hover': {
-                animation: `${theme.custom.animations.bounce}`,
-              },
-            },
-          }}
+          }} 
         />
         {children}
       </ThemeProvider>
     </ThemeContext.Provider>
   );
 };
-
-// Export theme toggle context
-export const ThemeContext = React.createContext({
-  isDarkMode: true,
-  toggleTheme: () => {},
-});
 
 export default EnhancedThemeProvider;

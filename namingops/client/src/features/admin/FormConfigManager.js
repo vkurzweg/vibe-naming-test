@@ -20,6 +20,7 @@ import {
   fetchFormConfigurations,
   saveFormConfiguration,
   deleteFormConfiguration,
+  activateFormConfiguration,
   clearFormConfigError,
 } from './formConfigSlice';
 import FormConfigDialog from './FormConfigDialog';
@@ -235,49 +236,61 @@ const FormConfigManager = () => {
                   mb: 1, 
                   bgcolor: 'background.paper',
                   borderRadius: 1,
-                  boxShadow: 1
+                  boxShadow: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  px: 2,
+                  py: 1
                 }}
-                secondaryAction={
-                  <Box>
-                    <Button 
-                      onClick={() => handleOpenDialog(config)}
-                      sx={{ mr: 1 }}
-                      data-testid={`edit-${config._id}`}
-                    >
-                      Edit
-                    </Button>
-                    <Button 
-                      onClick={() => handleDelete(config._id)}
-                      color="error"
-                      data-testid={`delete-${config._id}`}
-                    >
-                      Delete
-                    </Button>
-                  </Box>
-                }
               >
                 <ListItemText 
                   primary={config.name} 
                   secondary={config.description || 'No description provided'}
                   primaryTypographyProps={{ fontWeight: 'medium' }}
+                  sx={{ flex: 1, mr: 2 }}
                 />
-                <Button 
-                  variant={config.isActive ? 'contained' : 'outlined'}
-                  color={config.isActive ? 'success' : 'primary'}
-                  size="small"
-                  disabled={config.isActive || loading}
-                  sx={{ ml: 2 }}
-                  onClick={() => {
-                    if (!config.isActive) {
-                      dispatch(require('./formConfigSlice').activateFormConfiguration(config._id))
-                        .unwrap()
-                        .then(() => setSnackbar({ open: true, message: 'Form activated successfully', severity: 'success' }))
-                        .catch((error) => setSnackbar({ open: true, message: error?.message || 'Failed to activate form', severity: 'error' }));
-                    }
-                  }}
-                >
-                  {config.isActive ? 'Active' : 'Activate'}
-                </Button>
+                
+                {/* Action buttons container */}
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Button 
+                    variant={config.isActive ? 'contained' : 'outlined'}
+                    color={config.isActive ? 'success' : 'primary'}
+                    size="small"
+                    disabled={config.isActive}
+                    onClick={() => {
+                      if (!config.isActive) {
+                        dispatch(activateFormConfiguration(config._id))
+                          .unwrap()
+                          .then(() => {
+                            setSnackbar({ open: true, message: 'Form activated successfully', severity: 'success' });
+                            // Refresh the form configurations to update the UI
+                            dispatch(fetchFormConfigurations());
+                          })
+                          .catch((error) => setSnackbar({ open: true, message: error?.message || 'Failed to activate form', severity: 'error' }));
+                      }
+                    }}
+                  >
+                    {config.isActive ? 'Active' : 'Activate'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => handleOpenDialog(config)}
+                    size="small"
+                    data-testid={`edit-${config._id}`}
+                  >
+                    Edit
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => handleDelete(config._id)}
+                    color="error"
+                    size="small"
+                    data-testid={`delete-${config._id}`}
+                  >
+                    Delete
+                  </Button>
+                </Box>
               </ListItem>
             ))}
           </List>
