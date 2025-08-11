@@ -115,13 +115,12 @@ const RequestCard = ({ request, userRole = 'submitter', onViewDetails, onUpdateS
     return {
       label: safeStatus.replace('_', ' ').toUpperCase(),
       sx: {
-        backgroundColor: getStatusColor(safeStatus),
-        color: '#fff',
+        backgroundColor: getStatusColor(safeStatus) + 'CC', // Add opacity for lighter background
+        color: '#000000', // Dark text for better contrast
         fontWeight: 600,
         fontSize: '0.75rem',
       },
       size: 'small',
-      icon: getStatusIcon(safeStatus),
     };
   };
 
@@ -152,21 +151,20 @@ const RequestCard = ({ request, userRole = 'submitter', onViewDetails, onUpdateS
 
   return (
     <Card 
-      sx={{ 
-        mb: 2, 
-        borderLeft: `4px solid ${getStatusColor(formattedRequest.status)}`,
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: 3,
-        }
+      elevation={1}
+      sx={{
+        mb: 4, // Increased spacing between cards
+        position: 'relative',
+        overflow: 'visible',
+        boxShadow: '0 3px 5px rgba(0,0,0,0.1)',
+        borderRadius: '0.5rem',
       }}
     >
-      <CardContent>
+      <CardContent sx={{ padding: '3.5rem' }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
           <Box>
             <Typography variant="h6" component="div">
-              {extractRequestTitle(formattedRequest)}
+              {extractRequestTitle(formattedRequest, 'Name Request')}
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Submitted by {extractSubmitterInfo(formattedRequest)} on {formatDate(formattedRequest.createdAt)}
@@ -230,10 +228,11 @@ const RequestCard = ({ request, userRole = 'submitter', onViewDetails, onUpdateS
             size="small" 
             onClick={handleExpandClick}
             endIcon={<ExpandMoreIcon sx={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />}
+            sx={{ color: '#000000' }}
           >
             {expanded ? 'Less' : 'More'}
           </Button>
-          <Button size="small" onClick={() => onViewDetails(formattedRequest._id)}>
+          <Button size="small" onClick={() => onViewDetails(formattedRequest._id)} sx={{ color: '#000000' }}>
             View Details
           </Button>
         </Box>
@@ -246,6 +245,7 @@ const RequestCard = ({ request, userRole = 'submitter', onViewDetails, onUpdateS
                   size="small" 
                   onClick={handleClaimRequest}
                   disabled={isSubmitting}
+                  sx={{ color: '#000000' }}
                 >
                   Claim
                 </Button>

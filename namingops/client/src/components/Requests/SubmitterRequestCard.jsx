@@ -104,15 +104,12 @@ const SubmitterRequestCard = ({ request, onViewDetails }) => {
     return {
       label: safeStatus.replace('_', ' ').toUpperCase(),
       sx: {
-        backgroundColor: getStatusColor(safeStatus),
-        color: '#fff',
+        backgroundColor: getStatusColor(safeStatus) + 'CC',
+        color: '#000000', // Dark text for better contrast
         fontWeight: 600,
         fontSize: '0.75rem',
-        '& .MuiChip-label': {
-          px: 2
-        }
       },
-      size: 'small'
+      size: 'small',
     };
   };
 
@@ -165,22 +162,21 @@ const SubmitterRequestCard = ({ request, onViewDetails }) => {
   const canModify = request.status && !['approved', 'rejected', 'cancelled'].includes(request.status);
 
   return (
-    <Card 
-      sx={{ 
-        mb: 2, 
-        borderLeft: `4px solid ${getStatusColor(request.status || 'pending')}`,
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-          transform: 'translateY(-2px)',
-          boxShadow: 3,
-        }
+    <Card
+      elevation={1}
+      sx={{
+        mb: 4, // Increased spacing between cards
+        position: 'relative',
+        overflow: 'visible',
+        boxShadow: '0 3px 5px rgba(0,0,0,0.1)',
+        borderRadius: '0.5rem',
       }}
     >
-      <CardContent>
+      <CardContent sx={{ padding: '3.5rem' }}>
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
           <Box>
             <Typography variant="h6" component="div">
-              {request.title || request.formData?.requestTitle || request.formData?.title || 'Untitled Request'}
+              {request.title || request.formData?.requestTitle || request.formData?.title || 'Name Request'}
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               Submitted on {formatDate(request.createdAt)}
@@ -189,8 +185,8 @@ const SubmitterRequestCard = ({ request, onViewDetails }) => {
           <Chip 
             label={(request.status || 'pending').replace('_', ' ').toUpperCase()}
             sx={{
-              backgroundColor: getStatusColor(request.status || 'pending'),
-              color: '#ffffff',
+              backgroundColor: getStatusColor(request.status || 'pending') + 'CC',
+              color: '#000000', // Dark text for better contrast
               fontWeight: 500,
               '& .MuiChip-label': {
                 px: 2
@@ -269,7 +265,12 @@ const SubmitterRequestCard = ({ request, onViewDetails }) => {
       <Divider />
       
       <CardActions sx={{ justifyContent: 'space-between' }}>
-        <Button size="small" onClick={() => onViewDetails(request._id)}>
+        <Button 
+          variant="outlined" 
+          size="small" 
+          onClick={() => onViewDetails(request._id)}
+          sx={{ color: '#000000' }}
+        >
           View Details
         </Button>
         
@@ -277,19 +278,23 @@ const SubmitterRequestCard = ({ request, onViewDetails }) => {
           {canModify && (
             <>
               <Button 
+                variant="outlined" 
                 size="small" 
                 startIcon={<PauseIcon />}
                 onClick={() => setHoldDialogOpen(true)}
                 disabled={isSubmitting || request.status === 'on_hold'}
+                sx={{ color: '#000000' }}
               >
                 Hold
               </Button>
               <Button 
+                variant="outlined" 
                 size="small" 
                 color="error"
                 startIcon={<CancelIcon />}
                 onClick={() => setCancelDialogOpen(true)}
                 disabled={isSubmitting}
+                sx={{ color: '#000000' }}
               >
                 Cancel
               </Button>

@@ -1,586 +1,265 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../../services/api';
-import axios from 'axios';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  getPaginationRowModel,
-  flexRender,
-} from '@tanstack/react-table';
-import {
-  Box,
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Tabs,
-  Tab,
-  IconButton,
-  Tooltip,
-  CircularProgress,
-  Alert,
-  AlertTitle,
-  Chip,
-  Divider,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TextField,
-  InputAdornment,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  Badge,
-  Avatar,
-  Pagination,
-  Skeleton,
-  Stack,
-  useMediaQuery,
+  Box, Typography, Paper, Button, Tabs, Tab, Alert, CircularProgress,
+  TextField, IconButton, Card, CardContent, CardActions, Chip, Divider,
+  Grid, MenuItem, Select, FormControl, InputLabel, Pagination, AlertTitle,
+  List, ListItem, ListItemText, Switch, FormControlLabel
 } from '@mui/material';
 import {
-  Dashboard as DashboardIcon,
-  People as PeopleIcon,
-  Settings as SettingsIcon,
-  Analytics as AnalyticsIcon,
-  Assignment as AssignmentIcon,
-  CheckCircle as CheckCircleIcon,
-  Business as BusinessIcon,
-  Gavel as GavelIcon,
+  Check as CheckIcon,
+  Close as CloseIcon,
+  AccessTime as AccessTimeIcon,
+  Send as SendIcon,
   Search as SearchIcon,
-  Visibility as VisibilityIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Refresh as RefreshIcon,
-  TrendingUp as TrendingUpIcon,
-  Schedule as ScheduleIcon,
-  Archive as ArchiveIcon,
+  Settings as SettingsIcon,
+  Storage as StorageIcon,
   Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
-import { useTheme, styled } from '@mui/material/styles';
-import { toast } from 'react-hot-toast';
-import newColorPalette, { getStatusColor, getStatusIcon } from '../../theme/newColorPalette';
-import {
-  extractRequestTitle,
-  extractRequestDescription,
-  getDisplayableFormData,
-  extractSubmitterInfo,
-  formatRequestForRole,
-  searchRequest
-} from '../../utils/dynamicDataUtils';
-import { Container, Row, Col } from 'react-bootstrap';
-import FormConfigManager from '../../features/admin/FormConfigManager';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import api from '../../services/api';
 import DynamicFormRenderer from '../../components/DynamicForm/DynamicFormRenderer';
+import FormConfigManager from '../../features/admin/FormConfigManager';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useSelector } from 'react-redux';
+import { getStatusColor } from '../../theme/newColorPalette';
+import useRequestManagement from '../../hooks/useRequestManagement';
 
-// Custom styled button component to ensure theme colors are applied
-const StyledButton = styled(Button)(({ theme }) => ({
-  '&.MuiButton-containedPrimary': {
-    backgroundColor: theme.palette.primary.main + ' !important',
-    color: theme.palette.primary.contrastText + ' !important',
-    '&:hover': {
-      backgroundColor: theme.palette.primary.dark + ' !important',
-    }
-  },
-  '&.MuiButton-outlinedPrimary': {
-    borderColor: theme.palette.primary.main + ' !important',
-    color: theme.palette.primary.main + ' !important',
-    '&:hover': {
-      backgroundColor: theme.palette.primary.main + '11 !important',
-    }
-  },
-  '&.MuiButton-textPrimary': {
-    color: theme.palette.primary.main + ' !important',
-  }
-}));
+// Helper function to get status label
+const getStatusLabel = (status) => {
+  const statusLabels = {
+    'submitted': 'Submitted',
+    'brand_review': 'Brand Review',
+    'legal_review': 'Legal Review',
+    'approved': 'Approved',
+    'rejected': 'Rejected',
+    'on_hold': 'On Hold',
+    'canceled': 'Canceled'
+  };
+  return statusLabels[status] || 'Unknown';
+};
 
-const ProfessionalAdminDashboard = React.memo(() => {
-  const dispatch = useDispatch();
-  const theme = useTheme();
-  const queryClient = useQueryClient();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
+const ProfessionalAdminDashboard = () => {
   const { user } = useSelector((state) => state.auth);
-  const { formConfig } = useSelector((state) => state.formConfig || {});
+  const queryClient = useQueryClient();
   
-  // Local state
-  const [tabValue, setTabValue] = useState(0);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [globalFilter, setGlobalFilter] = useState('');
+  // Import the request management hook functions
+  const { updateStatus, deleteRequest, activateFormConfig } = useRequestManagement();
+  
+  const [activeTab, setActiveTab] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sorting, setSorting] = useState([]);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 });
-  const [selectedRows, setSelectedRows] = useState({});
-  const [searchNamesFilter, setSearchNamesFilter] = useState('');
-  const [searchNamesPage, setSearchNamesPage] = useState(1);
+  const [sortBy, setSortBy] = useState('date_desc');
+  const [page, setPage] = useState(1);
+  const [rowsPerPage] = useState(10);
   const [expanded, setExpanded] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Handle toggle expand for request cards
-  const handleToggleExpand = useCallback((requestId) => {
-    setExpanded((prevExpanded) => {
-      const isExpanded = prevExpanded[requestId];
-      return {
-        ...prevExpanded,
-        [requestId]: !isExpanded,
-      };
-    });
+  const [editingRequest, setEditingRequest] = useState(null);
+
+  const handleToggleExpand = useCallback((id) => {
+    setExpanded(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
   }, []);
-
-  // Fetch all requests (admin has access to all)
-  const { data: requests = [], isLoading: requestsLoading, error: requestsError, refetch: refetchRequests } = useQuery({
-    queryKey: ['admin-requests'],
+  
+  // Get all requests 
+  const { data: allRequests = [], isLoading: requestsLoading, error: requestsError } = useQuery({
+    queryKey: ['allRequests'],
     queryFn: async () => {
-      const response = await api.get('/api/v1/name-requests');
-      // Server returns data directly, ensure it's an array
-      const data = response.data;
-      return Array.isArray(data) ? data : [];
+      try {
+        const response = await api.get('/api/v1/name-requests');
+        console.log('All requests data:', response.data);
+        
+        // Transform MongoDB data structure for frontend
+        return Array.isArray(response.data) 
+          ? response.data.map(item => ({
+              ...item,
+              id: item._id || item.id // Ensure id property exists
+            }))
+          : [];
+      } catch (error) {
+        console.error('Error fetching all requests:', error);
+        throw error;
+      }
     },
-    staleTime: 30000, // 30 seconds
-    cacheTime: 300000, // 5 minutes
-    retry: 2,
+    staleTime: 300000, // 5 minutes
+    cacheTime: 600000, // 10 minutes
   });
 
-  // Calculate stats client-side from requests data
-  const { data: stats = {}, isLoading: statsLoading } = useQuery({
-    queryKey: ['admin-stats', requests],
-    queryFn: () => {
-      if (!requests || !Array.isArray(requests)) {
-        return {
-          totalRequests: 0,
-          pendingRequests: 0,
-          approvedRequests: 0,
-          rejectedRequests: 0,
-          activeUsers: 0
-        };
+  // Get form configurations
+  const { data: formConfigs = [], isLoading: formConfigsLoading, error: formConfigsError } = useQuery({
+    queryKey: ['formConfigs'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/api/v1/form-configurations');
+        console.log('Form configs:', response.data);
+        return Array.isArray(response.data) ? response.data : [];
+      } catch (error) {
+        console.error('Error fetching form configurations:', error);
+        throw error;
       }
-
-      const totalRequests = requests.length;
-      const pendingRequests = requests.filter(req => req.status === 'submitted' || req.status === 'brand_review' || req.status === 'legal_review').length;
-      const approvedRequests = requests.filter(req => req.status === 'approved').length;
-      const rejectedRequests = requests.filter(req => req.status === 'rejected').length;
-      const activeUsers = new Set(requests.map(req => req.submittedBy)).size;
-
-      return {
-        totalRequests,
-        pendingRequests,
-        approvedRequests,
-        rejectedRequests,
-        activeUsers
-      };
     },
-    enabled: !!requests && Array.isArray(requests),
-    staleTime: 30000,
+    staleTime: 300000, // 5 minutes
+    cacheTime: 600000, // 10 minutes
   });
 
-  // React Query mutations for admin operations
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ requestId, status, comments }) => {
-      if (!requestId) {
-        throw new Error('Request ID is undefined');
+  // Get active form configuration
+  const { data: activeFormConfig, isLoading: activeFormConfigLoading, error: activeFormConfigError } = useQuery({
+    queryKey: ['activeFormConfig'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/api/v1/form-configurations/active');
+        return response.data;
+      } catch (error) {
+        console.error('Error fetching active form configuration:', error);
+        throw error;
       }
-      const response = await api.put(`/api/v1/name-requests/${requestId}/status`, { status, comments });
-      return response.data;
     },
-    onMutate: async ({ requestId, status }) => {
-      if (!requestId) {
-        toast.error('Cannot update status: Request ID is undefined');
-        return;
+    staleTime: 300000, // 5 minutes
+    cacheTime: 600000, // 10 minutes
+  });
+
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { handleSubmit, control, reset, formState: { errors }, watch } = useForm({
+    resolver: zodResolver(z.object({})),
+    mode: 'onChange',
+  });
+
+  useEffect(() => {
+    if (activeFormConfig && activeFormConfig.fields) {
+      const schemaObject = {};
+      activeFormConfig.fields.forEach(field => {
+        if (field.required) {
+          schemaObject[field.name] = z.any().nonempty(`${field.label || field.name} is required`);
+        } else {
+          schemaObject[field.name] = z.any().optional();
+        }
+      });
+      reset({}, { resolver: zodResolver(z.object(schemaObject)) });
+    }
+  }, [activeFormConfig, reset]);
+
+  // Submit new request mutation
+  const submitRequestMutation = useMutation({
+    mutationFn: async (formData) => {
+      setSubmitting(true);
+      try {
+        const response = await api.post('/api/v1/name-requests', formData);
+        return response.data;
+      } catch (error) {
+        throw new Error(error.response?.data?.message || 'Failed to submit request');
+      } finally {
+        setSubmitting(false);
       }
-      await queryClient.cancelQueries(['admin-requests']);
-      const previousRequests = queryClient.getQueryData(['admin-requests']);
-      
-      queryClient.setQueryData(['admin-requests'], (old = []) =>
-        old.map(request =>
-          request.id === requestId
-            ? { ...request, status, updatedAt: new Date().toISOString() }
-            : request
-        )
-      );
-      
-      return { previousRequests };
-    },
-    onError: (err, variables, context) => {
-      if (context?.previousRequests) {
-        queryClient.setQueryData(['admin-requests'], context.previousRequests);
-      }
-      toast.error(`Failed to update status: ${err.message || 'Unknown error'}`);
     },
     onSuccess: () => {
-      toast.success('Status updated successfully!');
-      queryClient.invalidateQueries(['admin-requests']);
-      queryClient.invalidateQueries(['admin-stats', requests]);
+      reset();
+      setSubmitSuccess(true);
+      setSubmitError(null);
+      queryClient.invalidateQueries(['allRequests']);
+      setTimeout(() => setSubmitSuccess(false), 5000);
     },
+    onError: (error) => {
+      setSubmitError(error.message || 'Something went wrong. Please try again.');
+    }
   });
 
-  const deleteRequestMutation = useMutation({
-    mutationFn: async (requestId) => {
-      if (!requestId) {
-        throw new Error('Request ID is undefined');
-      }
-      const response = await api.delete(`/api/v1/name-requests/${requestId}`);
-      return response.data;
-    },
-    onMutate: async (requestId) => {
-      if (!requestId) {
-        toast.error('Cannot delete request: Request ID is undefined');
-        return;
-      }
-      await queryClient.cancelQueries(['admin-requests']);
-      const previousRequests = queryClient.getQueryData(['admin-requests']);
-      
-      queryClient.setQueryData(['admin-requests'], (old = []) =>
-        old.filter(request => request.id !== requestId)
-      );
-      
-      return { previousRequests };
-    },
-    onError: (err, requestId, context) => {
-      if (context?.previousRequests) {
-        queryClient.setQueryData(['admin-requests'], context.previousRequests);
-      }
-      toast.error(`Failed to delete request: ${err.message || 'Unknown error'}`);
-    },
-    onSuccess: () => {
-      toast.success('Request deleted successfully!');
-      queryClient.invalidateQueries(['admin-requests']);
-      queryClient.invalidateQueries(['admin-stats', requests]);
-    },
-  });
-
-  // Status progression configuration
-  const getStatusSteps = useCallback(() => [
-    { 
-      label: 'Submitted', 
-      description: 'Request submitted for review', 
-      icon: <AssignmentIcon />, 
-      status: 'submitted' 
-    },
-    { 
-      label: 'Brand Review', 
-      description: 'Under brand team review', 
-      icon: <BusinessIcon />, 
-      status: 'brand_review' 
-    },
-    { 
-      label: 'Legal Review', 
-      description: 'Legal compliance check', 
-      icon: <GavelIcon />, 
-      status: 'legal_review' 
-    },
-    { 
-      label: 'Approved', 
-      description: 'Request approved and ready', 
-      icon: <CheckCircleIcon />, 
-      status: 'approved' 
-    }
-  ], []);
-
-  // Render dynamic request data based on form configuration
-  const renderDynamicRequestData = useCallback((request) => {
-    if (!request || !request.formData || !formConfig) {
-      return <Alert severity="info">No request data available</Alert>;
-    }
-
-    return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {formConfig.fields.map((field) => {
-          const value = request.formData[field.name];
-          if (!value) return null;
-
-          return (
-            <Box key={field.name} sx={{ mb: 2 }}>
-              <Typography variant="subtitle2" color="text.secondary">
-                {field.label || field.name}
-              </Typography>
-              <Typography variant="body2">
-                {renderFieldValue(value)}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
-    );
-  }, [formConfig]);
-
-  // Helper function to render field values in a user-friendly format
-  const renderFieldValue = (value) => {
-    if (value === null || value === undefined) {
-      return '-';
-    }
-    
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
-    }
-    
-    if (typeof value === 'object') {
-      if (Array.isArray(value)) {
-        // Handle arrays
-        return value.map((item, index) => (
-          <Box key={index} sx={{ ml: 2, mb: 0.5 }}>
-            • {typeof item === 'object' ? renderFieldValue(item) : String(item)}
-          </Box>
-        ));
-      } else {
-        // Handle objects
-        return (
-          <Box sx={{ ml: 2 }}>
-            {Object.entries(value).map(([key, val]) => (
-              <Box key={key} sx={{ mb: 0.5 }}>
-                <Typography component="span" variant="body2" sx={{ fontWeight: 'medium' }}>
-                  {key}:
-                </Typography>{' '}
-                {typeof val === 'object' ? renderFieldValue(val) : String(val)}
-              </Box>
-            ))}
-          </Box>
-        );
-      }
-    }
-    
-    // Default case: convert to string
-    return String(value);
+  const onSubmit = (data) => {
+    submitRequestMutation.mutate(data);
   };
 
-  // TanStack Table columns configuration
-  const requestColumns = useMemo(() => [
-    {
-      id: 'title',
-      header: 'Request',
-      accessorFn: (row) => extractRequestTitle(row, formConfig),
-      cell: ({ getValue, row }) => (
-        <Box>
-          <Typography variant="subtitle2" noWrap>
-            {getValue()}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {extractSubmitterInfo(row.original)?.name || 'Unknown'}
-          </Typography>
-        </Box>
-      ),
-      size: 200,
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      accessorKey: 'status',
-      cell: ({ getValue }) => {
-        const status = getValue();
-        return (
-          <Chip
-            label={status?.replace('_', ' ').toUpperCase()}
-            size="small"
-            sx={{
-              backgroundColor: getStatusColor(status),
-              color: theme.palette.getContrastText(getStatusColor(status)),
-              fontWeight: 600,
-            }}
-          />
-        );
-      },
-      size: 120,
-    },
-    {
-      id: 'assignedTo',
-      header: 'Assigned To',
-      accessorKey: 'assignedTo',
-      cell: ({ getValue }) => {
-        const assignedTo = getValue();
-        return assignedTo ? (
-          <Chip
-            avatar={<Avatar sx={{ width: 24, height: 24 }}>{assignedTo.charAt(0)}</Avatar>}
-            label={assignedTo}
-            size="small"
-            variant="outlined"
-          />
-        ) : (
-          <Typography variant="caption" color="text.secondary">
-            Unassigned
-          </Typography>
-        );
-      },
-      size: 150,
-    },
-    {
-      id: 'createdAt',
-      header: 'Created',
-      accessorKey: 'createdAt',
-      cell: ({ getValue }) => (
-        <Typography variant="caption">
-          {new Date(getValue()).toLocaleDateString()}
-        </Typography>
-      ),
-      size: 100,
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => (
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title="View Details">
-            <IconButton
-              size="small"
-              onClick={() => handleToggleExpand(row.original.id)}
-              aria-label={`View details for ${extractRequestTitle(row.original, formConfig)}`}
-            >
-              <VisibilityIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton
-              size="small"
-              onClick={() => {
-                if (window.confirm('Are you sure you want to delete this request?')) {
-                  deleteRequestMutation.mutate(row.original.id);
-                }
-              }}
-              disabled={deleteRequestMutation.isLoading}
-              aria-label={`Delete ${extractRequestTitle(row.original, formConfig)}`}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      ),
-      size: 120,
-      enableSorting: false,
-    },
-  ], [formConfig, theme, deleteRequestMutation]);
-
-  // Filtered data for table
-  const filteredData = useMemo(() => {
-    let data = requests;
+  // Filter and sort requests
+  const filteredRequests = useMemo(() => {
+    if (!allRequests) return [];
     
+    let result = [...allRequests];
+    
+    // Filter by status if needed
     if (statusFilter !== 'all') {
-      data = data.filter(request => request.status === statusFilter);
+      result = result.filter(req => req.status === statusFilter);
     }
     
-    return data;
-  }, [requests, statusFilter]);
-
-  // TanStack Table instance
-  const table = useReactTable({
-    data: filteredData,
-    columns: requestColumns,
-    state: {
-      sorting,
-      globalFilter,
-      pagination,
-    },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
-    onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    manualPagination: false,
-  });
-
-  // Search Names data (approved names)
-  const searchNamesData = useMemo(() => {
-    // Only show approved names in the Search Names tab
-    return requests.filter(request => request.status === 'approved')
-      // Sort by most recently approved (updatedAt date)
-      .sort((a, b) => {
-        const dateA = new Date(a.updatedAt || a.createdAt);
-        const dateB = new Date(b.updatedAt || b.createdAt);
-        return dateB - dateA; // Most recent first
-      });
-  }, [requests]);
-
-  // Filtered search names data
-  const filteredSearchNamesData = useMemo(() => {
-    let data = searchNamesData;
-    
-    // Apply global filter (search)
-    if (searchNamesFilter) {
-      data = data.filter(request => {
-        const title = extractRequestTitle(request, formConfig).toLowerCase();
-        const searchTerm = searchNamesFilter.toLowerCase();
-        return title.includes(searchTerm);
+    // Filter by search term
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      result = result.filter(req => {
+        const nameMatches = req.requestData?.name?.toLowerCase().includes(lowerSearchTerm);
+        const submitterMatches = req.submitter?.name?.toLowerCase().includes(lowerSearchTerm);
+        return nameMatches || submitterMatches;
       });
     }
     
-    return data.slice((searchNamesPage - 1) * 10, searchNamesPage * 10);
-  }, [searchNamesData, searchNamesFilter, searchNamesPage, formConfig]);
+    // Sort
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'date_asc':
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        case 'date_desc':
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        case 'name_asc':
+          return (a.requestData?.name || '').localeCompare(b.requestData?.name || '');
+        case 'name_desc':
+          return (b.requestData?.name || '').localeCompare(a.requestData?.name || '');
+        default:
+          return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+    });
+    
+    return result;
+  }, [allRequests, statusFilter, searchTerm, sortBy]);
 
-  // Event handlers
-  const handleTabChange = useCallback((event, newValue) => {
-    setTabValue(newValue);
-    const tabNames = ['Review Queue', 'Approved Names', 'New Request', 'Form Configuration'];
-    toast(`Switched to ${tabNames[newValue]}`, { duration: 1000 });
-  }, []);
+  // Pagination
+  const paginatedRequests = useMemo(() => {
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    return filteredRequests.slice(start, end);
+  }, [filteredRequests, page, rowsPerPage]);
 
-  const handleRefresh = useCallback(() => {
-    refetchRequests();
-    queryClient.invalidateQueries(['admin-stats', requests]);
-    toast.success('Data refreshed!');
-  }, [refetchRequests, queryClient, requests]);
-
-  const handleViewRequestDetails = useCallback((request) => {
-    setSelectedRequest(request);
-  }, []);
-
-  // Handle new request submission
-  const handleSubmitRequest = useCallback(async (formData) => {
-    setIsSubmitting(true);
-    try {
-      await axios.post('/api/v1/name-requests', { formData });
-      toast.success('Request submitted successfully!');
-      queryClient.invalidateQueries(['admin-requests']);
-      setTabValue(0); // Switch back to Review Queue tab
-    } catch (error) {
-      console.error('Error submitting request:', error);
-      toast.error('Failed to submit request. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+  const pageCount = Math.ceil(filteredRequests.length / rowsPerPage);
+  
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+  
+  const handleStatusChange = useCallback((requestId, newStatus) => {
+    updateStatus.mutate({ requestId, status: newStatus });
+  }, [updateStatus]);
+  
+  const handleDeleteRequest = useCallback((requestId) => {
+    if (window.confirm('Are you sure you want to delete this request? This action cannot be undone.')) {
+      deleteRequest.mutate(requestId);
     }
-  }, [queryClient]);
-
-  // Loading state
-  if (requestsLoading || statsLoading) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
-        <Skeleton variant="rectangular" height={400} />
-      </Box>
-    );
-  }
-
-  // Error state
-  if (requestsError) {
-    return (
-      <Alert 
-        severity="error" 
-        action={
-          <Button color="inherit" size="small" onClick={handleRefresh}>
-            Retry
-          </Button>
-        }
-      >
-        <AlertTitle>Error</AlertTitle>
-        Failed to load admin data. Please try again.
-      </Alert>
-    );
-  }
-
+  }, [deleteRequest]);
+  
+  const handleActivateFormConfig = useCallback((configId) => {
+    activateFormConfig.mutate(configId);
+  }, [activateFormConfig]);
+  
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setPage(1); // Reset to first page when search changes
+  };
+  
+  const handleStatusFilterChange = (e) => {
+    setStatusFilter(e.target.value);
+    setPage(1); // Reset to first page when filter changes
+  };
+  
+  const handleSortChange = (e) => {
+    setSortBy(e.target.value);
+    setPage(1); // Reset to first page when sort changes
+  };
+  
   // TabPanel component for accessibility
   const TabPanel = (props) => {
     const { children, value, index, ...other } = props;
-
+    
     return (
       <div
         role="tabpanel"
@@ -589,501 +268,451 @@ const ProfessionalAdminDashboard = React.memo(() => {
         aria-labelledby={`tab-${index}`}
         {...other}
       >
-        {value === index && (
-          <>{children}</>
-        )}
+        {value === index && children}
       </div>
     );
   };
 
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    setPage(1); // Reset to first page on tab change
+  };
+
   return (
-    <Container fluid className="dashboard-container p-4">
+    <div className="px-5">
       <Paper 
-        elevation={0} 
+        elevation={2}
         sx={{
-          borderRadius: (theme) => theme.shape.borderRadius,
-          boxShadow: (theme) => theme.palette.mode === 'dark' 
-            ? '0 2px 8px rgba(0,0,0,0.3)'
-            : '0 2px 8px rgba(0,0,0,0.1)',
-          mb: '1.5rem',
+          mt: '2rem',
+          mb: '2rem',
+          p: 0,
+          borderRadius: '0.75rem',
           overflow: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
-        {/* Accessibility: Screen reader announcements */}
-        <div 
-          id="search-results-announcement" 
-          aria-live="polite" 
-          aria-atomic="true"
-          style={{ 
-            position: 'absolute', 
-            left: '-100vw',
-            width: '0.1rem',
-            height: '0.1rem',
-            overflow: 'hidden'
-          }}
-        />
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 0 }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            aria-label="admin dashboard tabs"
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
+          >
+            <Tab 
+              icon={<StorageIcon />}
+              label="All Requests" 
+              id="tab-0"
+              aria-controls="tabpanel-0" 
+            />
+            <Tab 
+              icon={<SettingsIcon />}
+              label="Form Configuration" 
+              id="tab-1" 
+              aria-controls="tabpanel-1" 
+            />
+            <Tab 
+              icon={<AddIcon />}
+              label="New Request" 
+              id="tab-2" 
+              aria-controls="tabpanel-2" 
+            />
+          </Tabs>
+        </Box>
         
-        {/* Dashboard Header */}
-        <Row className="mb-4">
-          <Col xs={12}>
-            <Box sx={{ pt: 2 }}>
-              <Typography 
-                variant="h5" 
-                component="h1" 
-                sx={{ 
-                  fontWeight: 700,
-                  color: (theme) => theme.palette.mode === 'light' ? '#030048' : 'text.primary',
-                  mb: 1,
+        {/* All Requests Tab Panel */}
+        <TabPanel value={activeTab} index={0}>
+          <Box sx={{ p: '1.5rem', px: 0 }}>
+            {/* Filter and sort controls */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
+              {/* Search input */}
+              <TextField
+                placeholder="Search requests..."
+                variant="outlined"
+                size="small"
+                onChange={handleSearchChange}
+                value={searchTerm}
+                InputProps={{
+                  startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1 }} />,
                 }}
-              >
-                Global Naming HQ
-              </Typography>
-            </Box>
-          </Col>
-        </Row>
-        
-        {/* System Stats Cards */}
-        <Row className="mb-3 g-3">
-          <Col xs={12} sm={6} md={3}>
-            <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})` }}>
-              <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                      {stats.totalRequests || requests.length}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      Total Requests
-                    </Typography>
-                  </Box>
-                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                    <AssignmentIcon sx={{ color: 'white' }} />
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Col>
-
-          <Col xs={12} sm={6} md={3}>
-            <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})` }}>
-              <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                      {stats.activeUsers || '24'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      Active Users
-                    </Typography>
-                  </Box>
-                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                    <PeopleIcon sx={{ color: 'white' }} />
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Col>
-
-          <Col xs={12} sm={6} md={3}>
-            <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})` }}>
-              <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                      {requests.filter(r => ['submitted', 'brand_review', 'legal_review'].includes(r.status)).length}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      Pending Reviews
-                    </Typography>
-                  </Box>
-                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                    <ScheduleIcon sx={{ color: 'white' }} />
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Col>
-
-          <Col xs={12} sm={6} md={3}>
-            <Card sx={{ height: '100%', background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})` }}>
-              <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography variant="h4" sx={{ color: 'white', fontWeight: 700 }}>
-                      {stats.systemHealth || '99%'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                      System Health
-                    </Typography>
-                  </Box>
-                  <Avatar sx={{ bgcolor: 'rgba(255,255,255,0.2)', width: 48, height: 48 }}>
-                    <TrendingUpIcon sx={{ color: 'white' }} />
-                  </Avatar>
-                </Box>
-              </CardContent>
-            </Card>
-          </Col>
-        </Row>
-
-        {/* Main Content */}
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          aria-label="admin dashboard tabs"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
-          <Tab 
-            icon={<BusinessIcon />}
-            label={
-              <Badge badgeContent={requests.length} color="primary">
-                Review Queue
-              </Badge>
-            }
-            id="tab-0"
-            aria-controls="tabpanel-0"
-          />
-          <Tab 
-            icon={<ArchiveIcon />}
-            label="Approved Names" 
-            id="tab-1" 
-            aria-controls="tabpanel-1" 
-          />
-          <Tab 
-            icon={<AddIcon />}
-            label="New Request" 
-            id="tab-2" 
-            aria-controls="tabpanel-2" 
-          />
-          <Tab 
-            icon={<SettingsIcon />}
-            label="Form Configuration" 
-            id="tab-3" 
-            aria-controls="tabpanel-3" 
-          />
-        </Tabs>
-
-        <CardContent>
-          {/* Review Queue Tab Panel */}
-          <TabPanel value={tabValue} index={0}>
-            <Box sx={{ p: '1.5rem' }}>
-              {/* Review Queue Content */}
-              <Row>
-                <Col xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    placeholder="Search requests..."
-                    value={globalFilter}
-                    onChange={(e) => setGlobalFilter(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon />
-                        </InputAdornment>
-                      ),
-                    }}
-                    aria-label="Search requests"
-                  />
-                </Col>
-                <Col xs={12} md={3}>
-                  <FormControl fullWidth>
-                    <InputLabel>Status Filter</InputLabel>
-                    <Select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      label="Status Filter"
-                    >
-                      <MenuItem value="all">All Statuses</MenuItem>
-                      <MenuItem value="submitted">Submitted</MenuItem>
-                      <MenuItem value="brand_review">Brand Review</MenuItem>
-                      <MenuItem value="legal_review">Legal Review</MenuItem>
-                      <MenuItem value="approved">Approved</MenuItem>
-                      <MenuItem value="on_hold">On Hold</MenuItem>
-                      <MenuItem value="rejected">Rejected</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Col>
-                <Col xs={12} md={3}>
-                  <Typography variant="body2" color="text.secondary">
-                    {table.getFilteredRowModel().rows.length} of {filteredData.length} requests
-                  </Typography>
-                </Col>
-              </Row>
-
-              {/* Table */}
-              <TableContainer component={Paper}>
-                <Table stickyHeader aria-label="admin requests table">
-                  <TableHead>
-                    {table.getHeaderGroups().map(headerGroup => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map(header => (
-                          <TableCell key={header.id} sx={{ fontWeight: 600 }}>
-                            {header.isPlaceholder ? null : (
-                              flexRender(header.column.columnDef.header, header.getContext())
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableHead>
-                  <TableBody>
-                    {table.getRowModel().rows.map(row => (
-                      <TableRow key={row.id} hover>
-                        {row.getVisibleCells().map(cell => (
-                          <TableCell key={cell.id}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              {/* Pagination */}
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                <Pagination
-                  count={table.getPageCount()}
-                  page={table.getState().pagination.pageIndex + 1}
-                  onChange={(event, page) => table.setPageIndex(page - 1)}
-                  color="primary"
-                  showFirstButton
-                  showLastButton
-                  aria-label="Table pagination"
-                />
-              </Box>
-
-              {/* Expanded Request Cards */}
-              {table.getRowModel().rows.map(row => (
-                <Card key={row.id} sx={{ mt: 2 }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="h6">
-                        {extractRequestTitle(row.original, formConfig)}
-                      </Typography>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleToggleExpand(row.original.id)}
-                        aria-label={`Toggle details for ${extractRequestTitle(row.original, formConfig)}`}
-                      >
-                        {expanded[row.original.id] ? <EditIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
-                      </IconButton>
-                    </Box>
-                    {expanded[row.original.id] && (
-                      <Box sx={{ mt: 2 }}>
-                        {/* Status Progression */}
-                        <Typography variant="h6" sx={{ mb: 2 }}>Status Progression</Typography>
-                        <Stepper activeStep={getStatusSteps().findIndex(step => step.status === row.original.status)} orientation="vertical">
-                          {getStatusSteps().map((step, index) => (
-                            <Step key={step.status}>
-                              <StepLabel
-                                StepIconComponent={() => (
-                                  <Box
-                                    sx={{
-                                      width: 24,
-                                      height: 24,
-                                      borderRadius: '50%',
-                                      backgroundColor: index <= getStatusSteps().findIndex(s => s.status === row.original.status)
-                                        ? getStatusColor(step.status)
-                                        : theme.palette.grey[300],
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      color: 'white',
-                                    }}
-                                  >
-                                    {step.icon}
-                                  </Box>
-                                )}
-                              >
-                                {step.label}
-                              </StepLabel>
-                              <StepContent>
-                                <Typography variant="body2" color="text.secondary">
-                                  {step.description}
-                                </Typography>
-                              </StepContent>
-                            </Step>
-                          ))}
-                        </Stepper>
-
-                        <Divider sx={{ my: 3 }} />
-
-                        {/* Dynamic Request Data */}
-                        <Typography variant="h6" sx={{ mb: 2 }}>Request Details</Typography>
-                        {renderDynamicRequestData(row.original)}
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </Box>
-          </TabPanel>
-
-          {/* Approved Names Tab Panel */}
-          <TabPanel value={tabValue} index={1}>
-            <Box sx={{ p: '1.5rem' }}>
-              {/* Approved Names Content */}
-              <Row className="mb-3">
-                <Col xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    placeholder="Search approved names..."
-                    value={searchNamesFilter}
-                    onChange={(e) => setSearchNamesFilter(e.target.value)}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <SearchIcon />
-                        </InputAdornment>
-                      ),
-                    }}
-                    aria-label="Search approved names"
-                    size="small"
-                    sx={{ mb: { xs: 2, md: 0 } }}
-                  />
-                </Col>
-                <Col xs={12} md={6}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {filteredSearchNamesData.length} of {searchNamesData.length} approved names
-                  </Typography>
-                </Col>
-              </Row>
+                sx={{ width: { xs: '100%', sm: '40%' } }}
+              />
               
-              {requestsLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                  <CircularProgress />
-                </Box>
-              ) : requestsError ? (
-                <Alert severity="error">
-                  <AlertTitle>Error</AlertTitle>
-                  Failed to load approved names. Please try again.
-                </Alert>
-              ) : (
-                <Box>
-                  {filteredSearchNamesData.length === 0 ? (
-                    <Alert severity="info">
-                      No approved names found.
-                    </Alert>
-                  ) : (
-                    <Card>
-                      <TableContainer>
-                        <Table stickyHeader aria-label="approved names table">
-                          <TableHead>
-                            <TableRow>
-                              <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
-                              <TableCell sx={{ fontWeight: 600 }}>Submitter</TableCell>
-                              <TableCell sx={{ fontWeight: 600 }}>Approved Date</TableCell>
-                              <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {filteredSearchNamesData.map(request => (
-                              <TableRow 
-                                key={request.id}
-                                hover
-                                sx={{ 
-                                  '&:last-child td, &:last-child th': { border: 0 },
-                                  cursor: 'pointer',
-                                }}
-                                onClick={() => handleViewRequestDetails(request)}
-                              >
-                                <TableCell>{extractRequestTitle(request, formConfig)}</TableCell>
-                                <TableCell>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Avatar 
-                                      sx={{ 
-                                        width: 24, 
-                                        height: 24, 
-                                        bgcolor: theme.palette.primary.main,
-                                        fontSize: '0.75rem'
-                                      }}
-                                    >
-                                      {extractSubmitterInfo(request)?.charAt(0) || '?'}
-                                    </Avatar>
-                                    <Typography variant="body2">
-                                      {extractSubmitterInfo(request) || 'Unknown'}
-                                    </Typography>
-                                  </Box>
-                                </TableCell>
-                                <TableCell>
-                                  {request.updatedAt ? new Date(request.updatedAt).toLocaleDateString() : 
-                                   (request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'N/A')}
-                                </TableCell>
-                                <TableCell align="right">
-                                  <IconButton 
-                                    size="small" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleViewRequestDetails(request);
-                                    }}
-                                  >
-                                    <VisibilityIcon fontSize="small" />
-                                  </IconButton>
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                      
-                      {/* Pagination Controls */}
-                      {searchNamesData.length > 10 && (
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'center',
-                          p: 2,
-                          borderTop: 1,
-                          borderColor: 'divider',
-                        }}>
-                          <Pagination
-                            count={Math.ceil(searchNamesData.length / 10)}
-                            page={searchNamesPage}
-                            onChange={(event, page) => setSearchNamesPage(page)}
-                            color="primary"
-                            showFirstButton
-                            showLastButton
-                            aria-label="Search names pagination"
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                {/* Status filter */}
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={statusFilter}
+                    onChange={handleStatusFilterChange}
+                    label="Status"
+                  >
+                    <MenuItem value="all">All Statuses</MenuItem>
+                    <MenuItem value="submitted">Submitted</MenuItem>
+                    <MenuItem value="brand_review">Brand Review</MenuItem>
+                    <MenuItem value="legal_review">Legal Review</MenuItem>
+                    <MenuItem value="approved">Approved</MenuItem>
+                    <MenuItem value="rejected">Rejected</MenuItem>
+                    <MenuItem value="on_hold">On Hold</MenuItem>
+                    <MenuItem value="canceled">Canceled</MenuItem>
+                  </Select>
+                </FormControl>
+                
+                {/* Sort options */}
+                <FormControl size="small" sx={{ minWidth: 150 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={sortBy}
+                    onChange={handleSortChange}
+                    label="Sort By"
+                  >
+                    <MenuItem value="date_desc">Newest First</MenuItem>
+                    <MenuItem value="date_asc">Oldest First</MenuItem>
+                    <MenuItem value="name_asc">Name (A-Z)</MenuItem>
+                    <MenuItem value="name_desc">Name (Z-A)</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+            </Box>
+            
+            {requestsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : requestsError ? (
+              <Alert severity="error">
+                <AlertTitle>Error</AlertTitle>
+                Failed to load requests. Please try again.
+              </Alert>
+            ) : filteredRequests.length === 0 ? (
+              <Alert severity="info">
+                <AlertTitle>No Requests</AlertTitle>
+                There are no requests matching your filters.
+              </Alert>
+            ) : (
+              <>
+                {/* Request cards */}
+                {paginatedRequests.map(request => (
+                  <Card key={request.id} sx={{ mb: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box>
+                          <Typography variant="h6">
+                            {request.requestData?.name || 'Unnamed Request'}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            Submitted by: {request.submitter?.name || 'Unknown'} • {new Date(request.createdAt).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Chip
+                            label={getStatusLabel(request.status)}
+                            sx={{
+                              backgroundColor: getStatusColor(request.status),
+                              color: 'white',
+                            }}
+                            size="small"
                           />
+                          <Button 
+                            size="small" 
+                            onClick={() => handleToggleExpand(request.id)}
+                            sx={{ ml: 1 }}
+                          >
+                            View Details
+                          </Button>
+                        </Box>
+                      </Box>
+                      
+                      {expanded[request.id] && (
+                        <Box sx={{ mt: 2 }}>
+                          <Divider sx={{ my: 2 }} />
+                          
+                          {/* Request details */}
+                          <Typography variant="subtitle1" gutterBottom>
+                            Request Details
+                          </Typography>
+                          
+                          <Grid container spacing={2} sx={{ mb: 2 }}>
+                            {Object.entries(request.requestData || {}).map(([key, value]) => (
+                              <React.Fragment key={key}>
+                                <Grid item xs={4} sm={3}>
+                                  <Typography variant="body2" color="textSecondary">
+                                    {key}:
+                                  </Typography>
+                                </Grid>
+                                <Grid item xs={8} sm={9}>
+                                  <Typography variant="body2">
+                                    {typeof value === 'string' ? value : JSON.stringify(value)}
+                                  </Typography>
+                                </Grid>
+                              </React.Fragment>
+                            ))}
+                          </Grid>
+                          
+                          <Divider sx={{ my: 2 }} />
+                          
+                          {/* Admin Actions */}
+                          <Typography variant="subtitle1" gutterBottom>
+                            Admin Actions
+                          </Typography>
+                          
+                          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <Button 
+                              variant="outlined"
+                              size="small"
+                              color="primary"
+                              onClick={() => handleStatusChange(request.id, 'submitted')}
+                            >
+                              Set Submitted
+                            </Button>
+                            <Button 
+                              variant="outlined"
+                              size="small"
+                              color="primary"
+                              onClick={() => handleStatusChange(request.id, 'brand_review')}
+                            >
+                              Set Brand Review
+                            </Button>
+                            <Button 
+                              variant="outlined"
+                              size="small"
+                              color="primary"
+                              onClick={() => handleStatusChange(request.id, 'legal_review')}
+                            >
+                              Set Legal Review
+                            </Button>
+                            <Button 
+                              variant="outlined"
+                              size="small"
+                              color="success"
+                              onClick={() => handleStatusChange(request.id, 'approved')}
+                              startIcon={<CheckIcon />}
+                            >
+                              Approve
+                            </Button>
+                            <Button 
+                              variant="outlined"
+                              size="small"
+                              color="error"
+                              onClick={() => handleStatusChange(request.id, 'rejected')}
+                              startIcon={<CloseIcon />}
+                            >
+                              Reject
+                            </Button>
+                            <Button 
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleStatusChange(request.id, 'on_hold')}
+                              startIcon={<AccessTimeIcon />}
+                            >
+                              Put On Hold
+                            </Button>
+                            <Button 
+                              variant="outlined"
+                              size="small"
+                              color="error"
+                              onClick={() => handleDeleteRequest(request.id)}
+                              startIcon={<DeleteIcon />}
+                            >
+                              Delete Request
+                            </Button>
+                          </Box>
                         </Box>
                       )}
-                    </Card>
+                    </CardContent>
+                  </Card>
+                ))}
+                
+                {/* Pagination */}
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                  <Pagination 
+                    count={pageCount} 
+                    page={page} 
+                    onChange={handleChangePage} 
+                    color="primary" 
+                  />
+                </Box>
+              </>
+            )}
+          </Box>
+        </TabPanel>
+        
+        {/* Form Configuration Tab Panel */}
+        <TabPanel value={activeTab} index={1}>
+          <Box sx={{ p: '1.5rem', px: 0 }}>
+            {formConfigsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : formConfigsError ? (
+              <Alert severity="error">
+                <AlertTitle>Error</AlertTitle>
+                Failed to load form configurations. Please try again.
+              </Alert>
+            ) : (
+              <>
+                <Box sx={{ mb: 4 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Current Form Configurations
+                  </Typography>
+                  
+                  {formConfigs.length === 0 ? (
+                    <Alert severity="info">
+                      <AlertTitle>No Configurations</AlertTitle>
+                      No form configurations found. Create a new one below.
+                    </Alert>
+                  ) : (
+                    <List>
+                      {formConfigs.map((config) => (
+                        <Card 
+                          key={config.id} 
+                          sx={{ 
+                            mb: 2, 
+                            border: '1px solid', 
+                            borderColor: config.active ? 'success.main' : 'divider',
+                            backgroundColor: config.active ? 'rgba(76, 175, 80, 0.08)' : 'inherit'
+                          }}
+                        >
+                          <CardContent>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Box>
+                                <Typography variant="h6">
+                                  {config.name} {config.active && <Chip label="Active" color="success" size="small" />}
+                                </Typography>
+                                <Typography variant="body2" color="textSecondary">
+                                  Created: {new Date(config.createdAt).toLocaleDateString()}
+                                </Typography>
+                                <Typography variant="body2" sx={{ mt: 1 }}>
+                                  {config.description || 'No description provided.'}
+                                </Typography>
+                              </Box>
+                              <Box>
+                                {!config.active && (
+                                  <Button
+                                    variant="outlined"
+                                    color="primary"
+                                    size="small"
+                                    onClick={() => handleActivateFormConfig(config.id)}
+                                    sx={{ mr: 1 }}
+                                  >
+                                    Activate
+                                  </Button>
+                                )}
+                                <Button 
+                                  size="small" 
+                                  onClick={() => handleToggleExpand(config.id)}
+                                >
+                                  View Details
+                                </Button>
+                              </Box>
+                            </Box>
+                            
+                            {expanded[config.id] && (
+                              <Box sx={{ mt: 2 }}>
+                                <Divider sx={{ my: 2 }} />
+                                
+                                <Typography variant="subtitle1" gutterBottom>
+                                  Form Fields ({config.fields?.length || 0})
+                                </Typography>
+                                
+                                <List dense>
+                                  {config.fields?.map((field, index) => (
+                                    <ListItem key={`${field.name}-${index}`}>
+                                      <ListItemText 
+                                        primary={field.label || field.name} 
+                                        secondary={`Type: ${field.type}, Required: ${field.required ? 'Yes' : 'No'}`}
+                                      />
+                                    </ListItem>
+                                  ))}
+                                </List>
+                              </Box>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </List>
                   )}
                 </Box>
-              )}
-            </Box>
-          </TabPanel>
-
-          {/* New Request Tab Panel */}
-          <TabPanel value={tabValue} index={2}>
-            <Box sx={{ p: '1.5rem' }}>
-              {/* New Request Content */}
-              <Typography variant="h6" sx={{ mb: 2 }}>Submit New Request</Typography>
-              {formConfig ? (
-                <DynamicFormRenderer 
-                  formConfig={formConfig} 
-                  onSubmit={handleSubmitRequest}
-                  isSubmitting={isSubmitting}
-                />
-              ) : (
-                <Alert severity="info">Loading form configuration...</Alert>
-              )}
-            </Box>
-          </TabPanel>
-
-          {/* Form Configuration Tab Panel */}
-          <TabPanel value={tabValue} index={3}>
-            <Box sx={{ p: '1.5rem' }}>
-              {/* Form Configuration Content */}
-              <Typography variant="h6" sx={{ mb: 2 }}>Form Configuration</Typography>
-              <FormConfigManager />
-            </Box>
-          </TabPanel>
-        </CardContent>
+                
+                <Divider sx={{ my: 4 }} />
+                
+                <Box>
+                  <Typography variant="h6" gutterBottom>
+                    Create/Edit Form Configuration
+                  </Typography>
+                  <FormConfigManager />
+                </Box>
+              </>
+            )}
+          </Box>
+        </TabPanel>
+        
+        {/* New Request Tab Panel */}
+        <TabPanel value={activeTab} index={2}>
+          <Box sx={{ p: '1.5rem', px: 0 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Submit New Request
+            </Typography>
+            {submitSuccess && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Request submitted successfully!
+              </Alert>
+            )}
+            {submitError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {submitError}
+              </Alert>
+            )}
+            {activeFormConfigLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : activeFormConfigError ? (
+              <Alert severity="error">
+                Failed to load form configuration. Please try again later.
+              </Alert>
+            ) : !activeFormConfig ? (
+              <Alert severity="warning">
+                <AlertTitle>No Active Form Configuration</AlertTitle>
+                Please activate a form configuration in the Form Configuration tab.
+              </Alert>
+            ) : (
+              <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: '1.5rem',
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                    borderRadius: (theme) => `${theme.shape.borderRadius}px`,
+                  }}
+                >
+                  <DynamicFormRenderer
+                    formConfig={activeFormConfig}
+                    control={control}
+                    errors={errors}
+                    watch={watch}
+                    setValue={reset}
+                    role="admin"
+                  />
+                  <Box sx={{ mt: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      color="primary"
+                      disabled={submitting}
+                      startIcon={submitting ? <CircularProgress size={20} /> : <SendIcon />}
+                      size="large"
+                    >
+                      {submitting ? 'Submitting...' : 'Submit Request'}
+                    </Button>
+                  </Box>
+                </Paper>
+              </Box>
+            )}
+          </Box>
+        </TabPanel>
       </Paper>
-    </Container>
+    </div>
   );
-});
-
-ProfessionalAdminDashboard.displayName = 'ProfessionalAdminDashboard';
+};
 
 export default ProfessionalAdminDashboard;

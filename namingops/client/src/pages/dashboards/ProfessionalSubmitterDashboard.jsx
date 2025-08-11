@@ -1,178 +1,228 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { useTheme } from '@mui/material/styles';
-import { format, parseISO } from 'date-fns';
-import { Container, Row, Col } from 'react-bootstrap';
-import { 
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Divider,
-  Chip,
-  TextField,
-  InputAdornment,
-  Tabs,
-  Tab,
-  Alert,
-  Skeleton,
-  useMediaQuery,
-  alpha,
-  Paper,
-  CircularProgress,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Collapse,
-  Stepper,
-  Step,
-  StepLabel,
-  StepContent,
-  Grid,
-} from '@mui/material';
-
-// Icons
+import React, { useState, useEffect } from 'react';
 import {
-  Assignment as AssignmentIcon,
-  Business as BusinessIcon,
-  Gavel as GavelIcon,
-  CheckCircle as CheckCircleIcon,
-  Search as SearchIcon,
+  Box, Typography, Paper, Button, Tabs, Tab, Alert, CircularProgress,
+  Card, CardContent, Chip, Divider, Grid, styled, StepConnector
+} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import {
   Add as AddIcon,
-  Support as SupportIcon,
-  Archive as ArchiveIcon,
   Send as SendIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
+  Search as SearchIcon, 
+  Description as DescriptionIcon,
   Cancel as CancelIcon,
-  PauseCircle as PauseCircleIcon,
+  Pause as PauseIcon,
+  MenuBook as MenuBookIcon
 } from '@mui/icons-material';
-import { showSnackbar } from '../../features/ui/uiSlice';
-import RequestDetailsModal from '../../components/Requests/RequestDetailsModal';
-import DynamicFormRenderer from '../../components/DynamicForm/DynamicFormRenderer';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'react-hot-toast';
-import { z } from 'zod';
-import api from '../../services/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import api from '../../services/api';
+import DynamicFormRenderer from '../../components/DynamicForm/DynamicFormRenderer';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Container } from 'react-bootstrap';
+import { getStatusColor } from '../../theme/newColorPalette';
+import StatusProgressionStepper from '../../components/StatusProgression/StatusProgressionStepper';
+import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
 
-import { styled } from '@mui/system';
+// Helper function to get status label
+const getStatusLabel = (status) => {
+  const statusLabels = {
+    'submitted': 'Submitted',
+    'brand_review': 'Brand Review',
+    'legal_review': 'Legal Review',
+    'approved': 'Approved',
+    'rejected': 'Rejected',
+    'on_hold': 'On Hold',
+    'canceled': 'Canceled'
+  };
+  return statusLabels[status] || 'Unknown';
+};
 
-// Custom styled button component to ensure theme colors are applied
-const StyledButton = styled(Button)(({ theme }) => ({
-  '&.MuiButton-containedPrimary': {
-    backgroundColor: theme.palette.primary.main + ' !important',
-    color: theme.palette.primary.contrastText + ' !important',
-    '&:hover': {
-      backgroundColor: theme.palette.primary.dark + ' !important',
-    }
+// Helper function to get review progress percentage
+// This function is retained for future use
+// eslint-disable-next-line no-unused-vars
+const getReviewProgress = (status) => {
+  const statusMap = {
+    'submitted': 25,
+    'brand_review': 50,
+    'legal_review': 75,
+    'approved': 100,
+    'rejected': 100,
+    'on_hold': 50,
+    'canceled': 0
+  };
+  return statusMap[status] || 0;
+};
+
+// Helper function to get stepper active step
+// This function is retained for future use
+// eslint-disable-next-line no-unused-vars
+const getStepperActiveStep = (status) => {
+  const statusSteps = {
+    'submitted': 0,
+    'brand_review': 1,
+    'legal_review': 2,
+    'approved': 3,
+    'rejected': 1, // Shows as started but not completed the process
+    'on_hold': 1,  // Shows as started but not completed the process
+    'canceled': 0  // Reset to beginning
+  };
+  return statusSteps[status] || 0;
+};
+
+// TabPanel component for accessibility
+const TabPanel = (props) => {
+  const { children, value, index, ...other } = props;
+  
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`tabpanel-${index}`}
+      aria-labelledby={`tab-${index}`}
+      {...other}
+    >
+      {value === index && children}
+    </div>
+  );
+};
+
+// Custom styled step connector with color
+const ColoredStepConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.MuiStepConnector-alternativeLabel`]: {
+    top: 10,
   },
-  '&.MuiButton-outlinedPrimary': {
-    borderColor: theme.palette.primary.main + ' !important',
-    color: theme.palette.primary.main + ' !important',
-    '&:hover': {
-      backgroundColor: theme.palette.primary.main + '11 !important',
-    }
+  [`&.MuiStepConnector-active`]: {
+    [`& .MuiStepConnector-line`]: {
+      borderColor: theme.palette.primary.main,
+    },
   },
-  '&.MuiButton-textPrimary': {
-    color: theme.palette.primary.main + ' !important',
-  }
+  [`&.MuiStepConnector-completed`]: {
+    [`& .MuiStepConnector-line`]: {
+      borderColor: theme.palette.success.main,
+    },
+  },
+  [`& .MuiStepConnector-line`]: {
+    borderColor: theme.palette.mode === 'dark' ? alpha('#ffffff', 0.2) : alpha('#000000', 0.1),
+    borderTopWidth: 3,
+    borderRadius: 1,
+  },
 }));
 
-const ProfessionalSubmitterDashboard = React.memo(() => {
-  const theme = useTheme();
+const ProfessionalSubmitterDashboard = () => {
   const queryClient = useQueryClient();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
-  // Tab state (replacing modal state)
-  const [activeTab, setActiveTab] = useState(0);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState(null);
+  const [tabValue, setTabValue] = useState(0);
+  const [expanded, setExpanded] = useState({});
   
-  // State for expanded request card (replaces modal)
-  const [expandedRequestId, setExpandedRequestId] = useState(null);
-  
-  // Form submission states
-  const [submitting, setSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [submitError, setSubmitError] = useState(null);
-
-  // Search Names tab state
-  const [searchNamesFilter, setSearchNamesFilter] = useState('');
-  const [searchNamesPage, setSearchNamesPage] = useState(1);
-
-  // Form handling with React Hook Form
-  const { handleSubmit, control, reset, formState: { errors }, watch } = useForm({
-    resolver: zodResolver(z.object({})), // Will be dynamically updated based on form config
-    mode: 'onChange',
-  });
-
-  const [activeFormConfig, setActiveFormConfig] = useState(null);
-
-  // React Query for fetching user requests with real-time updates
-  const { 
-    data: userRequests = [], 
-    isLoading: requestsLoading, 
-    error: requestsError,
-    refetch: refetchRequests 
-  } = useQuery({
-    queryKey: ['userRequests'],
+  // Get my requests
+  const { data: myRequests = [], isLoading: requestsLoading, error: requestsError } = useQuery({
+    queryKey: ['myRequests'],
     queryFn: async () => {
-      const response = await api.get('/api/v1/name-requests/my-requests');
-      // Server returns data directly, ensure it's an array
-      const data = response.data;
-      return Array.isArray(data) ? data : [];
-    },
-    staleTime: 30000,
-    cacheTime: 300000,
-    retry: 2,
-    onSuccess: (data) => {
-      // Auto-expand the first request if there is one and none is currently expanded
-      if (data?.length > 0 && !expandedRequestId) {
-        setExpandedRequestId(data[0].id);
+      try {
+        const response = await api.get('/api/v1/name-requests/my-requests');
+        console.log('My requests data:', response.data);
+        // Transform data to ensure each request has an id property (MongoDB uses _id)
+        const transformedData = Array.isArray(response.data) 
+          ? response.data.map(request => ({
+              ...request,
+              id: request.id || request._id, // Use existing id or fallback to _id
+            }))
+          : [];
+        console.log('Transformed requests with ids:', transformedData);
+        return transformedData;
+      } catch (error) {
+        console.error('Error fetching my requests:', error);
+        throw error;
       }
-    }
-  });
-
-  // React Query for fetching form configuration
-  const { 
-    data: formConfig, 
-    isLoading: formConfigLoading,
-    error: formConfigError
-  } = useQuery({
-    queryKey: ['formConfig'],
-    queryFn: async () => {
-      const response = await api.get('/api/v1/form-configurations/active');
-      // Server returns data directly, handle both nested and direct structure
-      const data = response.data;
-      return data?.data || data || {};
     },
     staleTime: 300000,
     cacheTime: 600000,
-    onSuccess: (data) => {
-      setActiveFormConfig(data);
-      
-      // Dynamically create Zod schema based on form configuration
-      if (data && data.fields) {
-        const schemaObject = {};
-        data.fields.forEach(field => {
-          if (field.required) {
-            schemaObject[field.name] = z.any().nonempty(`${field.label || field.name} is required`);
-          } else {
-            schemaObject[field.name] = z.any().optional();
-          }
-        });
-        
-        // Update the form's resolver with the new schema
-        reset({}, { resolver: zodResolver(z.object(schemaObject)) });
-      }
-    },
   });
 
-  // React Query mutation for submitting a new request
+  // Get form configuration for the new request form
+  const { data: formConfig, isLoading: formConfigLoading, error: formConfigError } = useQuery({
+    queryKey: ['formConfig'],
+    queryFn: async () => {
+      try {
+        const response = await api.get('/api/v1/form-configurations/active');
+        console.log('Form config API response:', response);
+        const data = response.data;
+        console.log('Form config data structure:', data);
+        return data;
+      } catch (error) {
+        console.error('Error fetching form configuration:', error);
+        throw error;
+      }
+    },
+    staleTime: 300000,
+    cacheTime: 600000,
+  });
+
+  // Cancel request mutation
+  const cancelRequestMutation = useMutation({
+    mutationFn: async (requestId) => {
+      if (!requestId) throw new Error("Request ID is undefined");
+      // Use the correct API endpoint pattern with /api/v1/ prefix
+      const response = await api.put(`/api/v1/name-requests/${requestId}/status`, { 
+        status: 'canceled',
+        comment: 'Request canceled by user'
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['myRequests']);
+    },
+    onError: (error) => {
+      console.error(`Error canceling request: ${error.message}`);
+      alert(`Failed to cancel request: ${error.message}`);
+    }
+  });
+
+  // Hold request mutation
+  const holdRequestMutation = useMutation({
+    mutationFn: async (requestId) => {
+      if (!requestId) throw new Error("Request ID is undefined");
+      // Use PUT with status update instead of PATCH to non-existent /hold endpoint
+      const response = await api.put(`/api/v1/name-requests/${requestId}/status`, { 
+        status: 'on_hold',
+        comment: 'Request placed on hold by user'
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['myRequests']);
+    },
+    onError: (error) => {
+      console.error(`Error putting request on hold: ${error.message}`);
+      alert(`Failed to put request on hold: ${error.message}`);
+    }
+  });
+
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { handleSubmit, control, reset, formState: { errors } } = useForm({
+    resolver: zodResolver(z.object({})),
+    mode: 'onChange',
+  });
+
+  useEffect(() => {
+    if (formConfig && formConfig.fields) {
+      const schemaObject = {};
+      formConfig.fields.forEach(field => {
+        if (field.required) {
+          schemaObject[field.name] = z.any().nonempty(`${field.label || field.name} is required`);
+        } else {
+          schemaObject[field.name] = z.any().optional();
+        }
+      });
+      reset({}, { resolver: zodResolver(z.object(schemaObject)) });
+    }
+  }, [formConfig, reset]);
+
+  // Submit new request mutation
   const submitRequestMutation = useMutation({
     mutationFn: async (formData) => {
       setSubmitting(true);
@@ -186,879 +236,367 @@ const ProfessionalSubmitterDashboard = React.memo(() => {
       }
     },
     onSuccess: () => {
-      // Reset form and show success message
       reset();
       setSubmitSuccess(true);
-      toast.success('Request submitted successfully!');
-      
-      // Invalidate and refetch requests to show the new one
-      queryClient.invalidateQueries(['userRequests']);
-      
-      // Clear success message after 5 seconds if user doesn't navigate away
-      setTimeout(() => {
-        setSubmitSuccess(false);
-      }, 5000);
+      setSubmitError(null);
+      queryClient.invalidateQueries(['myRequests']);
+      setTimeout(() => setSubmitSuccess(false), 5000);
     },
     onError: (error) => {
       setSubmitError(error.message || 'Something went wrong. Please try again.');
-      toast.error('Failed to submit request');
     }
   });
 
-  // Form submission handler
   const onSubmit = (data) => {
     submitRequestMutation.mutate(data);
   };
 
-  // Fetch all approved requests for Search Names tab
-  const { data: approvedRequests = [], isLoading: approvedRequestsLoading } = useQuery({
-    queryKey: ['approved-requests'],
-    queryFn: async () => {
-      try {
-        const response = await api.get('/api/v1/name-requests');
-        console.log('Approved requests response:', response.data);
-        // Filter for approved requests only
-        return response.data.filter(request => request.status === 'approved');
-      } catch (error) {
-        console.error('Error fetching approved requests:', error);
-        throw error;
-      }
-    },
-    staleTime: 300000, // 5 minutes
-    cacheTime: 600000, // 10 minutes
-  });
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
 
-  // Search Names data sorted by most recent approval
-  const searchNamesData = useMemo(() => {
-    return [...approvedRequests].sort((a, b) => {
-      const dateA = new Date(a.updatedAt || a.createdAt);
-      const dateB = new Date(b.updatedAt || b.createdAt);
-      return dateB - dateA; // Most recent first
-    });
-  }, [approvedRequests]);
+  const handleToggleExpand = (id) => {
+    setExpanded(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
 
-  // Filtered search names data
-  const filteredSearchNamesData = useMemo(() => {
-    let data = searchNamesData;
-    
-    // Apply search filter
-    if (searchNamesFilter) {
-      data = data.filter(request => {
-        // Extract title from form data based on form configuration
-        const title = request.name || request.title || request.productName || 
-                     (request.formData && (request.formData.name || request.formData.title || request.formData.productName));
-        
-        if (!title) return false;
-        
-        return title.toLowerCase().includes(searchNamesFilter.toLowerCase());
-      });
+  const handleCancelRequest = (requestId) => {
+    if (!requestId) {
+      console.error("Cannot cancel request: Request ID is undefined");
+      return;
     }
     
-    return data.slice((searchNamesPage - 1) * 10, searchNamesPage * 10);
-  }, [searchNamesData, searchNamesFilter, searchNamesPage]);
-
-  // Performance optimization: Memoized filtered requests
-  const filteredRequests = useMemo(() => {
-    if (!userRequests) return [];
-    
-    return userRequests.filter(request => {
-      if (!searchQuery) return true;
-      
-      const searchLower = searchQuery.toLowerCase();
-      return (
-        (request.requestType || '').toLowerCase().includes(searchLower) ||
-        (request.status || '').toLowerCase().includes(searchLower) ||
-        (request.formData && Object.values(request.formData).some(value => 
-          String(value).toLowerCase().includes(searchLower)
-        ))
-      );
-    });
-  }, [userRequests, searchQuery]);
-
-  // Performance optimization: Memoized status steps
-  const statusSteps = useMemo(() => [
-    {
-      label: 'Submitted',
-      description: 'Request submitted for review',
-      icon: <AssignmentIcon />,
-      status: 'submitted'
-    },
-    {
-      label: 'Brand Review',
-      description: 'Under brand team review',
-      icon: <BusinessIcon />,
-      status: 'brand_review'
-    },
-    {
-      label: 'Legal Review',
-      description: 'Legal compliance check',
-      icon: <GavelIcon />,
-      status: 'legal_review'
-    },
-    {
-      label: 'Approved',
-      description: 'Request approved and ready',
-      icon: <CheckCircleIcon />,
-      status: 'approved'
-    }
-  ], []);
-
-  // Performance optimization: Memoized helper functions
-  const getActiveStep = useCallback((status) => {
-    const statusMap = {
-      'draft': -1,
-      'submitted': 0,
-      'under_review': 0,
-      'brand_review': 1,
-      'legal_review': 2,
-      'approved': 3,
-      'on_hold': -1,
-      'cancelled': -1
-    };
-    return statusMap[status] || 0;
-  }, []);
-
-  const getStatusColor = useCallback((status) => {
-    const colorMap = {
-      'draft': theme.palette.grey[500],
-      'submitted': theme.palette.info.main,
-      'under_review': theme.palette.warning.main,
-      'brand_review': theme.palette.warning.main,
-      'legal_review': theme.palette.warning.main,
-      'approved': theme.palette.success.main,
-      'on_hold': theme.palette.warning.main,
-      'cancelled': theme.palette.error.main
-    };
-    return colorMap[status] || theme.palette.grey[500];
-  }, [theme.palette]);
-
-  // Accessibility: Keyboard event handlers
-  const handleKeyDown = useCallback((event, action, ...args) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      action(...args);
-    }
-  }, []);
-
-  // Performance optimization: Memoized mutation handlers
-  const holdRequestMutation = useMutation({
-    mutationFn: async (requestId) => {
-      const response = await api.patch(`/api/name-requests/${requestId}/hold`);
-      return response.data;
-    },
-    onMutate: async (requestId) => {
-      await queryClient.cancelQueries(['userRequests']);
-      const previousRequests = queryClient.getQueryData(['userRequests']);
-      
-      queryClient.setQueryData(['userRequests'], (old = []) =>
-        old.map(request =>
-          request.id === requestId
-            ? { ...request, status: 'on_hold', updatedAt: new Date().toISOString() }
-            : request
-        )
-      );
-      
-      return { previousRequests };
-    },
-    onError: (err, requestId, context) => {
-      queryClient.setQueryData(['userRequests'], context.previousRequests);
-      toast.error('Failed to hold request. Please try again.');
-    },
-    onSuccess: () => {
-      toast.success('Request put on hold successfully!');
-      queryClient.invalidateQueries(['userRequests']);
-    },
-  });
-
-  const cancelRequestMutation = useMutation({
-    mutationFn: async (requestId) => {
-      const response = await api.patch(`/api/name-requests/${requestId}/cancel`);
-      return response.data;
-    },
-    onMutate: async (requestId) => {
-      await queryClient.cancelQueries(['userRequests']);
-      const previousRequests = queryClient.getQueryData(['userRequests']);
-      
-      queryClient.setQueryData(['userRequests'], (old = []) =>
-        old.map(request =>
-          request.id === requestId
-            ? { ...request, status: 'cancelled', updatedAt: new Date().toISOString() }
-            : request
-        )
-      );
-      
-      return { previousRequests };
-    },
-    onError: (err, requestId, context) => {
-      queryClient.setQueryData(['userRequests'], context.previousRequests);
-      toast.error('Failed to cancel request. Please try again.');
-    },
-    onSuccess: () => {
-      toast.success('Request cancelled successfully!');
-      queryClient.invalidateQueries(['userRequests']);
-    },
-  });
-
-  const handleHoldRequest = useCallback((requestId) => {
-    holdRequestMutation.mutate(requestId);
-  }, [holdRequestMutation]);
-
-  const handleCancelRequest = useCallback((requestId) => {
-    if (window.confirm('Are you sure you want to cancel this request? This action cannot be undone.')) {
+    if (window.confirm('Are you sure you want to cancel this request?')) {
       cancelRequestMutation.mutate(requestId);
     }
-  }, [cancelRequestMutation]);
+  };
 
-  const handleViewRequest = useCallback((requestId) => {
-    setSelectedRequestId(requestId);
-    setDetailsModalOpen(true);
-  }, []);
-
-  const handleCloseDetailsModal = useCallback(() => {
-    setDetailsModalOpen(false);
-    setSelectedRequestId(null);
-  }, []);
-
-  // Toggle expansion for a request card
-  const handleToggleExpand = useCallback((requestId) => {
-    setExpandedRequestId(prevId => prevId === requestId ? null : requestId);
-  }, []);
-
-  const handleTabChange = useCallback((event, newValue) => {
-    setActiveTab(newValue);
-  }, []);
-
-  const handleOpenRequestDetails = useCallback((requestId) => {
-    // Instead of opening modal, expand the card
-    handleToggleExpand(requestId);
-  }, [handleToggleExpand]);
-
-  const renderErrorPlaceholder = useCallback((errorMessage) => (
-    <Alert severity="error" sx={{ mt: '1.5rem' }}>
-      {errorMessage || 'Something went wrong. Please try again later.'}
-    </Alert>
-  ), []);
-
-  const renderLoadingSkeleton = useCallback(() => (
-    <Box sx={{ p: '1.5rem' }}>
-      {[1, 2, 3].map((item) => (
-        <Skeleton key={item} variant="rectangular" height={80} sx={{ mb: '1.5rem' }} />
-      ))}
-    </Box>
-  ), []);
-
-  // Helper function to render field values in a user-friendly format
-  const renderFieldValue = (value) => {
-    if (value === null || value === undefined) {
-      return '-';
+  const handleHoldRequest = (requestId) => {
+    if (!requestId) {
+      console.error("Cannot put request on hold: Request ID is undefined");
+      return;
     }
     
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
+    if (window.confirm('Are you sure you want to put this request on hold?')) {
+      holdRequestMutation.mutate(requestId);
     }
-    
-    if (typeof value === 'object') {
-      if (Array.isArray(value)) {
-        // Handle arrays
-        return (
-          <Box sx={{ ml: 1 }}>
-            {value.map((item, index) => (
-              <Box key={index} sx={{ mb: 0.5 }}>
-                • {typeof item === 'object' ? renderFieldValue(item) : String(item)}
-              </Box>
-            ))}
-          </Box>
-        );
-      } else {
-        // Handle objects
-        return (
-          <Box sx={{ ml: 1 }}>
-            {Object.entries(value).map(([key, val]) => (
-              <Box key={key} sx={{ mb: 0.5 }}>
-                <Typography component="span" variant="body2" sx={{ fontWeight: 'medium' }}>
-                  {key}:
-                </Typography>{' '}
-                {typeof val === 'object' ? renderFieldValue(val) : String(val)}
-              </Box>
-            ))}
-          </Box>
-        );
-      }
-    }
-    
-    // Default case: convert to string
-    return String(value);
   };
 
   return (
-    <Container fluid className="dashboard-container">
-      <Paper
-        elevation={0}
+    <ResponsiveContainer fluid className="px-5">
+      <Paper 
+        elevation={2}
         sx={{
-          borderRadius: (theme) => theme.shape.borderRadius,
-          boxShadow: (theme) => theme.palette.mode === 'dark'
-            ? '0 2px 8px rgba(0,0,0,0.3)'
-            : '0 2px 8px rgba(0,0,0,0.1)',
-          mb: '1.5rem',
+          mt: '2rem',
+          mb: '2rem',
+          p: 0,
+          borderRadius: '0.75rem',
           overflow: 'hidden',
+          boxSizing: 'border-box',
         }}
       >
-        {/* Tab Navigation */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 0 }}>
           <Tabs
-            value={activeTab}
-            onChange={(e, newValue) => setActiveTab(newValue)}
-            aria-label="submitter dashboard tabs"
-            variant={isMobile ? "scrollable" : "standard"}
-            scrollButtons={isMobile ? "auto" : false}
-            sx={{ 
-              '& .MuiTab-root': { 
-                fontSize: '0.875rem',
-                textTransform: 'none',
-                minWidth: 'auto',
-                px: '1rem',
-              } 
-            }}
+            value={tabValue}
+            onChange={handleTabChange}
+            aria-label="associate dashboard tabs"
+            sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
             <Tab 
-              label="My Requests" 
+              icon={<DescriptionIcon />} 
+              iconPosition="start" 
+              label="Name Requests" 
               id="tab-0"
-              aria-controls="tabpanel-0"
-              icon={<AssignmentIcon />}
-              iconPosition="start"
+              aria-controls="tabpanel-0" 
             />
             <Tab 
+              icon={<AddIcon />} 
+              iconPosition="start" 
               label="New Request" 
-              id="tab-1"
-              aria-controls="tabpanel-1"
-              icon={<AddIcon />}
-              iconPosition="start"
+              id="tab-1" 
+              aria-controls="tabpanel-1" 
             />
             <Tab 
+              icon={<SearchIcon />} 
+              iconPosition="start" 
               label="Search Names" 
               id="tab-2"
-              aria-controls="tabpanel-2"
-              icon={<SearchIcon />}
-              iconPosition="start"
+              aria-controls="tabpanel-2" 
             />
             <Tab 
+              icon={<MenuBookIcon />} 
+              iconPosition="start" 
               label="Guidelines" 
               id="tab-3"
-              aria-controls="tabpanel-3"
-              icon={<SupportIcon />}
-              iconPosition="start"
+              aria-controls="tabpanel-3" 
             />
           </Tabs>
         </Box>
         
         {/* My Requests Tab Panel */}
-        <TabPanel value={activeTab} index={0}>
-          <Box sx={{ p: '1.5rem' }}>
-            <Box sx={{ mb: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-              <TextField
-                placeholder="Search requests..."
-                size="small"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ width: { xs: '100%', sm: '250px' } }}
-              />
-            </Box>
-            
-            {requestsError && renderErrorPlaceholder(requestsError.message)}
-            
+        <TabPanel value={tabValue} index={0}>
+          <Box sx={{ pt: '1.5rem', px: 0 }}>
             {requestsLoading ? (
-              renderLoadingSkeleton()
-            ) : filteredRequests.length === 0 ? (
-              <Alert severity="info" sx={{ mt: '1rem' }}>
-                No requests found.
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: '2rem' }}>
+                <CircularProgress />
+              </Box>
+            ) : requestsError ? (
+              <Alert severity="error" sx={{ mb: '1.5rem' }}>
+                Failed to load your requests. Please try again.
+              </Alert>
+            ) : myRequests.length === 0 ? (
+              <Alert severity="info" sx={{ mb: '1.5rem' }}>
+                You haven&apos;t submitted any name requests yet. Use the &quot;New Request&quot; tab to create one.
               </Alert>
             ) : (
-              <Box>
-                {filteredRequests.map((request) => (
-                  <Card 
-                    key={request.id} 
-                    sx={{ 
-                      mb: '1rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      '&:hover': { transform: 'translateY(-2px)', boxShadow: 3 }
-                    }}
-                    onClick={() => handleToggleExpand(request.id)}
-                  >
-                    <CardContent 
+              <>
+                {/* Request cards */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', mb: '2rem' }}>
+                  {myRequests.map(request => (
+                    <Card 
+                      key={request.id} 
                       sx={{ 
-                        p: '1rem',
-                        '&:last-child': { pb: '1rem' }
+                        borderLeft: `4px solid ${getStatusColor(request.status || 'submitted')}`,
+                        borderRadius: '0.5rem',
+                        boxShadow: 2
                       }}
                     >
-                      {/* Status Stepper - Now visible without expansion */}
-                      <Box sx={{ mb: 2 }}>
-                        <Stepper activeStep={getActiveStep(request.status)} alternativeLabel>
-                          {statusSteps.map((step) => (
-                            <Step key={step.label} completed={getActiveStep(request.status) >= statusSteps.indexOf(step)}>
-                              <StepLabel 
-                                StepIconProps={{ 
-                                  sx: { 
-                                    color: getActiveStep(request.status) >= statusSteps.indexOf(step) ? getStatusColor(request.status) : undefined 
-                                  } 
-                                }}
-                              >
-                                {step.label}
-                              </StepLabel>
-                            </Step>
-                          ))}
-                        </Stepper>
-                      </Box>
-                      
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center'
-                      }}>
-                        <Box>
-                          <Typography variant="h6" component="div">
-                            {request.formData?.productName || request.formData?.name || request.formData?.title || 'Unnamed Request'}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {new Date(request.createdAt).toLocaleDateString()} • {request.status.replace('_', ' ')}
-                          </Typography>
-                        </Box>
-                        <Chip 
-                          label={request.status.replace('_', ' ').toUpperCase()}
-                          size="small"
-                          sx={{
-                            backgroundColor: getStatusColor(request.status),
-                            color: theme.palette.getContrastText(getStatusColor(request.status)),
-                            fontWeight: 600,
-                            ml: 1
-                          }}
-                        />
-                      </Box>
-                      
-                      {/* Action buttons - Now visible without expansion */}
-                      {(request.status === 'submitted' || request.status === 'brand_review' || request.status === 'legal_review') && (
-                        <Box sx={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', mt: 2 }}>
-                          <Button 
-                            variant="outlined"
-                            color="warning"
-                            size="small"
-                            startIcon={<PauseCircleIcon />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleHoldRequest(request.id);
-                            }}
-                          >
-                            Put on Hold
-                          </Button>
-                          <Button 
-                            variant="outlined"
-                            color="error"
-                            size="small"
-                            startIcon={<CancelIcon />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCancelRequest(request.id);
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </Box>
-                      )}
-                      
-                      {/* Show More/Less button */}
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                        <Button
-                          variant="text"
+                      <CardContent>
+                        <Box 
                           onClick={() => handleToggleExpand(request.id)}
-                          endIcon={expandedRequestId === request.id ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                          sx={{ 
+                            cursor: 'pointer', 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'flex-start'
+                          }}
                         >
-                          {expandedRequestId === request.id ? 'Show Less' : 'Show More'}
-                        </Button>
-                      </Box>
-                      
-                      <Collapse in={expandedRequestId === request.id} timeout="auto" unmountOnExit>
-                        <Box sx={{ mt: '1.5rem' }}>
-                          <Divider sx={{ mb: '1.5rem' }} />
-                          
-                          {/* Request details */}
-                          <Box sx={{ mb: '1.5rem' }}>
-                            <Typography variant="subtitle1" gutterBottom>
-                              Request Details
+                          <Box sx={{ width: '100%' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: '0.75rem' }}>
+                              <Typography variant="h6" sx={{ fontWeight: 'medium' }}>
+                                {request.title || request.requestData?.name || 'Name Request'}
+                              </Typography>
+                              
+                              {/* Status tag in upper right corner */}
+                              <Chip
+                                label={getStatusLabel(request.status)}
+                                sx={{
+                                  backgroundColor: getStatusColor(request.status),
+                                  color: 'white',
+                                  fontSize: '0.75rem',
+                                  height: '1.5rem',
+                                  fontWeight: 'medium'
+                                }}
+                                size="small"
+                              />
+                            </Box>
+                            
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: '1rem' }}>
+                              Submitted: {new Date(request.createdAt).toLocaleDateString()}
                             </Typography>
-                            <Grid container spacing={2}>
-                              {formConfig && formConfig.fields && formConfig.fields.map((field) => {
-                                const value = request.formData?.[field.name];
-                                if (!value) return null;
-                                
-                                return (
-                                  <Grid item xs={12} sm={6} key={field.name}>
-                                    <Typography variant="subtitle2" color="text.secondary">
-                                      {field.label || field.name}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                      {renderFieldValue(value)}
-                                    </Typography>
-                                  </Grid>
-                                );
-                              })}
-                            </Grid>
-                          </Box>
-                          
-                          {/* Status History */}
-                          <Box sx={{ mb: '1.5rem' }}>
-                            <Typography variant="subtitle1" gutterBottom>
-                              Status History
-                            </Typography>
-                            <Box sx={{ ml: 2 }}>
-                              {request.statusHistory && request.statusHistory.length > 0 ? (
-                                request.statusHistory.map((statusChange, index) => (
-                                  <Box key={index} sx={{ mb: 1 }}>
-                                    <Typography variant="body2">
-                                      <strong>{statusChange.status.replace('_', ' ')}</strong> - {new Date(statusChange.timestamp).toLocaleString()}
-                                    </Typography>
-                                    {statusChange.comments && (
-                                      <Typography variant="body2" color="text.secondary">
-                                        Comment: {statusChange.comments}
-                                      </Typography>
-                                    )}
-                                  </Box>
-                                ))
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  No status history available
-                                </Typography>
+                            
+                            {/* Status Progression Stepper with colored connector */}
+                            <Box sx={{ mb: '1rem' }}>
+                              <StatusProgressionStepper
+                                status={request.status}
+                                orientation="horizontal"
+                                compact={true}
+                                showTimestamps={false}
+                                connectorComponent={ColoredStepConnector}
+                                timestamps={{
+                                  submitted: request.createdAt,
+                                  brand_review: request.updatedAt,
+                                  legal_review: request.updatedAt,
+                                  approved: request.updatedAt
+                                }}
+                              />
+                            </Box>
+
+                            {/* Action buttons - always visible */}
+                            <Box sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'flex-end', 
+                              gap: '0.75rem',
+                              mt: '1rem'
+                            }}>
+                              {request.status !== 'approved' && request.status !== 'rejected' && request.status !== 'canceled' && (
+                                <>
+                                  {request.status !== 'on_hold' && (
+                                    <Button
+                                      startIcon={<PauseIcon />}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleHoldRequest(request.id);
+                                      }}
+                                      color="warning"
+                                      variant="outlined"
+                                      size="small"
+                                    >
+                                      Hold
+                                    </Button>
+                                  )}
+                                  <Button
+                                    startIcon={<CancelIcon />}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCancelRequest(request.id);
+                                    }}
+                                    color="error"
+                                    variant="outlined"
+                                    size="small"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
                               )}
                             </Box>
                           </Box>
                         </Box>
-                      </Collapse>
-                    </CardContent>
-                  </Card>
-                ))}
-              </Box>
+
+                        {/* Expanded content */}
+                        {expanded[request.id] && (
+                          <Box sx={{ mt: '1rem' }}>
+                            <Divider sx={{ my: '1rem' }} />
+                            <Typography variant="subtitle2" sx={{ mb: '0.5rem', fontWeight: 'bold' }}>
+                              Request Details
+                            </Typography>
+                            {request.requestData && Object.keys(request.requestData).length > 0 ? (
+                              <Grid container spacing={2}>
+                                {Object.entries(request.requestData).map(([key, value]) => (
+                                  <Grid item xs={12} sm={6} key={key}>
+                                    <Typography variant="body2" color="textSecondary" component="span">
+                                      {key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}:
+                                    </Typography>
+                                    <Typography variant="body2" component="span" sx={{ ml: 1 }}>
+                                      {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                    </Typography>
+                                  </Grid>
+                                ))}
+                              </Grid>
+                            ) : (
+                              <Typography variant="body2" color="textSecondary">
+                                No additional details available.
+                              </Typography>
+                            )}
+                            
+                            <Typography variant="subtitle2" sx={{ mt: '1.5rem', mb: '0.5rem', fontWeight: 'bold' }}>
+                              Status History
+                            </Typography>
+                            <Typography variant="body2">
+                              {request.statusHistory && request.statusHistory.length > 0 ? (
+                                <ul style={{ paddingLeft: '1.5rem', margin: 0 }}>
+                                  {request.statusHistory.map((history, index) => (
+                                    <li key={index}>
+                                      <Typography variant="body2">
+                                        {new Date(history.timestamp).toLocaleString()}: Changed to {getStatusLabel(history.status)}
+                                      </Typography>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <Typography variant="body2" color="textSecondary">
+                                  No status history available.
+                                </Typography>
+                              )}
+                            </Typography>
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </Box>
+              </>
             )}
           </Box>
         </TabPanel>
         
-        {/* New Request Tab Panel with Dynamic Form */}
-        <TabPanel value={activeTab} index={1}>
-          <Box sx={{ p: '1.5rem' }}>
-            <Typography variant="h6" component="h2" gutterBottom>
-              Submit a New Request
+        {/* New Request Tab Panel */}
+        <TabPanel value={tabValue} index={1}>
+          <Box sx={{ p: 0 }}>
+            <Typography variant="h6" component="h2" sx={{ mb: '1.5rem' }}>
+              Submit a New Name Request
             </Typography>
             
-            {formConfigError && renderErrorPlaceholder(formConfigError.message)}
-            
             {formConfigLoading ? (
-              renderLoadingSkeleton()
-            ) : !formConfig ? (
-              <Alert severity="warning" sx={{ mt: '1rem' }}>
-                No active form configuration found. Please contact an administrator.
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: '2rem' }}>
+                <CircularProgress />
+              </Box>
+            ) : formConfigError ? (
+              <Alert severity="error" sx={{ mb: '1.5rem' }}>
+                Failed to load form configuration. Please try again.
               </Alert>
-            ) : (
-              <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
-                <Paper 
-                  elevation={0} 
-                  sx={{ 
-                    p: '1.5rem', 
-                    border: (theme) => `1px solid ${theme.palette.divider}`,
-                    borderRadius: (theme) => `${theme.shape.borderRadius}px`,
-                  }}
-                >
-                  {submitSuccess && (
-                    <Alert severity="success" sx={{ mb: '1.5rem' }}>
-                      Request submitted successfully!
-                    </Alert>
+            ) : formConfig ? (
+              <>
+                {submitSuccess && (
+                  <Alert severity="success" sx={{ mb: '1.5rem' }}>
+                    Your request has been submitted successfully!
+                  </Alert>
+                )}
+                {submitError && (
+                  <Alert severity="error" sx={{ mb: '1.5rem' }}>
+                    {submitError}
+                  </Alert>
+                )}
+                
+                <form onSubmit={handleSubmit(onSubmit)}>
+                  {formConfig.fields && (
+                    <DynamicFormRenderer
+                      fields={formConfig.fields}
+                      control={control}
+                      errors={errors}
+                    />
                   )}
-                  
-                  {submitError && (
-                    <Alert severity="error" sx={{ mb: '1.5rem' }}>
-                      {submitError}
-                    </Alert>
-                  )}
-                  
-                  {/* Dynamic Form Renderer */}
-                  <DynamicFormRenderer
-                    formConfig={formConfig}
-                    control={control}
-                    errors={errors}
-                    watch={watch}
-                    setValue={reset}
-                    role="submitter"
-                  />
-                  
-                  <Box sx={{ mt: '1.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: '2rem' }}>
                     <Button
                       type="submit"
                       variant="contained"
                       color="primary"
                       disabled={submitting}
                       startIcon={submitting ? <CircularProgress size={20} /> : <SendIcon />}
-                      size="large"
                     >
                       {submitting ? 'Submitting...' : 'Submit Request'}
                     </Button>
                   </Box>
-                </Paper>
-              </Box>
+                </form>
+              </>
+            ) : (
+              <Alert severity="warning">
+                No form configuration available. Please contact an administrator.
+              </Alert>
             )}
           </Box>
         </TabPanel>
         
         {/* Search Names Tab Panel */}
-        <TabPanel value={activeTab} index={2}>
-          <Box sx={{ p: '1.5rem' }}>
-            {/* Search and Filters */}
-            <Box sx={{ mb: '1.5rem' }}>
-              <TextField
-                fullWidth
-                placeholder="Search approved names..."
-                value={searchNamesFilter}
-                onChange={(e) => setSearchNamesFilter(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-                aria-label="Search approved names"
-                size="small"
-                sx={{ mb: { xs: 2, md: 0 } }}
-              />
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {filteredSearchNamesData.length} of {searchNamesData.length} approved names
-              </Typography>
-            </Box>
+        <TabPanel value={tabValue} index={2}>
+          <Box sx={{ p: 0 }}>
+            <Typography variant="h6" component="h2" sx={{ mb: '1.5rem' }}>
+              Search Approved Names
+            </Typography>
             
-            {approvedRequestsLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <Box>
-                {filteredSearchNamesData.length === 0 ? (
-                  <Alert severity="info">
-                    No approved names found.
-                  </Alert>
-                ) : (
-                  <>
-                    {filteredSearchNamesData.map(request => (
-                      <Card 
-                        key={request.id} 
-                        sx={{ 
-                          mb: '1rem',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                          '&:hover': {
-                            transform: 'translateY(-2px)',
-                            boxShadow: theme => theme.shadows[3],
-                          }
-                        }}
-                        onClick={() => {
-                          setSelectedRequestId(request.id);
-                          setDetailsModalOpen(true);
-                        }}
-                      >
-                        <CardContent sx={{ p: '1rem', '&:last-child': { pb: '1rem' } }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Box>
-                              <Typography variant="h6" component="h3">
-                                {request.name || request.title || request.productName || 
-                                 (request.formData && (request.formData.name || request.formData.title || request.formData.productName)) || 
-                                 'Unnamed Request'}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                Approved on {request.updatedAt ? format(parseISO(request.updatedAt), 'MMM d, yyyy') : 
-                                            (request.createdAt ? format(parseISO(request.createdAt), 'MMM d, yyyy') : 'Unknown date')}
-                              </Typography>
-                            </Box>
-                            <Chip 
-                              label="Approved" 
-                              color="success" 
-                              size="small" 
-                              icon={<CheckCircleIcon />} 
-                            />
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    
-                    {/* Pagination */}
-                    {searchNamesData.length > 10 && (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: '1.5rem' }}>
-                        <Box sx={{ display: 'flex', gap: '0.5rem' }}>
-                          <Button 
-                            variant="outlined" 
-                            disabled={searchNamesPage === 1}
-                            onClick={() => setSearchNamesPage(prev => Math.max(prev - 1, 1))}
-                          >
-                            Previous
-                          </Button>
-                          <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', mx: '0.5rem' }}>
-                            Page {searchNamesPage} of {Math.ceil(searchNamesData.length / 10)}
-                          </Typography>
-                          <Button 
-                            variant="outlined" 
-                            disabled={searchNamesPage >= Math.ceil(searchNamesData.length / 10)}
-                            onClick={() => setSearchNamesPage(prev => Math.min(prev + 1, Math.ceil(searchNamesData.length / 10)))}
-                          >
-                            Next
-                          </Button>
-                        </Box>
-                      </Box>
-                    )}
-                  </>
-                )}
-              </Box>
-            )}
+            <Alert severity="info" sx={{ mb: '1.5rem' }}>
+              Search functionality will be available soon. This feature is still under development.
+            </Alert>
           </Box>
         </TabPanel>
         
         {/* Guidelines Tab Panel */}
-        <TabPanel value={activeTab} index={3}>
-          <Box sx={{ p: '1.5rem' }}>
-            <Typography variant="h6" component="h2" gutterBottom>
-              Naming Request Guidelines
+        <TabPanel value={tabValue} index={3}>
+          <Box sx={{ p: 0 }}>
+            <Typography variant="h6" component="h2" sx={{ mb: '1.5rem' }}>
+              Naming Guidelines
             </Typography>
             
-            <Paper 
-              elevation={0} 
-              sx={{ 
-                p: '1.5rem', 
-                border: (theme) => `1px solid ${theme.palette.divider}`,
-                borderRadius: (theme) => `${theme.shape.borderRadius}px`,
-              }}
-            >
-              <Typography variant="body1" paragraph>
-                Please follow these guidelines when submitting naming requests:
-              </Typography>
-              
-              <Box component="ul" sx={{ pl: '2rem' }}>
-                <Typography component="li" variant="body1" paragraph>
-                  Be clear and specific about your naming needs.
-                </Typography>
-                <Typography component="li" variant="body1" paragraph>
-                  Include relevant context about your project or product.
-                </Typography>
-                <Typography component="li" variant="body1" paragraph>
-                  Specify any constraints or requirements for the name.
-                </Typography>
-                <Typography component="li" variant="body1" paragraph>
-                  Be aware of naming requests approval typically takes 3-5 business days.
-                </Typography>
-              </Box>
-            </Paper>
-          </Box>
-        </TabPanel>
-        
-        {/* Archive Tab Panel */}
-        <TabPanel value={activeTab} index={4}>
-          <Box sx={{ p: '1.5rem' }}>
-            <Box sx={{ mb: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-              <Typography variant="h6" component="h2" sx={{ m: 0 }}>
-                Request Archive
-              </Typography>
-              <TextField
-                placeholder="Search archived requests..."
-                size="small"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ width: { xs: '100%', sm: '250px' } }}
-              />
-            </Box>
-            
-            {requestsError && renderErrorPlaceholder(requestsError.message)}
-            
-            {requestsLoading ? (
-              renderLoadingSkeleton()
-            ) : (
-              <Box>
-                {userRequests
-                  .filter(request => ['rejected', 'cancelled', 'completed'].includes(request.status))
-                  .map((request) => (
-                    <Card 
-                      key={request.id} 
-                      onClick={() => handleOpenRequestDetails(request.id)}
-                      sx={{ 
-                        mb: '1rem',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <CardContent>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <Box>
-                            <Typography variant="h6" component="div">
-                              {request.formData?.productName || request.formData?.name || request.formData?.title || 'Unnamed Request'}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Submitted: {format(parseISO(request.createdAt || request.created_at), 'MMM d, yyyy')}
-                            </Typography>
-                          </Box>
-                          <Chip
-                            label={request.status}
-                            color={
-                              request.status === 'completed' ? 'success' :
-                              request.status === 'rejected' ? 'error' :
-                              'default'
-                            }
-                            size="small"
-                          />
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  ))}
-              </Box>
-            )}
+            <Alert severity="info" sx={{ mb: '1.5rem' }}>
+              Naming guidelines content will be available soon. This feature is still under development.
+            </Alert>
           </Box>
         </TabPanel>
       </Paper>
-      
-      {/* TabPanel component for accessibility */}
-      <TabPanel value={activeTab} index={0}>
-        <Box sx={{ p: '1.5rem' }}>
-          <Typography variant="h6" component="h2" gutterBottom>
-            My Requests
-          </Typography>
-        </Box>
-      </TabPanel>
-    </Container>
-  );
-});
-
-// TabPanel component for accessibility
-const TabPanel = (props) => {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <>{children}</>
-      )}
-    </div>
+    </ResponsiveContainer>
   );
 };
-
-ProfessionalSubmitterDashboard.displayName = 'ProfessionalSubmitterDashboard';
 
 export default ProfessionalSubmitterDashboard;

@@ -3,7 +3,7 @@ import axios from 'axios';
 // In development, use relative URLs to enable proxy functionality
 // In production, use REACT_APP_API_URL or default to current origin
 const BASE_URL = process.env.NODE_ENV === 'development' 
-  ? '' // Use relative URLs to enable proxy
+  ? '' // Always use empty baseURL in development to enable proxy
   : (process.env.REACT_APP_API_URL || window.location.origin);
 
 console.log('API Base URL:', BASE_URL);
@@ -29,6 +29,20 @@ api.interceptors.request.use(
     
     // In development mode, just log the request - let proxy handle routing
     if (process.env.NODE_ENV === 'development') {
+      // Ensure URL doesn't start with http:// or https:// in development
+      // This makes sure we're using the proxy correctly
+      if (config.url && (config.url.startsWith('http://') || config.url.startsWith('https://'))) {
+        console.warn('WARNING: Using absolute URL in development mode may bypass proxy:', config.url);
+        // Extract the path from the URL to use relative path instead
+        try {
+          const urlObj = new URL(config.url);
+          config.url = urlObj.pathname + urlObj.search;
+          console.log('Converted to relative path:', config.url);
+        } catch (e) {
+          console.error('Failed to convert URL to relative path:', e);
+        }
+      }
+      
       console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     }
     

@@ -203,7 +203,7 @@
 .coming-soon-badge {
   font-size: 12px;
   padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--color-accent-secondary) !important;
+  background-color: var(--color-accent-secondary);
   border-radius: var(--border-radius-sm);
 }
 

@@ -179,11 +179,11 @@ body {
 }
 
 .badge.bg-success {
-  background-color: var(--color-status-approved) !important;
+  background-color: var(--color-status-approved);
 }
 
 .badge.bg-secondary {
-  background-color: var(--color-status-neutral) !important;
+  background-color: var(--color-status-neutral);
 }
 
 /* Focus styles for accessibility */

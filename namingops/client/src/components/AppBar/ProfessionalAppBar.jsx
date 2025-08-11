@@ -28,6 +28,7 @@ import { DevRoleContext } from '../../context/DevRoleContext';
 import ThemeToggle from '../ThemeToggle/ThemeToggle';
 import SubmitRequestModal from '../Requests/SubmitRequestModal';
 import { ThemeContext } from '../ThemeIntegration/EnhancedThemeProvider';
+import { Container } from 'react-bootstrap';
 
 const ProfessionalAppBar = () => {
   const navigate = useNavigate();
@@ -95,35 +96,33 @@ const ProfessionalAppBar = () => {
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
         color: isDarkMode ? 'inherit' : '#1a1a1a',
+        width: '100%',
+        boxSizing: 'border-box'
       }}
     >
-      <Toolbar 
-        disableGutters 
-        sx={{ 
-          minHeight: '4rem',
-          justifyContent: 'space-between',
-          width: '100%',
-          padding: '0 2rem'
-        }}
-      >
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          width: '100%',
-        }}>
+      <Container fluid>
+        <Toolbar 
+          disableGutters 
+          sx={{ 
+            minHeight: '4rem',
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'space-between',
+            padding: 0,
+            boxSizing: 'border-box'
+          }}
+        >
           {/* Logo and App Name */}
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '0.5rem',
-            paddingLeft: '0'
+            gap: '0.5em',
           }}>
             <img 
               src={isDarkMode ? "/cog_logo_darkmode.png" : "/cog_logo.png"}
               alt="Company Logo"
               style={{ 
-                height: '2.8125rem',
+                height: '2.8rem',
                 maxWidth: '100%',
                 objectFit: 'contain'
               }}
@@ -134,8 +133,8 @@ const ProfessionalAppBar = () => {
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '0.75rem',
-            paddingRight: '0'
+            gap: '0.75em',
+            paddingRight: 0
           }}>
             {/* Theme Toggle with improved visibility */}
             <ThemeToggle 
@@ -179,7 +178,8 @@ const ProfessionalAppBar = () => {
                   padding: '0',
                   height: '2rem',
                   width: 'auto',
-                  fontSize: '1.25rem'
+                  fontSize: '1.25rem',
+                  marginRight: 0
                 }}
                 className="user-avatar"
               >
@@ -193,8 +193,8 @@ const ProfessionalAppBar = () => {
               </IconButton>
             </Tooltip>
           </Box>
-        </Box>
-            
+        </Toolbar>
+          
         {/* User Menu Dropdown */}
         <Menu
           anchorEl={anchorEl}
@@ -280,7 +280,7 @@ const ProfessionalAppBar = () => {
               <Divider />
             </>
           )}
-            
+          
           <MenuItem onClick={() => navigate('/profile')}>
             <ListItemIcon>
               <AccountCircle fontSize="small" />
@@ -345,7 +345,7 @@ const ProfessionalAppBar = () => {
           open={submitRequestModalOpen} 
           onClose={() => setSubmitRequestModalOpen(false)} 
         />
-      </Toolbar>
+      </Container>
     </AppBar>
   );
 };

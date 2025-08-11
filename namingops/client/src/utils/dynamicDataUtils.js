@@ -33,7 +33,7 @@ export const FIELD_LABEL_MAP = {
  * Extract user-friendly title from request data
  */
 export const extractRequestTitle = (request) => {
-  if (!request) return 'Untitled Request';
+  if (!request) return 'Name Request';
   
   const titleFields = ['title', 'requestTitle', 'name', 'subject', 'requestName'];
   

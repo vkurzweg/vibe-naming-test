@@ -7,7 +7,7 @@ import { Container, Row, Col } from 'react-bootstrap';
  */
 const ResponsiveContainer = ({ children, fluid = false, className = '', ...props }) => {
   return (
-    <Container fluid={fluid} className={`py-4 ${className}`} {...props}>
+    <Container fluid={fluid} className={`${className}`} {...props}>
       <Row>
         <Col>
           {children}

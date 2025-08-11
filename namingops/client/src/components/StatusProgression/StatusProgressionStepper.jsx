@@ -7,69 +7,20 @@ import {
   StepConnector,
   Box,
   Typography,
-  Chip,
   useTheme,
   useMediaQuery,
-  alpha,
-  Paper,
+  styled,
 } from '@mui/material';
-import {
-  Timeline,
-  TimelineItem,
-  TimelineSeparator,
-  TimelineConnector,
-  TimelineContent,
-  TimelineDot,
-  TimelineOppositeContent,
-} from '@mui/lab';
-import {
-  Edit as DraftIcon,
-  Send as SubmittedIcon,
-  Visibility as ReviewIcon,
-  CheckCircle as CheckCircleIcon,
-  PlayArrow as InProgressIcon,
-  Cancel as RejectedIcon,
-  Pause as OnHoldIcon,
-  Close as CancelledIcon,
-  Assignment as AssignedIcon,
-  Gavel as FinalReviewIcon,
-  Schedule as PendingIcon,
-} from '@mui/icons-material';
-import { getStatusColor, getThemeAwareStatusColor } from '../../theme/newColorPalette';
-import { format, parseISO, formatDistanceToNow } from 'date-fns';
+import { getStatusColor } from '../../theme/newColorPalette';
+import { format, parseISO } from 'date-fns';
 
 // Define the standard request workflow steps
 const REQUEST_STEPS = [
   { key: 'submitted', label: 'Submitted', description: 'Request has been submitted for review' },
-  { key: 'under_review', label: 'Brand Review', description: 'Under review by brand team' },
-  { key: 'final_review', label: 'Legal Review', description: 'Final legal review in progress' },
+  { key: 'brand_review', label: 'Brand Review', description: 'Under review by brand team' },
+  { key: 'legal_review', label: 'Legal Review', description: 'Final legal review in progress' },
   { key: 'approved', label: 'Approved', description: 'Request has been approved' }
 ];
-
-// Get step icon based on status
-const getStepIcon = (stepKey, currentStatus, theme) => {
-  const isCompleted = getStepIndex(currentStatus) > getStepIndex(stepKey);
-  const isCurrent = currentStatus === stepKey;
-  const color = getThemeAwareStatusColor(stepKey, theme);
-
-  if (currentStatus === 'cancelled' || currentStatus === 'rejected') {
-    return <CancelledIcon sx={{ color: theme.palette.error.main }} />;
-  }
-
-  if (currentStatus === 'on_hold') {
-    return <OnHoldIcon sx={{ color: theme.palette.warning.main }} />;
-  }
-
-  if (isCompleted || (isCurrent && stepKey === 'approved')) {
-    return <CheckCircleIcon sx={{ color: color }} />;
-  }
-
-  if (isCurrent) {
-    return <InProgressIcon sx={{ color: color }} />;
-  }
-
-  return <PendingIcon sx={{ color: theme.palette.grey[400] }} />;
-};
 
 // Get step index for comparison
 const getStepIndex = (status) => {
@@ -79,7 +30,7 @@ const getStepIndex = (status) => {
 
 // Get active step index
 const getActiveStep = (status) => {
-  if (['cancelled', 'rejected', 'on_hold'].includes(status)) {
+  if (['canceled', 'cancelled', 'rejected', 'on_hold'].includes(status)) {
     return -1; // No active step for these statuses
   }
   return getStepIndex(status);
@@ -96,34 +47,147 @@ const formatTimestamp = (timestamp) => {
   }
 };
 
+// Custom connector with color transition animations
+const ColoredConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.MuiStepConnector-root`]: {
+    left: '0.85rem', // Position connector to align with dot
+    transition: 'all 0.3s ease',
+  },
+  [`&.MuiStepConnector-active`]: {
+    [`& .MuiStepConnector-line`]: {
+      backgroundImage: `linear-gradient(to bottom, ${theme.palette.primary.main}, ${theme.palette.primary.main})`,
+      transition: 'background-image 0.5s ease',
+    },
+  },
+  [`&.MuiStepConnector-completed`]: {
+    [`& .MuiStepConnector-line`]: {
+      backgroundImage: `linear-gradient(to bottom, ${theme.palette.success.main}, ${theme.palette.success.main})`,
+      transition: 'background-image 0.5s ease',
+    },
+  },
+  [`& .MuiStepConnector-line`]: {
+    height: '100%',
+    border: 0,
+    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[300],
+    borderRadius: 1,
+    width: '0.125rem', // Thinner line for more elegant appearance
+    marginLeft: 0, // Center the line
+    transition: 'all 0.5s ease-in-out',
+  },
+}));
+
+// Custom horizontal connector with the same styling but different dimensions
+const HorizontalColoredConnector = styled(StepConnector)(({ theme }) => ({
+  [`&.MuiStepConnector-root`]: {
+    top: '0.85rem', // Position connector to align with dot
+    transition: 'all 0.3s ease',
+  },
+  [`&.MuiStepConnector-active`]: {
+    [`& .MuiStepConnector-line`]: {
+      backgroundImage: `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.primary.main})`,
+      transition: 'background-image 0.5s ease',
+    },
+  },
+  [`&.MuiStepConnector-completed`]: {
+    [`& .MuiStepConnector-line`]: {
+      backgroundImage: `linear-gradient(to right, ${theme.palette.success.main}, ${theme.palette.success.main})`,
+      transition: 'background-image 0.5s ease',
+    },
+  },
+  [`& .MuiStepConnector-line`]: {
+    width: '100%',
+    border: 0,
+    backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[300],
+    borderRadius: 1,
+    height: '0.125rem', // Thinner line for more elegant appearance
+    marginTop: 0, // Center the line
+    transition: 'all 0.5s ease-in-out',
+  },
+}));
+
+// Custom dot component with animations
+const StepDot = styled('div')(({ theme, ownerState }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '1.75rem',
+  height: '1.75rem',
+  zIndex: 1, // Ensure dot appears above connector line
+  position: 'relative',
+  '&::before': {
+    content: '""',
+    width: '0.75rem',
+    height: '0.75rem',
+    borderRadius: '50%',
+    backgroundColor: 
+      ownerState.active ? theme.palette.primary.main :
+      ownerState.completed ? theme.palette.success.main : 
+      theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[300],
+    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+    transform: ownerState.active ? 'scale(1.25)' : 'scale(1)',
+    boxShadow: 
+      ownerState.active ? `0 0 0 0.25rem ${theme.palette.primary.main}33` :
+      ownerState.completed ? `0 0 0 0.125rem ${theme.palette.success.main}22` : 'none',
+  }
+}));
+
+// Custom StepLabel to improve alignment and styling
+const CustomStepLabel = styled(StepLabel)(({ theme }) => ({
+  '& .MuiStepLabel-iconContainer': {
+    paddingRight: '0.5rem',
+  },
+  '& .MuiStepLabel-labelContainer': {
+    color: theme.palette.text.primary,
+    transition: 'color 0.3s ease',
+  }
+}));
+
 const StatusProgressionStepper = ({ 
   status = 'submitted', 
   timestamps = {},
   orientation = 'vertical',
   showTimestamps = true,
-  compact = false
+  compact = false,
+  connectorComponent = null
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const actualOrientation = isMobile ? 'vertical' : orientation;
+  const activeStep = getActiveStep(status);
+  
+  // Use provided connector or choose appropriate one based on orientation
+  const StepperConnector = connectorComponent || 
+    (actualOrientation === 'vertical' ? ColoredConnector : HorizontalColoredConnector);
 
   // Handle special statuses
-  if (['cancelled', 'rejected', 'on_hold'].includes(status)) {
-    const statusColor = status === 'cancelled' || status === 'rejected' 
+  if (['canceled', 'cancelled', 'rejected', 'on_hold'].includes(status)) {
+    const statusColor = status === 'cancelled' || status === 'canceled' || status === 'rejected' 
       ? theme.palette.error.main 
       : theme.palette.warning.main;
+    
+    // Adding a semi-transparent version for background
+    const bgColor = statusColor + '22'; // 22 is hex for ~13% opacity
 
     return (
-      <Box sx={{ p: 2 }}>
-        <Box display="flex" alignItems="center" gap={2} mb={2}>
-          {getStepIcon(status, status, theme)}
-          <Typography variant="h6" sx={{ color: statusColor, fontWeight: 600 }}>
-            {status === 'cancelled' ? 'Cancelled' : 
+      <Box sx={{ p: compact ? 1 : 2, bgcolor: bgColor, borderRadius: '0.5rem', transition: 'all 0.3s ease' }}>
+        <Box display="flex" alignItems="center" gap={1} mb={1}>
+          <div
+            style={{
+              width: '0.875rem',
+              height: '0.875rem',
+              borderRadius: '50%',
+              backgroundColor: statusColor,
+              boxShadow: `0 0 0 0.1875rem ${statusColor}33`,
+              transition: 'all 0.3s ease',
+            }}
+          />
+          <Typography variant="subtitle2" sx={{ color: theme.palette.text.primary, fontWeight: 600, transition: 'color 0.3s ease' }}>
+            {status === 'cancelled' || status === 'canceled' ? 'Cancelled' : 
              status === 'rejected' ? 'Rejected' : 'On Hold'}
           </Typography>
         </Box>
         {timestamps[status] && showTimestamps && (
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, ml: 3, transition: 'color 0.3s ease' }}>
             {formatTimestamp(timestamps[status])}
           </Typography>
         )}
@@ -131,45 +195,59 @@ const StatusProgressionStepper = ({
     );
   }
 
-  const activeStep = getActiveStep(status);
-
   return (
-    <Box sx={{ width: '100%' }}>
-      {/* Current Status Chip */}
-      <Box mb={2}>
-        <Chip
-          label={status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
-          sx={{
-            backgroundColor: getStatusColor(status),
-            color: '#fff',
-            fontWeight: 600,
-            fontSize: '0.875rem'
-          }}
-        />
-      </Box>
-
-      {/* Progress Stepper */}
+    <Box sx={{ width: '100%', pt: compact ? 0 : 1, transition: 'all 0.3s ease' }}>
       <Stepper 
         activeStep={activeStep} 
         orientation={actualOrientation}
+        connector={<StepperConnector />}
         sx={{
           '& .MuiStepLabel-root': {
-            padding: compact ? '8px 0' : '16px 0'
+            padding: compact ? '0.5rem 0' : '1rem 0',
+            alignItems: 'flex-start',
+            transition: 'padding 0.3s ease',
           },
           '& .MuiStepContent-root': {
-            paddingLeft: compact ? '20px' : '24px'
-          }
+            paddingLeft: compact ? '1.25rem' : '1.5rem',
+            marginLeft: '0.75rem', // Align with the connector line
+            borderLeft: 'none', // Remove default border
+            transition: 'padding 0.3s ease',
+          },
+          '& .MuiStep-root': {
+            padding: 0,
+            transition: 'all 0.3s ease',
+          },
+          '& .MuiStepper-root': {
+            padding: 0,
+            transition: 'all 0.3s ease',
+          },
         }}
       >
         {REQUEST_STEPS.map((step, index) => {
           const isCompleted = index < activeStep;
           const isCurrent = index === activeStep;
           const stepTimestamp = timestamps[step.key];
+          
+          // Set color based on status
+          const statusColor = getStatusColor(step.key);
+          const dotColor = 
+            isCompleted ? getStatusColor('approved') :
+            isCurrent ? statusColor :
+            step.key === 'submitted' ? theme.palette.info.main : // Use info color (light blue) for submitted instead of grey
+            theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[300];
 
           return (
             <Step key={step.key} completed={isCompleted}>
-              <StepLabel
-                StepIconComponent={() => getStepIcon(step.key, status, theme)}
+              <CustomStepLabel
+                StepIconComponent={() => (
+                  <StepDot 
+                    ownerState={{ 
+                      completed: isCompleted, 
+                      active: isCurrent 
+                    }}
+                    style={{ color: dotColor }}
+                  />
+                )}
                 sx={{
                   '& .MuiStepLabel-label': {
                     fontWeight: isCurrent ? 600 : 400,
@@ -177,22 +255,47 @@ const StatusProgressionStepper = ({
                       ? theme.palette.text.primary 
                       : isCompleted 
                         ? theme.palette.text.secondary
-                        : theme.palette.text.disabled
+                        : theme.palette.text.disabled,
+                    transition: 'all 0.3s ease'
                   }
                 }}
               >
-                <Typography variant={compact ? "body2" : "body1"}>
+                <Typography 
+                  variant={compact ? "body2" : "body1"}
+                  sx={{ 
+                    transition: 'all 0.3s ease',
+                    fontWeight: isCurrent ? 600 : isCompleted ? 500 : 400
+                  }}
+                >
                   {step.label}
                 </Typography>
-              </StepLabel>
+                {actualOrientation === 'horizontal' && stepTimestamp && showTimestamps && (
+                  <Typography 
+                    variant="caption" 
+                    color="text.secondary" 
+                    display="block"
+                    sx={{ transition: 'color 0.3s ease' }}
+                  >
+                    {formatTimestamp(stepTimestamp)}
+                  </Typography>
+                )}
+              </CustomStepLabel>
               
               {actualOrientation === 'vertical' && !compact && (
                 <StepContent>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    sx={{ mb: 1, transition: 'color 0.3s ease' }}
+                  >
                     {step.description}
                   </Typography>
                   {stepTimestamp && showTimestamps && (
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary"
+                      sx={{ transition: 'color 0.3s ease' }}
+                    >
                       {formatTimestamp(stepTimestamp)}
                     </Typography>
                   )}
@@ -202,27 +305,6 @@ const StatusProgressionStepper = ({
           );
         })}
       </Stepper>
-
-      {/* Horizontal layout timestamps */}
-      {actualOrientation === 'horizontal' && showTimestamps && (
-        <Box mt={2}>
-          {REQUEST_STEPS.map((step) => {
-            const stepTimestamp = timestamps[step.key];
-            if (!stepTimestamp) return null;
-            
-            return (
-              <Typography 
-                key={step.key} 
-                variant="caption" 
-                color="text.secondary" 
-                display="block"
-              >
-                {step.label}: {formatTimestamp(stepTimestamp)}
-              </Typography>
-            );
-          })}
-        </Box>
-      )}
     </Box>
   );
 };

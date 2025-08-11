@@ -417,6 +417,66 @@ router.put('/:id', [
   }
 });
 
+// @route   PUT /api/v1/name-requests/:id/status
+// @desc    Update the status of a naming request (cancel, hold, review, approve, etc.)
+// @access  Private
+router.put('/:id/status', isAuthenticated, async (req, res) => {
+  try {
+    const { status, reason, reviewerNotes } = req.body;
+    const request = await NamingRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({ msg: 'Request not found' });
+    }
+
+    // Authorization: allow submitter to cancel/hold, reviewer/admin for other statuses
+    const isSubmitter = request.user.toString() === req.user.id;
+    const isReviewerOrAdmin = req.user.role === 'admin' || req.user.role === 'reviewer';
+
+    // Only allow submitter to cancel/hold their own request
+    if (
+      (status === 'cancelled' || status === 'on_hold') &&
+      !isSubmitter && !isReviewerOrAdmin
+    ) {
+      return res.status(403).json({ msg: 'Not authorized to update this request' });
+    }
+
+    // Only allow reviewer/admin to set review/approved statuses
+    if (
+      ['brand_review', 'legal_review', 'approved'].includes(status) &&
+      !isReviewerOrAdmin
+    ) {
+      return res.status(403).json({ msg: 'Not authorized to update this status' });
+    }
+
+    // Actually update the status
+    request.status = status;
+    if (reason) request.statusReason = reason;
+    if (reviewerNotes) request.reviewerNotes = reviewerNotes;
+
+    // Add to status history
+    request.statusHistory = request.statusHistory || [];
+    const fallbackObjectId = mongoose.Types.ObjectId.isValid(req.user.id)
+      ? req.user.id
+      : new mongoose.Types.ObjectId('000000000000000000000000');
+
+    request.statusHistory.push({
+      status,
+      changedBy: fallbackObjectId,
+      changedByName: req.user.name,
+      comment: reason || '',
+      timestamp: new Date()
+    });
+
+    await request.save();
+
+    res.json({ success: true, data: request });
+  } catch (err) {
+    console.error('PUT /api/v1/name-requests/:id/status - Error:', err.message);
+    res.status(500).json({ msg: 'Server Error', error: err.message });
+  }
+});
+
 // @route   DELETE /api/name-requests/:id
 // @desc    Delete a naming request (soft delete)
 // @access  Private
