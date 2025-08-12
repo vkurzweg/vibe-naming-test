@@ -22,6 +22,15 @@ const REQUEST_STEPS = [
   { key: 'approved', label: 'Approved', description: 'Request has been approved' }
 ];
 
+const STATUS_STEPS = [
+  { key: 'submitted', label: 'Submitted', color: '#2196f3' },      // Blue
+  { key: 'brand_review', label: 'Brand Review', color: '#ff9800' },// Orange
+  { key: 'legal_review', label: 'Legal Review', color: '#9c27b0' },// Purple
+  { key: 'approved', label: 'Approved', color: '#4caf50' },        // Green
+  { key: 'on_hold', label: 'On Hold', color: '#f44336' },          // Red
+  { key: 'canceled', label: 'Canceled', color: '#757575' },        // Grey
+];
+
 // Get step index for comparison
 const getStepIndex = (status) => {
   const index = REQUEST_STEPS.findIndex(step => step.key === status);
@@ -50,7 +59,7 @@ const formatTimestamp = (timestamp) => {
 // Custom connector with color transition animations
 const ColoredConnector = styled(StepConnector)(({ theme }) => ({
   [`&.MuiStepConnector-root`]: {
-    left: '0.85rem', // Position connector to align with dot
+    left: '0.85rem',
     transition: 'all 0.3s ease',
   },
   [`&.MuiStepConnector-active`]: {
@@ -70,16 +79,15 @@ const ColoredConnector = styled(StepConnector)(({ theme }) => ({
     border: 0,
     backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[300],
     borderRadius: 1,
-    width: '0.125rem', // Thinner line for more elegant appearance
-    marginLeft: 0, // Center the line
+    width: '0.125rem',
+    marginLeft: 0,
     transition: 'all 0.5s ease-in-out',
   },
 }));
 
-// Custom horizontal connector with the same styling but different dimensions
 const HorizontalColoredConnector = styled(StepConnector)(({ theme }) => ({
   [`&.MuiStepConnector-root`]: {
-    top: '0.85rem', // Position connector to align with dot
+    top: '0.85rem',
     transition: 'all 0.3s ease',
   },
   [`&.MuiStepConnector-active`]: {
@@ -99,20 +107,19 @@ const HorizontalColoredConnector = styled(StepConnector)(({ theme }) => ({
     border: 0,
     backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[300],
     borderRadius: 1,
-    height: '0.125rem', // Thinner line for more elegant appearance
-    marginTop: 0, // Center the line
+    height: '0.125rem',
+    marginTop: 0,
     transition: 'all 0.5s ease-in-out',
   },
 }));
 
-// Custom dot component with animations
 const StepDot = styled('div')(({ theme, ownerState }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   width: '1.75rem',
   height: '1.75rem',
-  zIndex: 1, // Ensure dot appears above connector line
+  zIndex: 1,
   position: 'relative',
   '&::before': {
     content: '""',
@@ -131,7 +138,6 @@ const StepDot = styled('div')(({ theme, ownerState }) => ({
   }
 }));
 
-// Custom StepLabel to improve alignment and styling
 const CustomStepLabel = styled(StepLabel)(({ theme }) => ({
   '& .MuiStepLabel-iconContainer': {
     paddingRight: '0.5rem',
@@ -154,22 +160,17 @@ const StatusProgressionStepper = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const actualOrientation = isMobile ? 'vertical' : orientation;
   const activeStep = getActiveStep(status);
-  
-  // Use provided connector or choose appropriate one based on orientation
+
   const StepperConnector = connectorComponent || 
     (actualOrientation === 'vertical' ? ColoredConnector : HorizontalColoredConnector);
 
-  // Handle special statuses
-  if (['canceled', 'cancelled', 'rejected', 'on_hold'].includes(status)) {
-    const statusColor = status === 'cancelled' || status === 'canceled' || status === 'rejected' 
-      ? theme.palette.error.main 
-      : theme.palette.warning.main;
-    
-    // Adding a semi-transparent version for background
-    const bgColor = statusColor + '22'; // 22 is hex for ~13% opacity
+  // === On Hold indicator (matches old version) ===
+  if (status === 'on_hold') {
+    const statusColor = '#ff9800';
+    const bgColor = statusColor + '22';
 
     return (
-      <Box sx={{ p: compact ? 1 : 2, bgcolor: bgColor, borderRadius: '0.5rem', transition: 'all 0.3s ease' }}>
+      <Box sx={{ p: compact ? 1 : 2, bgcolor: bgColor, borderRadius: '0.5rem', border: `1.5px solid ${statusColor}`, transition: 'all 0.3s ease' }}>
         <Box display="flex" alignItems="center" gap={1} mb={1}>
           <div
             style={{
@@ -182,8 +183,7 @@ const StatusProgressionStepper = ({
             }}
           />
           <Typography variant="subtitle2" sx={{ color: theme.palette.text.primary, fontWeight: 600, transition: 'color 0.3s ease' }}>
-            {status === 'cancelled' || status === 'canceled' ? 'Cancelled' : 
-             status === 'rejected' ? 'Rejected' : 'On Hold'}
+            On Hold
           </Typography>
         </Box>
         {timestamps[status] && showTimestamps && (
@@ -209,8 +209,8 @@ const StatusProgressionStepper = ({
           },
           '& .MuiStepContent-root': {
             paddingLeft: compact ? '1.25rem' : '1.5rem',
-            marginLeft: '0.75rem', // Align with the connector line
-            borderLeft: 'none', // Remove default border
+            marginLeft: '0.75rem',
+            borderLeft: 'none',
             transition: 'padding 0.3s ease',
           },
           '& .MuiStep-root': {
@@ -227,13 +227,12 @@ const StatusProgressionStepper = ({
           const isCompleted = index < activeStep;
           const isCurrent = index === activeStep;
           const stepTimestamp = timestamps[step.key];
-          
-          // Set color based on status
+
           const statusColor = getStatusColor(step.key);
           const dotColor = 
             isCompleted ? getStatusColor('approved') :
             isCurrent ? statusColor :
-            step.key === 'submitted' ? theme.palette.info.main : // Use info color (light blue) for submitted instead of grey
+            step.key === 'submitted' ? theme.palette.info.main :
             theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[300];
 
           return (

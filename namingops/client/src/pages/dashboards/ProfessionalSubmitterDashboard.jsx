@@ -23,6 +23,7 @@ import { Container } from 'react-bootstrap';
 import { getStatusColor } from '../../theme/newColorPalette';
 import StatusProgressionStepper from '../../components/StatusProgression/StatusProgressionStepper';
 import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
+import NewRequestForm from '../../components/Requests/NewRequestForm';
 
 // Helper function to get status label
 const getStatusLabel = (status) => {
@@ -515,57 +516,7 @@ const ProfessionalSubmitterDashboard = () => {
         {/* New Request Tab Panel */}
         <TabPanel value={tabValue} index={1}>
           <Box sx={{ p: 0 }}>
-            <Typography variant="h6" component="h2" sx={{ mb: '1.5rem' }}>
-              Submit a New Name Request
-            </Typography>
-            
-            {formConfigLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: '2rem' }}>
-                <CircularProgress />
-              </Box>
-            ) : formConfigError ? (
-              <Alert severity="error" sx={{ mb: '1.5rem' }}>
-                Failed to load form configuration. Please try again.
-              </Alert>
-            ) : formConfig ? (
-              <>
-                {submitSuccess && (
-                  <Alert severity="success" sx={{ mb: '1.5rem' }}>
-                    Your request has been submitted successfully!
-                  </Alert>
-                )}
-                {submitError && (
-                  <Alert severity="error" sx={{ mb: '1.5rem' }}>
-                    {submitError}
-                  </Alert>
-                )}
-                
-                <form onSubmit={handleSubmit(onSubmit)}>
-                  {formConfig.fields && (
-                    <DynamicFormRenderer
-                      fields={formConfig.fields}
-                      control={control}
-                      errors={errors}
-                    />
-                  )}
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: '2rem' }}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      color="primary"
-                      disabled={submitting}
-                      startIcon={submitting ? <CircularProgress size={20} /> : <SendIcon />}
-                    >
-                      {submitting ? 'Submitting...' : 'Submit Request'}
-                    </Button>
-                  </Box>
-                </form>
-              </>
-            ) : (
-              <Alert severity="warning">
-                No form configuration available. Please contact an administrator.
-              </Alert>
-            )}
+            <NewRequestForm onSuccess={() => {/* Optionally handle success, e.g. show a toast or switch tabs */}} />
           </Box>
         </TabPanel>
         
