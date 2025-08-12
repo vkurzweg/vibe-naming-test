@@ -22,15 +22,6 @@ const REQUEST_STEPS = [
   { key: 'approved', label: 'Approved', description: 'Request has been approved' }
 ];
 
-const STATUS_STEPS = [
-  { key: 'submitted', label: 'Submitted', color: '#2196f3' },      // Blue
-  { key: 'brand_review', label: 'Brand Review', color: '#ff9800' },// Orange
-  { key: 'legal_review', label: 'Legal Review', color: '#9c27b0' },// Purple
-  { key: 'approved', label: 'Approved', color: '#4caf50' },        // Green
-  { key: 'on_hold', label: 'On Hold', color: '#f44336' },          // Red
-  { key: 'canceled', label: 'Canceled', color: '#757575' },        // Grey
-];
-
 // Get step index for comparison
 const getStepIndex = (status) => {
   const index = REQUEST_STEPS.findIndex(step => step.key === status);
@@ -39,7 +30,7 @@ const getStepIndex = (status) => {
 
 // Get active step index
 const getActiveStep = (status) => {
-  if (['canceled', 'cancelled', 'rejected', 'on_hold'].includes(status)) {
+  if (['canceled', 'cancelled', 'on_hold'].includes(status)) {
     return -1; // No active step for these statuses
   }
   return getStepIndex(status);
@@ -159,41 +150,13 @@ const StatusProgressionStepper = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const actualOrientation = isMobile ? 'vertical' : orientation;
-  const activeStep = getActiveStep(status);
+
+  // On hold: all steps inactive, use default MUI inactive styles
+  const isOnHold = status === 'on_hold';
+  const activeStep = isOnHold ? -1 : getActiveStep(status);
 
   const StepperConnector = connectorComponent || 
     (actualOrientation === 'vertical' ? ColoredConnector : HorizontalColoredConnector);
-
-  // === On Hold indicator (matches old version) ===
-  if (status === 'on_hold') {
-    const statusColor = '#ff9800';
-    const bgColor = statusColor + '22';
-
-    return (
-      <Box sx={{ p: compact ? 1 : 2, bgcolor: bgColor, borderRadius: '0.5rem', border: `1.5px solid ${statusColor}`, transition: 'all 0.3s ease' }}>
-        <Box display="flex" alignItems="center" gap={1} mb={1}>
-          <div
-            style={{
-              width: '0.875rem',
-              height: '0.875rem',
-              borderRadius: '50%',
-              backgroundColor: statusColor,
-              boxShadow: `0 0 0 0.1875rem ${statusColor}33`,
-              transition: 'all 0.3s ease',
-            }}
-          />
-          <Typography variant="subtitle2" sx={{ color: theme.palette.text.primary, fontWeight: 600, transition: 'color 0.3s ease' }}>
-            On Hold
-          </Typography>
-        </Box>
-        {timestamps[status] && showTimestamps && (
-          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, ml: 3, transition: 'color 0.3s ease' }}>
-            {formatTimestamp(timestamps[status])}
-          </Typography>
-        )}
-      </Box>
-    );
-  }
 
   return (
     <Box sx={{ width: '100%', pt: compact ? 0 : 1, transition: 'all 0.3s ease' }}>
@@ -201,6 +164,7 @@ const StatusProgressionStepper = ({
         activeStep={activeStep} 
         orientation={actualOrientation}
         connector={<StepperConnector />}
+        // No custom color overrides for on_hold!
         sx={{
           '& .MuiStepLabel-root': {
             padding: compact ? '0.5rem 0' : '1rem 0',
@@ -220,20 +184,13 @@ const StatusProgressionStepper = ({
           '& .MuiStepper-root': {
             padding: 0,
             transition: 'all 0.3s ease',
-          },
+          }
         }}
       >
         {REQUEST_STEPS.map((step, index) => {
-          const isCompleted = index < activeStep;
-          const isCurrent = index === activeStep;
+          const isCompleted = !isOnHold && index < activeStep;
+          const isCurrent = !isOnHold && index === activeStep;
           const stepTimestamp = timestamps[step.key];
-
-          const statusColor = getStatusColor(step.key);
-          const dotColor = 
-            isCompleted ? getStatusColor('approved') :
-            isCurrent ? statusColor :
-            step.key === 'submitted' ? theme.palette.info.main :
-            theme.palette.mode === 'dark' ? theme.palette.grey[800] : theme.palette.grey[300];
 
           return (
             <Step key={step.key} completed={isCompleted}>
@@ -242,19 +199,13 @@ const StatusProgressionStepper = ({
                   <StepDot 
                     ownerState={{ 
                       completed: isCompleted, 
-                      active: isCurrent 
+                      active: isCurrent && !isOnHold 
                     }}
-                    style={{ color: dotColor }}
                   />
                 )}
                 sx={{
                   '& .MuiStepLabel-label': {
                     fontWeight: isCurrent ? 600 : 400,
-                    color: isCurrent 
-                      ? theme.palette.text.primary 
-                      : isCompleted 
-                        ? theme.palette.text.secondary
-                        : theme.palette.text.disabled,
                     transition: 'all 0.3s ease'
                   }
                 }}
@@ -271,7 +222,6 @@ const StatusProgressionStepper = ({
                 {actualOrientation === 'horizontal' && stepTimestamp && showTimestamps && (
                   <Typography 
                     variant="caption" 
-                    color="text.secondary" 
                     display="block"
                     sx={{ transition: 'color 0.3s ease' }}
                   >
@@ -284,15 +234,13 @@ const StatusProgressionStepper = ({
                 <StepContent>
                   <Typography 
                     variant="body2" 
-                    color="text.secondary" 
                     sx={{ mb: 1, transition: 'color 0.3s ease' }}
                   >
                     {step.description}
                   </Typography>
                   {stepTimestamp && showTimestamps && (
                     <Typography 
-                      variant="caption" 
-                      color="text.secondary"
+                      variant="caption"
                       sx={{ transition: 'color 0.3s ease' }}
                     >
                       {formatTimestamp(stepTimestamp)}

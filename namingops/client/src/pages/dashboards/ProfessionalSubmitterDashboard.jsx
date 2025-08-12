@@ -1,80 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Typography, Paper, Button, Tabs, Tab, Alert, CircularProgress,
-  Card, CardContent, Chip, Divider, Grid, styled, StepConnector
+  Box, Typography, Paper, Tabs, Tab, Alert, CircularProgress,
+  Card, CardContent, Divider, Grid, styled, StepConnector
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
   Add as AddIcon,
-  Send as SendIcon,
   Search as SearchIcon, 
   Description as DescriptionIcon,
-  Cancel as CancelIcon,
-  Pause as PauseIcon,
-  MenuBook as MenuBookIcon
+  MenuBook as MenuBookIcon,
 } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import api from '../../services/api';
-import DynamicFormRenderer from '../../components/DynamicForm/DynamicFormRenderer';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Container } from 'react-bootstrap';
 import { getStatusColor } from '../../theme/newColorPalette';
 import StatusProgressionStepper from '../../components/StatusProgression/StatusProgressionStepper';
 import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
 import NewRequestForm from '../../components/Requests/NewRequestForm';
+import StatusDropdown from '../../components/common/StatusDropdown';
 
-// Helper function to get status label
-const getStatusLabel = (status) => {
-  const statusLabels = {
-    'submitted': 'Submitted',
-    'brand_review': 'Brand Review',
-    'legal_review': 'Legal Review',
-    'approved': 'Approved',
-    'rejected': 'Rejected',
-    'on_hold': 'On Hold',
-    'canceled': 'Canceled'
-  };
-  return statusLabels[status] || 'Unknown';
+// Shared status label mapping
+const STATUS_LABELS = {
+  submitted: 'Submitted',
+  brand_review: 'Brand Review',
+  legal_review: 'Legal Review',
+  approved: 'Approved',
+  rejected: 'Rejected',
+  on_hold: 'On Hold',
+  canceled: 'Canceled'
 };
 
-// Helper function to get review progress percentage
-// This function is retained for future use
-// eslint-disable-next-line no-unused-vars
-const getReviewProgress = (status) => {
-  const statusMap = {
-    'submitted': 25,
-    'brand_review': 50,
-    'legal_review': 75,
-    'approved': 100,
-    'rejected': 100,
-    'on_hold': 50,
-    'canceled': 0
-  };
-  return statusMap[status] || 0;
-};
-
-// Helper function to get stepper active step
-// This function is retained for future use
-// eslint-disable-next-line no-unused-vars
-const getStepperActiveStep = (status) => {
-  const statusSteps = {
-    'submitted': 0,
-    'brand_review': 1,
-    'legal_review': 2,
-    'approved': 3,
-    'rejected': 1, // Shows as started but not completed the process
-    'on_hold': 1,  // Shows as started but not completed the process
-    'canceled': 0  // Reset to beginning
-  };
-  return statusSteps[status] || 0;
-};
-
-// TabPanel component for accessibility
 const TabPanel = (props) => {
   const { children, value, index, ...other } = props;
-  
   return (
     <div
       role="tabpanel"
@@ -88,7 +47,6 @@ const TabPanel = (props) => {
   );
 };
 
-// Custom styled step connector with color
 const ColoredStepConnector = styled(StepConnector)(({ theme }) => ({
   [`&.MuiStepConnector-alternativeLabel`]: {
     top: 10,
@@ -112,25 +70,21 @@ const ColoredStepConnector = styled(StepConnector)(({ theme }) => ({
 
 const ProfessionalSubmitterDashboard = () => {
   const queryClient = useQueryClient();
-  
   const [tabValue, setTabValue] = useState(0);
   const [expanded, setExpanded] = useState({});
-  
+
   // Get my requests
   const { data: myRequests = [], isLoading: requestsLoading, error: requestsError } = useQuery({
     queryKey: ['myRequests'],
     queryFn: async () => {
       try {
         const response = await api.get('/api/v1/name-requests/my-requests');
-        console.log('My requests data:', response.data);
-        // Transform data to ensure each request has an id property (MongoDB uses _id)
         const transformedData = Array.isArray(response.data) 
           ? response.data.map(request => ({
               ...request,
-              id: request.id || request._id, // Use existing id or fallback to _id
+              id: request.id || request._id,
             }))
           : [];
-        console.log('Transformed requests with ids:', transformedData);
         return transformedData;
       } catch (error) {
         console.error('Error fetching my requests:', error);
@@ -142,19 +96,11 @@ const ProfessionalSubmitterDashboard = () => {
   });
 
   // Get form configuration for the new request form
-  const { data: formConfig, isLoading: formConfigLoading, error: formConfigError } = useQuery({
+  const { data: formConfig } = useQuery({
     queryKey: ['formConfig'],
     queryFn: async () => {
-      try {
-        const response = await api.get('/api/v1/form-configurations/active');
-        console.log('Form config API response:', response);
-        const data = response.data;
-        console.log('Form config data structure:', data);
-        return data;
-      } catch (error) {
-        console.error('Error fetching form configuration:', error);
-        throw error;
-      }
+      const response = await api.get('/api/v1/form-configurations/active');
+      return response.data;
     },
     staleTime: 300000,
     cacheTime: 600000,
@@ -164,7 +110,6 @@ const ProfessionalSubmitterDashboard = () => {
   const cancelRequestMutation = useMutation({
     mutationFn: async (requestId) => {
       if (!requestId) throw new Error("Request ID is undefined");
-      // Use the correct API endpoint pattern with /api/v1/ prefix
       const response = await api.put(`/api/v1/name-requests/${requestId}/status`, { 
         status: 'canceled',
         comment: 'Request canceled by user'
@@ -184,7 +129,6 @@ const ProfessionalSubmitterDashboard = () => {
   const holdRequestMutation = useMutation({
     mutationFn: async (requestId) => {
       if (!requestId) throw new Error("Request ID is undefined");
-      // Use PUT with status update instead of PATCH to non-existent /hold endpoint
       const response = await api.put(`/api/v1/name-requests/${requestId}/status`, { 
         status: 'on_hold',
         comment: 'Request placed on hold by user'
@@ -261,28 +205,6 @@ const ProfessionalSubmitterDashboard = () => {
       ...prev,
       [id]: !prev[id]
     }));
-  };
-
-  const handleCancelRequest = (requestId) => {
-    if (!requestId) {
-      console.error("Cannot cancel request: Request ID is undefined");
-      return;
-    }
-    
-    if (window.confirm('Are you sure you want to cancel this request?')) {
-      cancelRequestMutation.mutate(requestId);
-    }
-  };
-
-  const handleHoldRequest = (requestId) => {
-    if (!requestId) {
-      console.error("Cannot put request on hold: Request ID is undefined");
-      return;
-    }
-    
-    if (window.confirm('Are you sure you want to put this request on hold?')) {
-      holdRequestMutation.mutate(requestId);
-    }
   };
 
   return (
@@ -379,18 +301,26 @@ const ProfessionalSubmitterDashboard = () => {
                               <Typography variant="h6" sx={{ fontWeight: 'medium' }}>
                                 {request.title || request.requestData?.name || 'Name Request'}
                               </Typography>
-                              
-                              {/* Status tag in upper right corner */}
-                              <Chip
-                                label={getStatusLabel(request.status)}
-                                sx={{
-                                  backgroundColor: getStatusColor(request.status),
-                                  color: 'white',
-                                  fontSize: '0.75rem',
-                                  height: '1.5rem',
-                                  fontWeight: 'medium'
+                              {/* Status Dropdown in upper right corner */}
+                              <StatusDropdown
+                                currentStatus={request.status}
+                                options={[
+                                  { value: 'on_hold', label: 'Hold' },
+                                  { value: 'canceled', label: 'Cancel' }
+                                ]}
+                                statusLabels={STATUS_LABELS}
+                                onChange={status => {
+                                  if (status === 'on_hold') {
+                                    if (window.confirm('Are you sure you want to put this request on hold?')) {
+                                      holdRequestMutation.mutate(request.id);
+                                    }
+                                  } else if (status === 'canceled') {
+                                    if (window.confirm('Are you sure you want to cancel this request?')) {
+                                      cancelRequestMutation.mutate(request.id);
+                                    }
+                                  }
                                 }}
-                                size="small"
+                                disabled={['approved', 'rejected', 'canceled'].includes(request.status)}
                               />
                             </Box>
                             
@@ -413,45 +343,6 @@ const ProfessionalSubmitterDashboard = () => {
                                   approved: request.updatedAt
                                 }}
                               />
-                            </Box>
-
-                            {/* Action buttons - always visible */}
-                            <Box sx={{ 
-                              display: 'flex', 
-                              justifyContent: 'flex-end', 
-                              gap: '0.75rem',
-                              mt: '1rem'
-                            }}>
-                              {request.status !== 'approved' && request.status !== 'rejected' && request.status !== 'canceled' && (
-                                <>
-                                  {request.status !== 'on_hold' && (
-                                    <Button
-                                      startIcon={<PauseIcon />}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleHoldRequest(request.id);
-                                      }}
-                                      color="warning"
-                                      variant="outlined"
-                                      size="small"
-                                    >
-                                      Hold
-                                    </Button>
-                                  )}
-                                  <Button
-                                    startIcon={<CancelIcon />}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleCancelRequest(request.id);
-                                    }}
-                                    color="error"
-                                    variant="outlined"
-                                    size="small"
-                                  >
-                                    Cancel
-                                  </Button>
-                                </>
-                              )}
                             </Box>
                           </Box>
                         </Box>
@@ -491,7 +382,7 @@ const ProfessionalSubmitterDashboard = () => {
                                   {request.statusHistory.map((history, index) => (
                                     <li key={index}>
                                       <Typography variant="body2">
-                                        {new Date(history.timestamp).toLocaleString()}: Changed to {getStatusLabel(history.status)}
+                                        {new Date(history.timestamp).toLocaleString()}: Changed to {STATUS_LABELS[history.status] || history.status}
                                       </Typography>
                                     </li>
                                   ))}

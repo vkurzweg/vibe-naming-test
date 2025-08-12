@@ -27,21 +27,15 @@ const fetchAllRequests = async () => {
   }
 };
 
-// Unified status update mutation
-const updateRequestStatus = async ({ requestId, status, reason, reviewerNotes }) => {
+// Unified status update mutation (updated to accept formData)
+const updateRequestStatus = async ({ requestId, status, formData, reason, reviewerNotes }) => {
   if (!requestId) throw new Error("Request ID is undefined");
   if (!status) throw new Error("Status is required");
-  try {
-    const response = await api.put(`/api/v1/name-requests/${requestId}/status`, {
-      status, 
-      reason, 
-      reviewerNotes
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error updating request status:', error);
-    throw error;
-  }
+  // Add formData to the payload if required
+  const payload = { status, reason, reviewerNotes };
+  if (formData) payload.formData = formData;
+  const response = await api.put(`/api/v1/name-requests/${requestId}/status`, payload);
+  return response.data;
 };
 
 // Claim request

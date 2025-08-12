@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+const statusEnum = [
+  'submitted',
+  'brand_review',
+  'legal_review',
+  'approved',
+  'on_hold',
+  'canceled'
+];
+
 const namingRequestSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -16,7 +25,7 @@ const namingRequestSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['submitted', 'under_review', 'final_review', 'approved', 'on_hold', 'canceled'],
+    enum: statusEnum,
     default: 'submitted',
     required: true,
   },
@@ -37,7 +46,7 @@ const namingRequestSchema = new mongoose.Schema({
   statusHistory: [{
     status: {
       type: String,
-      enum: ['submitted', 'under_review', 'final_review', 'approved', 'on_hold', 'canceled'],
+      enum: statusEnum,
       required: true,
     },
     changedBy: {

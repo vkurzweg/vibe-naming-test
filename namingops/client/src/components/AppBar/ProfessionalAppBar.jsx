@@ -116,10 +116,9 @@ const ProfessionalAppBar = () => {
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '0.5em',
           }}>
             <img 
-              src={isDarkMode ? "/cog_logo_darkmode.png" : "/cog_logo.png"}
+              src={isDarkMode ? "/cog_logo_darkmode.png" : "/cog_logo_lightmode.png"}
               alt="Company Logo"
               style={{ 
                 height: '2.8rem',
