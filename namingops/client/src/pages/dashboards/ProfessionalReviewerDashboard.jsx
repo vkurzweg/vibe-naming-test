@@ -172,15 +172,15 @@ const ProfessionalReviewerDashboard = () => {
               icon={<AddIcon />}
               iconPosition="start"
               label="New Request"
-              id="tab-2"
-              aria-controls="tabpanel-2"
+              id="tab-1"
+              aria-controls="tabpanel-1"
             />
             <Tab 
               icon={<ArchiveIcon />}
               iconPosition="start"
               label="Archive" 
-              id="tab-1" 
-              aria-controls="tabpanel-1" 
+              id="tab-2" 
+              aria-controls="tabpanel-2" 
             />
           </Tabs>
         </Box>
