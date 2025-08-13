@@ -4,5 +4,6 @@
     "bootstrap": "^5.3.7",
     "express-session": "^1.18.2",
     "react-spring": "^10.0.1"
-  }
+  },
+  "start": "cd namingops/server && npm start"
 }
