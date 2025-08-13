@@ -210,12 +210,12 @@ const handleDeleteRequest = (id) => {
         </TabPanel>
 
         {/* Archive Tab Panel */}
-        <TabPanel value={activeTab} index={1}>
+        <TabPanel value={activeTab} index={2}>
           {/* You can implement the archive tab here or leave it blank for now */}
         </TabPanel>
 
         {/* New Request Tab Panel */}
-        <TabPanel value={activeTab} index={2}>
+        <TabPanel value={activeTab} index={1}>
           <Box sx={{ p: 0 }}>
             <NewRequestForm onSuccess={() => { /* Optionally handle success, e.g. show a toast or switch tabs */ }} />
           </Box>

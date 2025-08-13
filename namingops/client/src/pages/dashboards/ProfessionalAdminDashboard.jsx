@@ -150,7 +150,7 @@ const ProfessionalAdminDashboard = () => {
         </TabPanel>
 
         {/* Form Configuration Tab Panel */}
-        <TabPanel value={activeTab} index={1}>
+        <TabPanel value={activeTab} index={2}>
             {formConfigsLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
                 <CircularProgress />
@@ -167,7 +167,7 @@ const ProfessionalAdminDashboard = () => {
         </TabPanel>
 
         {/* New Request Tab Panel */}
-        <TabPanel value={activeTab} index={2}>
+        <TabPanel value={activeTab} index={1}>
             <NewRequestForm onSuccess={() => { /* Optionally handle success, e.g. show a toast or switch tabs */ }} />
         </TabPanel>
       </Paper>
