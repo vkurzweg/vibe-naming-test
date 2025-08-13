@@ -5,7 +5,7 @@ const logger = require('../utils/logger');
 // Middleware to verify JWT token
 const isAuthenticated = async (req, res, next) => {
   // Skip authentication in development
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
     logger.debug('Development mode: Skipping authentication');
     
     // Get role from header or default to 'admin'

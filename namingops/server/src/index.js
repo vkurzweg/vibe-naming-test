@@ -121,12 +121,12 @@ app.use('/api/v1/health', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/name-requests', nameRequestRoutes);
 // Duplicate mount without /api prefix to accommodate proxy stripping in development
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
   app.use('/v1/name-requests', nameRequestRoutes);
 }
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/form-configurations', formConfigurationRoutes);
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
   app.use('/v1/form-configurations', formConfigurationRoutes);
 }
 

@@ -27,11 +27,11 @@ const devUsers = {
     _isDev: true
   }
 };
-
+const isDevOrDemo = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
 const authService = {
   // Register user
   register: async (userData) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
       // In development, just return a success response
       const newUser = { 
         ...userData, 
@@ -57,7 +57,7 @@ const authService = {
 
   // Login user
   login: async (credentials) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
       // In development, bypass the actual login and return a mock user
       const user = devUsers[credentials.role] || devUsers.admin;
       localStorage.setItem('token', user.token);
@@ -79,7 +79,7 @@ const authService = {
 
   // Logout user
   logout: () => {
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
       // In development, just clear the local storage
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -96,10 +96,10 @@ const authService = {
 
   // Development-only: Switch roles
   switchRole: (role) => {
-    if (process.env.NODE_ENV !== 'development') {
-      console.warn('Role switching is only available in development mode');
-      return Promise.reject('Role switching is only available in development mode');
-    }
+    if (!isDevOrDemo) {
+    console.warn('Role switching is only available in development or demo mode');
+    return Promise.reject('Role switching is only available in development or demo mode');
+  }
     
     const user = devUsers[role] || devUsers.admin;
     localStorage.setItem('token', user.token);
@@ -109,7 +109,7 @@ const authService = {
 
   // Google login
   googleLogin: async (tokenResponse) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (!isDevOrDemo) {
       // In development, return a mock admin user
       const user = devUsers.admin;
       localStorage.setItem('token', user.token);

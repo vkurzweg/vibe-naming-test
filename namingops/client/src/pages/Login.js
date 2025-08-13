@@ -33,7 +33,7 @@ const loginSchema = yup.object().shape({
     .min(8, 'Password must be at least 8 characters')
     .required('Password is required'),
 });
-
+const isDevOrDemo = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -79,7 +79,7 @@ const Login = () => {
 
   // Handle Google OAuth success
   const handleGoogleSuccess = async (credentialResponse) => {
-    if (process.env.NODE_ENV === 'development') {
+    if (!isDevOrDemo) {
       setFormError('Google OAuth is disabled in development mode');
       return;
     }

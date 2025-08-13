@@ -9,7 +9,7 @@
  * Check if the app is running in development mode
  * @returns {boolean} True if in development mode
  */
-export const isDevelopment = process.env.NODE_ENV === 'development';
+export const isDevelopment = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
 
 /**
  * Check if the app is running in production mode

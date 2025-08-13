@@ -308,7 +308,7 @@ const SubmitRequestModal = ({ open, onClose }) => {
         >
           {submitting ? 'Submitting...' : 'Submit Request'}
         </Button>
-        {process.env.NODE_ENV === 'development' && (
+        {process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' && (
           <Button
             onClick={testValidation}
             color="secondary"

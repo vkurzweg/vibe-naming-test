@@ -80,7 +80,7 @@ const Sidebar = ({ mobileOpen, handleDrawerToggle }) => {
 
   // Filter nav items by role and devOnly flag
   const role = user?.role || 'submitter';
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
   const filteredNav = NAV_ITEMS.filter(item =>
     item.roles.includes(role) && (isDev || !item.devOnly)
   );

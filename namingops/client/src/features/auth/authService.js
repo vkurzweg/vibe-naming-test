@@ -1,10 +1,10 @@
 // Service for handling authentication-related API calls
 import { store } from '../../app/store';
-
+const isDevOrDemo = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
 export const switchRole = async (newRole) => {
-  if (process.env.NODE_ENV !== 'development') {
-    console.warn('Role switching is only available in development mode');
-    return Promise.reject('Role switching is only available in development mode');
+  if (!isDevOrDemo) {
+    console.warn('Role switching is only available in development or demo mode');
+    return Promise.reject('Role switching is only available in development or demo mode');
   }
 
   try {

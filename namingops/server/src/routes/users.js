@@ -60,7 +60,7 @@ router.get('/', [isAuthenticated, hasRole(['admin'])], async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
     });
   }
 });
@@ -89,7 +89,7 @@ router.get('/me', isAuthenticated, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
     });
   }
 });
@@ -147,7 +147,7 @@ router.put(
       res.status(500).json({
         success: false,
         message: 'Server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
       });
     }
   }
@@ -200,7 +200,7 @@ router.put(
       res.status(500).json({
         success: false,
         message: 'Server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
       });
     }
   }
@@ -237,7 +237,7 @@ router.get('/:id', [isAuthenticated, hasRole(['admin'])], async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
     });
   }
 });
@@ -330,7 +330,7 @@ router.put(
       res.status(500).json({
         success: false,
         message: 'Server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
       });
     }
   }
@@ -387,7 +387,7 @@ router.delete('/:id', [isAuthenticated, hasRole(['admin'])], async (req, res) =>
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
     });
   }
 });
@@ -455,7 +455,7 @@ router.post('/:id/impersonate', [isAuthenticated, hasRole(['admin'])], async (re
     res.status(500).json({
       success: false,
       message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
     });
   }
 });

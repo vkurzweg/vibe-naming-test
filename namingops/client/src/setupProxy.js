@@ -2,6 +2,10 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 console.log('setupProxy.js is being loaded!');
 
+const isDevOrDemo =
+  process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ||
+  process.env.REACT_APP_DEMO_MODE === 'true';
+
 module.exports = function(app) {
   app.use(
     '/api',
@@ -18,12 +22,12 @@ module.exports = function(app) {
         res.end(JSON.stringify({ error: 'Proxy error', details: err.message }));
       },
       onProxyReq: (proxyReq, req, res) => {
-        if (process.env.NODE_ENV === 'development') {
+        if (isDevOrDemo) {
           console.log('Proxying request:', req.method, req.path);
         }
       },
       onProxyRes: (proxyRes, req, res) => {
-        if (process.env.NODE_ENV === 'development') {
+        if (isDevOrDemo) {
           proxyRes.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000';
           proxyRes.headers['Access-Control-Allow-Credentials'] = 'true';
         }

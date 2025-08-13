@@ -16,7 +16,7 @@ router.get('/active', async (req, res) => {
     if (!formConfig) {
       console.log('No active form configuration found in database');
       // For development, return a default config if none is found
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
         console.log('Returning default development form config');
         return res.json({
           _id: 'default-dev-config',
@@ -59,7 +59,7 @@ router.get('/active', async (req, res) => {
     console.error('Error in active form config endpoint:', err);
     res.status(500).json({ 
       msg: 'Server Error',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? err.message : undefined
     });
   }
 });

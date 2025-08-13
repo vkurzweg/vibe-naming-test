@@ -31,7 +31,7 @@ const errorHandler = (err, req, res, next) => {
   logger.error(`${err.statusCode} - ${err.message} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
   
   // In development, log the full error stack
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
     logger.error('Error Stack:', err.stack);
     
     // Send detailed error response in development
@@ -120,7 +120,7 @@ const errorHandler = (err, req, res, next) => {
   res.status(500).json({
     success: false,
     message: 'Something went wrong!',
-    ...(process.env.NODE_ENV === 'development' && { error: err.message })
+    ...(process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' && { error: err.message })
   });};
 
 // 404 Not Found handler

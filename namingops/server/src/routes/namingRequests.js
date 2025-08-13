@@ -102,7 +102,7 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
       return res.status(503).json({ 
         success: false, 
         error: 'Database connection not available',
-        details: process.env.NODE_ENV === 'development' ? connectionError : undefined
+        details: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? connectionError : undefined
       });
     }
 
@@ -119,7 +119,7 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
     const formData = req.body;
     
     // In development, use the provided user ID or fall back to the dev user
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
     let userId;
     let userName;
     
@@ -224,7 +224,7 @@ router.post('/', [isAuthenticated, ...validateRequest], async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: 'Server error',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? error.message : undefined
     });
   } finally {
     session.endSession();
@@ -293,7 +293,7 @@ router.get('/my-requests', isAuthenticated, async (req, res) => {
     
     // In development mode always return all requests for easier testing
     let requests;
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
       console.log('GET /my-requests - Development mode, fetching all requests');
       requests = await NamingRequest.find()
         .populate('user', 'name email')

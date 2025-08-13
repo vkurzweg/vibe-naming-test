@@ -88,7 +88,7 @@ const SubmitRequest = () => {
       }
     };
     loadFormConfig();
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
       const intervalId = setInterval(() => {
         dispatch(loadActiveFormConfig());
       }, 15000);

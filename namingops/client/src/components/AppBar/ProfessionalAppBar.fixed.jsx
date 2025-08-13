@@ -166,7 +166,7 @@ const ProfessionalAppBar = () => {
           </Tooltip>
           
           {/* Role Indicator */}
-          <Tooltip title={process.env.NODE_ENV === 'development' ? 'Change Role (Development Only)' : 'Current Role'}>
+          <Tooltip title={process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? 'Change Role (Development Only)' : 'Current Role'}>
             <Chip 
               label={effectiveRole || 'Guest'} 
               color={getRoleColor(effectiveRole)}
@@ -174,9 +174,9 @@ const ProfessionalAppBar = () => {
               icon={getRoleIcon(effectiveRole)}
               sx={{ 
                 textTransform: 'capitalize',
-                cursor: process.env.NODE_ENV === 'development' ? 'pointer' : 'default'
+                cursor: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? 'pointer' : 'default'
               }}
-              onClick={process.env.NODE_ENV === 'development' ? handleRoleMenuOpen : undefined}
+              onClick={process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? handleRoleMenuOpen : undefined}
             />
           </Tooltip>
           
@@ -267,7 +267,7 @@ const ProfessionalAppBar = () => {
         </Menu>
         
         {/* Role Switcher Menu (Dev Only) */}
-        {process.env.NODE_ENV === 'development' && (
+        {process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' && (
           <Menu
             anchorEl={roleMenuAnchor}
             open={Boolean(roleMenuAnchor)}

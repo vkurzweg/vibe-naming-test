@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // In development, use relative URLs to enable proxy functionality
 // In production, use REACT_APP_API_URL or default to current origin
-const BASE_URL = process.env.NODE_ENV === 'development' 
+const BASE_URL = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' 
   ? '' // Always use empty baseURL in development to enable proxy
   : (process.env.REACT_APP_API_URL || window.location.origin);
 
@@ -28,7 +28,7 @@ api.interceptors.request.use(
     }
     
     // In development mode, just log the request - let proxy handle routing
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
       // Ensure URL doesn't start with http:// or https:// in development
       // This makes sure we're using the proxy correctly
       if (config.url && (config.url.startsWith('http://') || config.url.startsWith('https://'))) {

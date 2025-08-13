@@ -39,7 +39,7 @@ console.log('Using Google OAuth Client ID:', GOOGLE_CLIENT_ID);
 
 // Protected Route Component - Role-based access control
 const ProtectedRoute = ({ children, requiredRole }) => {
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const isDevelopment = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' || process.env.REACT_APP_DEMO_MODE === 'true';
   const { isAuthenticated } = useSelector((state) => state.auth);
   const role = useEffectiveRole();
 

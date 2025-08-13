@@ -8,7 +8,7 @@ export const DevRoleContext = createContext(null);
  * It exposes a small floating FAB that allows developers to switch roles on the fly.
  */
 export const DevRoleProvider = ({ children }) => {
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
 
   // Hooks must always execute, but we will no-op in production
   // Default to 'submitter' so UI loads without manual selection

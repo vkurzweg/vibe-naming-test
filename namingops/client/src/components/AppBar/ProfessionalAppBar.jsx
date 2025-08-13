@@ -80,7 +80,7 @@ const ProfessionalAppBar = () => {
   };
 
   const userInitial = user?.name?.charAt(0)?.toUpperCase() || '?';
-
+  const isDevOrDemo = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
   return (
     <AppBar 
       position="static" 
@@ -211,7 +211,7 @@ const ProfessionalAppBar = () => {
           <Divider />
 
           {/* Role Switching Section - Only in Development */}
-          {process.env.NODE_ENV === 'development' && (
+          {isDevOrDemo && (
             <>
               <Typography variant="caption" sx={{ px: 2, py: 0.5, display: 'block', color: 'text.secondary' }}>
                 Switch Role (Development Only)
@@ -292,11 +292,11 @@ const ProfessionalAppBar = () => {
           </MenuItem>
           <Divider />
           <MenuItem 
-            onClick={process.env.NODE_ENV !== 'development' ? handleLogout : undefined}
-            disabled={process.env.NODE_ENV === 'development'}
+            onClick={!isDevOrDemo ? handleLogout : undefined}
+            disabled={isDevOrDemo}
             sx={{
-              opacity: process.env.NODE_ENV === 'development' ? 0.5 : 1,
-              pointerEvents: process.env.NODE_ENV === 'development' ? 'none' : 'auto'
+              opacity: isDevOrDemo ? 0.5 : 1,
+              pointerEvents: isDevOrDemo ? 'none' : 'auto'
             }}
           >
             <ListItemIcon>

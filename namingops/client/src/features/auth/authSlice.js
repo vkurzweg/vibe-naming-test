@@ -5,7 +5,7 @@ import authService from '../../services/authService';
 let user = JSON.parse(localStorage.getItem('user'));
 
 // Development mode: Create a default admin user if none exists
-if (process.env.NODE_ENV === 'development' && !user) {
+if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' && !user) {
   user = {
     id: 'dev-admin-123',
     name: 'Development Admin',
@@ -129,7 +129,7 @@ export const authSlice = createSlice({
       state.message = '';
     },
     switchRole: (state, action) => {
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
         const role = action.payload;
         state.user = {
           ...state.user,
@@ -179,7 +179,7 @@ export const authSlice = createSlice({
         }
         console.log('User logged in. Role:', state.user.role);
         // Persist to localStorage in development
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
           localStorage.setItem('user', JSON.stringify(state.user));
         }
       })

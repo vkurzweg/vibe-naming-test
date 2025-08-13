@@ -74,7 +74,7 @@ export const createNamingRequest = createAsyncThunk(
       };
       
       // Only include debug info in non-production
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true') {
         serializableError._debug = errorDetails;
       }
       
