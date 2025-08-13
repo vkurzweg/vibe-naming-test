@@ -61,6 +61,17 @@ const ProfessionalReviewerDashboard = () => {
     cacheTime: 600000,
   });
 
+  // --- Add active form config fetch ---
+  const { data: activeFormConfig } = useQuery({
+    queryKey: ['activeFormConfig'],
+    queryFn: async () => {
+      const response = await api.get('/api/v1/form-configurations/active');
+      return response.data;
+    },
+    staleTime: 300000,
+    cacheTime: 600000,
+  });
+
   const { updateStatus, claimRequest } = useRequestManagement();
 
   const filteredRequests = useMemo(() => {
@@ -180,7 +191,9 @@ const ProfessionalReviewerDashboard = () => {
             error={queueError}
             onStatusChange={updateStatus}
             onClaimRequest={claimRequest}
-            showClaimButton={user && user.role === 'admin'} 
+            showClaimButton={true}
+            currentUserId={user?.id}
+            formConfig={activeFormConfig}
           />
         </TabPanel>
 

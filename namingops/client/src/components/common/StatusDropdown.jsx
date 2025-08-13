@@ -8,7 +8,6 @@ const STATUS_COLOR_MAP = {
   on_hold: '#ffd600',
   approved: '#43a047',
   canceled: '#e53935',
-  cancelled: '#e53935',
   submitted: '#757575',
 };
 

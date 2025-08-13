@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Box, Card, CardContent, Typography, Collapse, Grid, TextField,
+  Box, Card, CardContent, Typography, Collapse, TextField,
   FormControl, InputLabel, Select, MenuItem, IconButton, Divider,
-  CircularProgress, Alert
+  CircularProgress, Alert, Table, TableBody, TableRow, TableCell
 } from '@mui/material';
-import StatusProgressionStepper from '../StatusProgression/StatusProgressionStepper';
 import { Search as SearchIcon, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { format } from 'date-fns';
-import StatusDropdown from '../common/StatusDropdown'; // Use shared dropdown
+import StatusDropdown from '../common/StatusDropdown';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Requests' },
@@ -38,11 +37,14 @@ export default function ReviewQueue({
   onClaimRequest,
   showClaimButton = false,
   currentUserId,
+  formConfig
 }) {
-  const [expanded, setExpanded] = useState({});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('date_desc');
+    console.log('ReviewQueue requests:', requests); 
+ 
+const [expanded, setExpanded] = useState({});
+const [searchTerm, setSearchTerm] = useState('');
+const [statusFilter, setStatusFilter] = useState('all');
+const [sortBy, setSortBy] = useState('date_desc');
 
   // Filtering
   const filteredRequests = useMemo(() => {
@@ -59,8 +61,8 @@ export default function ReviewQueue({
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
       result = result.filter(r =>
-        r.requestData?.name?.toLowerCase().includes(lower) ||
-        r.submitter?.name?.toLowerCase().includes(lower)
+        (r.formData?.proposedName1 || r.requestData?.proposedName1 || '').toLowerCase().includes(lower) ||
+        (r.formData?.contactName || r.requestData?.contactName || '').toLowerCase().includes(lower)
       );
     }
 
@@ -74,9 +76,13 @@ export default function ReviewQueue({
         case 'last_updated':
           return new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt);
         case 'name_asc':
-          return (a.requestData?.name || '').localeCompare(b.requestData?.name || '');
+          return ((a.formData?.proposedName1 || a.requestData?.proposedName1 || '')).localeCompare(
+            b.formData?.proposedName1 || b.requestData?.proposedName1 || ''
+          );
         case 'name_desc':
-          return (b.requestData?.name || '').localeCompare(a.requestData?.name || '');
+          return ((b.formData?.proposedName1 || b.requestData?.proposedName1 || '')).localeCompare(
+            a.formData?.proposedName1 || a.requestData?.proposedName1 || ''
+          );
         default:
           return new Date(b.createdAt) - new Date(a.createdAt);
       }
@@ -84,6 +90,10 @@ export default function ReviewQueue({
 
     return result;
   }, [requests, searchTerm, statusFilter, sortBy]);
+
+  const keyToLabel = (key) => {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
 
   return (
     <Box sx={{ p: { xs: 0, md: 2 } }}>
@@ -155,10 +165,10 @@ export default function ReviewQueue({
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Box>
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    {request.requestData?.name || 'Untitled Request'}
+                    {(request.formData?.proposedName1 || request.requestData?.proposedName1) || '—'}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {request.submitter?.name || 'Unknown Submitter'}
+                    {(request.formData?.contactName || request.requestData?.contactName) || '—'}
                   </Typography>
                 </Box>
                 {/* Status Dropdown */}
@@ -166,7 +176,7 @@ export default function ReviewQueue({
                   currentStatus={request.status}
                   options={STATUS_UPDATE_OPTIONS}
                   onChange={status => {
-                    const payload = { requestId: request.id, status, formData: request.formData || request.requestData };
+                    const payload = { requestId: request.id, status, formData: request.formData };
                     if (onStatusChange && typeof onStatusChange.mutate === 'function') {
                       onStatusChange.mutate(payload);
                     } else if (typeof onStatusChange === 'function') {
@@ -181,22 +191,6 @@ export default function ReviewQueue({
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                 Submitted: {request.createdAt ? format(new Date(request.createdAt), 'MMM dd, yyyy') : 'Unknown'}
               </Typography>
-
-              {/* Horizontal Stepper */}
-              <Box sx={{ mb: 1 }}>
-                <StatusProgressionStepper
-                  status={request.status}
-                  orientation="horizontal"
-                  compact
-                  showTimestamps={false}
-                  timestamps={{
-                    submitted: request.createdAt,
-                    brand_review: request.updatedAt,
-                    legal_review: request.updatedAt,
-                    approved: request.updatedAt
-                  }}
-                />
-              </Box>
 
               {/* Expand/collapse */}
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
@@ -215,22 +209,30 @@ export default function ReviewQueue({
               {/* Expanded details */}
               <Collapse in={!!expanded[request.id]}>
                 <Divider sx={{ my: 2 }} />
-                <Grid container spacing={2}>
-                  {Object.entries(request.requestData || {}).map(([key, value]) => (
-                    <React.Fragment key={key}>
-                      <Grid item xs={4} sm={3}>
-                        <Typography variant="body2" color="text.secondary">
-                          {key}:
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={8} sm={9}>
-                        <Typography variant="body2">
-                          {typeof value === 'string' ? value : JSON.stringify(value)}
-                        </Typography>
-                      </Grid>
-                    </React.Fragment>
-                  ))}
-                </Grid>
+                {formConfig?.fields && (
+                  <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
+                    <TableBody>
+                      {formConfig.fields.map(field => {
+                        const value = request.formData?.[field.name];
+                        return (
+                          <TableRow key={field.name}>
+                            <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
+                              {field.label || keyToLabel(field.name)}
+                            </TableCell>
+                            <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
+                              {value === undefined || value === '' || value === null
+                                ? '—'
+                                : typeof value === 'object'
+                                  ? JSON.stringify(value)
+                                  : String(value)
+                              }
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
               </Collapse>
             </CardContent>
           </Card>

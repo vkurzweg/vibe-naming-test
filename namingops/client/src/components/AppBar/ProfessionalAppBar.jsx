@@ -100,7 +100,7 @@ const ProfessionalAppBar = () => {
         boxSizing: 'border-box'
       }}
     >
-      <Container fluid>
+      <Container>
         <Toolbar 
           disableGutters 
           sx={{ 
@@ -108,14 +108,13 @@ const ProfessionalAppBar = () => {
             width: '100%',
             display: 'flex',
             justifyContent: 'space-between',
-            padding: 0,
             boxSizing: 'border-box'
           }}
         >
           {/* Logo and App Name */}
           <Box sx={{ 
             display: 'flex', 
-            alignItems: 'center', 
+            alignItems: 'left', 
           }}>
             <img 
               src={isDarkMode ? "/cog_logo_darkmode.png" : "/cog_logo_lightmode.png"}
@@ -133,7 +132,6 @@ const ProfessionalAppBar = () => {
             display: 'flex', 
             alignItems: 'center', 
             gap: '0.75em',
-            paddingRight: 0
           }}>
             {/* Theme Toggle with improved visibility */}
             <ThemeToggle 
@@ -148,7 +146,7 @@ const ProfessionalAppBar = () => {
             />
             
             {/* Notifications with improved visibility */}
-            <Tooltip title="Notifications">
+            {/* <Tooltip title="Notifications">
               <IconButton
                 color="inherit"
                 onClick={(e) => setNotificationAnchor(e.currentTarget)}
@@ -165,7 +163,7 @@ const ProfessionalAppBar = () => {
                   <Notifications sx={{ fontSize: 'inherit' }} />
                 </Badge>
               </IconButton>
-            </Tooltip>
+            </Tooltip> */}
             
             {/* User Menu */}
             <Tooltip title="Account">

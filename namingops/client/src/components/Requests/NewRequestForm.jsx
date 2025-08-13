@@ -7,6 +7,35 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import DynamicFormRenderer from '../DynamicForm/DynamicFormRenderer';
 
+// --- Dynamic Zod Schema Helpers ---
+function zodTypeForField(field) {
+  switch (field.type) {
+    case 'text':
+    case 'textarea':
+      return field.required ? z.string().min(1, { message: 'Required' }) : z.string().optional();
+    case 'email':
+      return field.required
+        ? z.string().email({ message: 'Invalid email' })
+        : z.string().email({ message: 'Invalid email' }).optional();
+    case 'number':
+      return field.required
+        ? z.coerce.number({ invalid_type_error: 'Must be a number' })
+        : z.coerce.number().optional();
+    case 'checkbox':
+      return z.boolean().optional();
+    default:
+      return z.any();
+  }
+}
+
+function buildZodSchemaFromFields(fields) {
+  const shape = {};
+  for (const field of fields) {
+    shape[field.name] = zodTypeForField(field);
+  }
+  return z.object(shape);
+}
+
 export default function NewRequestForm({ onSuccess }) {
   const queryClient = useQueryClient();
   const { data: formConfigRaw, isLoading, error } = useQuery({
@@ -26,17 +55,19 @@ export default function NewRequestForm({ onSuccess }) {
     ? { ...formConfigRaw, fields: normalizedFields }
     : null;
 
-  // Debug: log the raw and normalized form config
-  console.log('formConfigRaw:', formConfigRaw);
-  console.log('normalizedFormConfig:', normalizedFormConfig);
+  // --- Build dynamic Zod schema ---
+  const dynamicSchema = normalizedFormConfig
+    ? buildZodSchemaFromFields(normalizedFormConfig.fields)
+    : z.object({});
 
   const { control, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm({
-    resolver: zodResolver(z.object({})),
+    resolver: zodResolver(dynamicSchema),
     mode: 'onChange',
   });
 
   const mutation = useMutation({
     mutationFn: async (data) => {
+      console.log('Submitting data:', data);
       const res = await api.post('/api/v1/name-requests', data);
       return res.data;
     },

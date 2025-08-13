@@ -254,21 +254,19 @@ const createMaterialTheme = (isDarkMode = true, role = 'submitter') => {
           },
           // Apply Bootstrap-like container padding to improve responsive layout
           '.dashboard-container': {
-            paddingRight: 'calc(var(--bs-gutter-x) * 3)',
-            paddingLeft: 'calc(var(--bs-gutter-x) * 3)',
+
           },
           // Match AppBar padding with dashboard container
           '.MuiToolbar-root': {
-            paddingRight: 'calc(var(--bs-gutter-x) * 3)',
             '& .MuiBox-root': {
               '&:first-of-type': {  // Logo container
-                paddingLeft: 'calc(var(--bs-gutter-x) * 3)',
+       
               },
             },
           },
           // Avatar padding
           '.user-avatar': {
-            paddingRight: 'calc(var(--bs-gutter-x) * 3)',
+
           },
         },
       },

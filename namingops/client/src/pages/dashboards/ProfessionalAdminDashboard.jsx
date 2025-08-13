@@ -136,6 +136,7 @@ const ProfessionalAdminDashboard = () => {
               onClaimRequest={claimRequest}
               showClaimButton={true}
               currentUserId={user?.id}
+              formConfig={activeFormConfig}
             />
           </Box>
         </TabPanel>
