@@ -106,6 +106,8 @@ const ProfessionalAdminDashboard = () => {
           <Tabs
             value={activeTab}
             onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
             aria-label="admin dashboard tabs"
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >

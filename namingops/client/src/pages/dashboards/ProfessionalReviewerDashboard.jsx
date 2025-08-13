@@ -156,6 +156,8 @@ const ProfessionalReviewerDashboard = () => {
           <Tabs
             value={activeTab}
             onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
             aria-label="reviewer dashboard tabs"
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
@@ -166,19 +168,19 @@ const ProfessionalReviewerDashboard = () => {
               id="tab-0"
               aria-controls="tabpanel-0" 
             />
-            <Tab 
-              icon={<ArchiveIcon />}
-              iconPosition="start"
-              label="Archive" 
-              id="tab-1" 
-              aria-controls="tabpanel-1" 
-            />
             <Tab
               icon={<AddIcon />}
               iconPosition="start"
               label="New Request"
               id="tab-2"
               aria-controls="tabpanel-2"
+            />
+            <Tab 
+              icon={<ArchiveIcon />}
+              iconPosition="start"
+              label="Archive" 
+              id="tab-1" 
+              aria-controls="tabpanel-1" 
             />
           </Tabs>
         </Box>

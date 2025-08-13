@@ -209,6 +209,8 @@ const ProfessionalSubmitterDashboard = () => {
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
             aria-label="associate dashboard tabs"
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
