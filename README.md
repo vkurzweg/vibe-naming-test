@@ -1,8 +1,8 @@
-# ContextHQ: An Enterprise Platform for Agent-First Knowledge Infrastructure 🚀
+# DomainHQ: Agent-First Knowledge Infrastructure 🚀
 
 ## Overview
 
-ContextHQ is a intelligent enterprise platform designed to transform how organizations manage and leverage their institutional knowledge. Moving beyond static documents and siloed information, ContextHQ introduces an **agent-first knowledge infrastructure** that provides dynamic, AI-powered guidance and ensures consistent application of company guidelines across various business domains.
+DomainHQ is a intelligent enterprise platform designed to transform how organizations manage and leverage their institutional knowledge. Moving beyond static documents and siloed information, DomainHQ introduces an **agent-first knowledge infrastructure** that provides dynamic, AI-powered guidance and ensures consistent application of company guidelines across various business domains.
 
 At its core, ContextHQ addresses the challenges of outdated information, manual compliance checks, and fragmented processes by centralizing knowledge and enabling agents to complex, domain-specific rules to specific contexts in real time. The application is designed for highly intuitive interaction and overall effectiveness for both end-users and domain leaders, fostering seamless and intelligent interactions.
 
@@ -26,7 +26,7 @@ At its core, ContextHQ addresses the challenges of outdated information, manual 
 
 ## Technology Stack
 
-ContextHQ is built on a robust MERN (MongoDB, Express.js, React, Node.js) stack, leveraging a comprehensive set of modern libraries:
+DomainHQ is built on a robust MERN (MongoDB, Express.js, React, Node.js) stack, leveraging a comprehensive set of modern libraries:
 
 * **Frontend (React.js):**
 
@@ -68,7 +68,7 @@ ContextHQ is built on a robust MERN (MongoDB, Express.js, React, Node.js) stack,
 
 ## Architecture
 
-ContextHQ employs a modular and scalable architecture designed for enterprise-grade performance and extensibility:
+DomainHQ employs a modular and scalable architecture designed for enterprise-grade performance and extensibility:
 
 * **Decoupled Frontend & Backend:** The React frontend consumes data and services from the Node.js/Express.js backend via a RESTful API.
 
@@ -86,7 +86,7 @@ ContextHQ employs a modular and scalable architecture designed for enterprise-gr
 
 ## Getting Started
 
-To get ContextHQ up and running locally, follow these steps:
+To get DomainHQ up and running locally, follow these steps:
 
 1.  **Clone the Repository:**
 
