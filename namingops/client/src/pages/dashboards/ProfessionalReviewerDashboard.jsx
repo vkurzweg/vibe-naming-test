@@ -9,7 +9,7 @@ import {
 } from '@mui/icons-material';
 import ArchiveIcon from '@mui/icons-material/Archive';
 import api from '../../services/api';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import ReviewQueue from '../../components/ReviewQueue/ReviewQueue';
 import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
@@ -73,6 +73,15 @@ const ProfessionalReviewerDashboard = () => {
   });
 
   const { updateStatus, claimRequest } = useRequestManagement();
+
+  const deleteRequest = useMutation({
+    mutationFn: (id) => api.delete(`/api/v1/name-requests/${id}`),
+    onSuccess: () => queryClient.invalidateQueries(['requests', 'all']),
+  });
+
+const handleDeleteRequest = (id) => {
+  deleteRequest.mutate(id);
+};
 
   const filteredRequests = useMemo(() => {
     if (!reviewQueue) return [];
@@ -196,6 +205,7 @@ const ProfessionalReviewerDashboard = () => {
             showClaimButton={true}
             currentUserId={user?.id}
             formConfig={activeFormConfig}
+            onDeleteRequest={handleDeleteRequest}
           />
         </TabPanel>
 

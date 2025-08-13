@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Box, Card, CardContent, Typography, Collapse, TextField,
   FormControl, InputLabel, Select, MenuItem, IconButton, Divider,
-  CircularProgress, Alert, Table, TableBody, TableRow, TableCell
+  CircularProgress, Alert, Table, TableBody, TableRow, TableCell, Button
 } from '@mui/material';
 import { Search as SearchIcon, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { format } from 'date-fns';
@@ -37,7 +37,8 @@ export default function ReviewQueue({
   onClaimRequest,
   showClaimButton = false,
   currentUserId,
-  formConfig
+  formConfig,
+  onDeleteRequest 
 }) {
     console.log('ReviewQueue requests:', requests); 
  
@@ -207,34 +208,57 @@ const [sortBy, setSortBy] = useState('date_desc');
                     : <ExpandMore sx={{ pointerEvents: 'none' }} />}
                 </Box>
           
-                {/* Expanded details */}
-                <Collapse in={!!expanded[request.id]}>
-                  <Divider sx={{ my: 2 }} />
-                  {formConfig?.fields && (
-                    <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
-                      <TableBody>
-                        {formConfig.fields.map(field => {
-                          const value = request.formData?.[field.name];
-                          return (
-                            <TableRow key={field.name}>
-                              <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
-                                {field.label || keyToLabel(field.name)}
-                              </TableCell>
-                              <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
-                                {value === undefined || value === '' || value === null
-                                  ? '—'
-                                  : typeof value === 'object'
-                                    ? JSON.stringify(value)
-                                    : String(value)
-                                }
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  )}
-                </Collapse>
+               {/* Expanded details */}
+<Collapse in={!!expanded[request.id]}>
+  <Divider sx={{ my: 2 }} />
+  {formConfig?.fields && (
+    <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
+      <TableBody>
+        {formConfig.fields.map(field => {
+          const value = request.formData?.[field.name];
+          return (
+            <TableRow key={field.name}>
+              <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
+                {field.label || keyToLabel(field.name)}
+              </TableCell>
+              <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
+                {value === undefined || value === '' || value === null
+                  ? '—'
+                  : typeof value === 'object'
+                    ? JSON.stringify(value)
+                    : String(value)
+                }
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
+  )}
+  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+    <Button
+      size="small"
+      color="error"
+      variant="text"
+      sx={{
+        minWidth: 0,
+        px: 1,
+        fontSize: '0.85rem',
+        textTransform: 'none',
+        opacity: 0.7,
+        '&:hover': { opacity: 1, background: 'rgba(211,47,47,0.08)' }
+      }}
+      onClick={e => {
+        e.stopPropagation();
+        if (window.confirm('Are you sure you want to delete this request?')) {
+          onDeleteRequest?.(request.id);
+        }
+      }}
+    >
+      Delete
+    </Button>
+  </Box>
+</Collapse>
               </CardContent>
             </Card>
           ))
