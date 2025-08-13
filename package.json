@@ -6,7 +6,7 @@
     "react-spring": "^10.0.1"
   },
  "scripts": {
- "heroku-postbuild": "cd client && npm install && npm run build && cp -r build ../server/",
-  "start": "cd server && npm install && npm start"
+"heroku-postbuild": "cd client && npm install && npm run build && cp -r build ../",
+"start": "cd server && npm install && npm start"
 }
 }
