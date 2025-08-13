@@ -3,7 +3,6 @@ import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { GoogleLogin } from '@react-oauth/google';
 import {
   Box,
   Button,
@@ -252,50 +251,32 @@ const Login = () => {
               </Typography>
             </Divider>
 
-            {isGoogleOAuthConfigured && process.env.NODE_ENV !== 'development' ? (
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                useOneTap
-                auto_select
-                width="100%"
-                size="large"
-                text="continue_with"
-                shape="rectangular"
-                logo_alignment="left"
-                theme="outline"
-                type="standard"
-                ux_mode="popup"
-                context="use"
-                itp_support={true}
-                render={(renderProps) => (
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    startIcon={<GoogleIcon />}
-                    onClick={renderProps.onClick}
-                    disabled={loading || ssoLoading || renderProps.disabled}
-                    sx={{
-                      mb: 2,
-                      backgroundColor: 'white',
-                      '&:hover': {
-                        backgroundColor: 'action.hover',
-                      },
-                    }}
-                  >
-                    {ssoLoading ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      'Continue with Google'
-                    )}
-                  </Button>
-                )}
-              />
-            ) : (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Google OAuth is currently disabled in development mode.
-              </Alert>
-            )}
+            {isGoogleOAuthConfigured && (process.env.NODE_ENV !== 'development' || process.env.REACT_APP_DEMO_MODE === 'true') ? (
+  <Button
+    fullWidth
+    variant="outlined"
+    startIcon={<GoogleIcon />}
+    onClick={() => window.location.href = '/api/v1/auth/google'}
+    disabled={loading || ssoLoading}
+    sx={{
+      mb: 2,
+      backgroundColor: 'white',
+      '&:hover': {
+        backgroundColor: 'action.hover',
+      },
+    }}
+  >
+    {ssoLoading ? (
+      <CircularProgress size={24} />
+    ) : (
+      'Continue with Google'
+    )}
+  </Button>
+) : (
+  <Alert severity="info" sx={{ mb: 2 }}>
+    Google OAuth is currently disabled in development mode.
+  </Alert>
+)}
 
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Typography variant="body2" color="text.secondary">

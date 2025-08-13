@@ -118,7 +118,7 @@ const authService = {
     }
     
     try {
-      const response = await api.post('/auth/google', {
+      const response = await api.post('/api/v1/auth/google', {
         credential: tokenResponse.credential,
       });
       if (response.data.token) {
@@ -134,7 +134,7 @@ const authService = {
   // Update user
   updateUser: async (userData, token) => {
     try {
-      const response = await api.put('/auth/update', userData, {
+      const response = await api.put('/api/v1/auth/update', userData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.data) {
@@ -149,7 +149,7 @@ const authService = {
   // Change password
   changePassword: async (passwordData, token) => {
     try {
-      const response = await api.put('/auth/change-password', passwordData, {
+      const response = await api.put('/api/v1/auth/change-password', passwordData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
