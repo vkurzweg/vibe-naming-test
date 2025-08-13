@@ -148,15 +148,19 @@ app.get('/test', (req, res) => {
 });
 
 const path = require('path');
-const buildPath = path.resolve(__dirname, '..', 'build');
 
-app.use(express.static(buildPath));
+// Serve static files from the React app build folder inside the server directory
+app.use(express.static(path.join(__dirname, 'build')));
+
 app.get('*', (req, res) => {
+  // Only serve index.html for non-API routes
   if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(buildPath, 'index.html'));
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  } else {
+    // If it's an API route, continue to the next middleware/route
+    res.status(404).json({ error: 'API route not found' });
   }
 });
-
 // Error handling middleware
 app.use(errorHandler);
 
