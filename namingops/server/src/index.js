@@ -139,12 +139,12 @@ app.get('/test', (req, res) => {
 });
 
 const path = require('path');
-app.use(express.static(path.join(__dirname, '../../client/build')));
+app.use(express.static(path.join(__dirname, 'build')));
 
 app.get('*', (req, res) => {
   // Only serve index.html for non-API routes
   if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(__dirname, '../../client/build', 'index.html'));
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
   }
 });
 
