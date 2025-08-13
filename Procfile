@@ -1,1 +1,1 @@
-web: cd server && node src/index.js
+web: cd namingops/server && node src/index.js
