@@ -3,8 +3,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 console.log('setupProxy.js is being loaded!');
 
 const isDevOrDemo =
-  process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ||
-  process.env.REACT_APP_DEMO_MODE === 'true';
+  process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
 
 module.exports = function(app) {
   app.use(
