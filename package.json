@@ -5,8 +5,8 @@
     "express-session": "^1.18.2",
     "react-spring": "^10.0.1"
   },
-  "scripts": {
-    "start": "cd namingops/server && npm start",
-    "heroku-postbuild": "cd namingops/client && npm install && npm run build"
-  }
+ "scripts": {
+  "start": "cd namingops/server && npm start",
+  "heroku-postbuild": "rm -rf namingops/server/build && cd namingops/client && npm install && npm run build && cd .. && mv namingops/client/build namingops/server/build"
+}
 }
