@@ -20,6 +20,14 @@ const healthRoutes = require('./routes/health');
 const formConfigurationRoutes = require('./routes/formConfigurations');
 
 const app = express();
+// Set CSP header to allow Google OAuth frames
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "frame-ancestors 'self' https://accounts.google.com"
+  );
+  next();
+});
 const httpServer = createServer(app);
 
 // Configure CORS options
