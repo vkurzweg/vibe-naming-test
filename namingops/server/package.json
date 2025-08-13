@@ -4,6 +4,7 @@
   "description": "NamingOps Backend Service",
   "main": "src/index.js",
   "scripts": {
+    "postinstall": "cd ../client && npm install && npm run build && cp -r build ../server/",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "test": "jest",
