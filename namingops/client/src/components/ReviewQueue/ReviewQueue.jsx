@@ -151,92 +151,93 @@ const [sortBy, setSortBy] = useState('date_desc');
         </Alert>
       ) : (
         filteredRequests.map(request => (
-          <Card
-            key={request.id}
-            sx={{
-              mb: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              backgroundColor: 'background.paper',
-            }}
-            variant="outlined"
-          >
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    {(request.formData?.proposedName1 || request.requestData?.proposedName1) || '—'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {(request.formData?.contactName || request.requestData?.contactName) || '—'}
-                  </Typography>
+            <Card
+              key={request.id}
+              sx={{
+                mb: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                backgroundColor: 'background.paper',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+              variant="outlined"
+              onClick={() => setExpanded(prev => ({ ...prev, [request.id]: !prev[request.id] }))}
+              tabIndex={0}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') setExpanded(prev => ({ ...prev, [request.id]: !prev[request.id] }));
+              }}
+              aria-expanded={!!expanded[request.id]}
+              role="button"
+            >
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {(request.formData?.proposedName1 || request.requestData?.proposedName1) || '—'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {(request.formData?.contactName || request.requestData?.contactName) || '—'}
+                    </Typography>
+                  </Box>
+                  {/* Status Dropdown */}
+                  <StatusDropdown
+                    currentStatus={request.status}
+                    options={STATUS_UPDATE_OPTIONS}
+                    onChange={status => {
+                      const payload = { requestId: request.id, status, formData: request.formData };
+                      if (onStatusChange && typeof onStatusChange.mutate === 'function') {
+                        onStatusChange.mutate(payload);
+                      } else if (typeof onStatusChange === 'function') {
+                        onStatusChange(payload);
+                      }
+                    }}
+                  />
                 </Box>
-                {/* Status Dropdown */}
-                <StatusDropdown
-                  currentStatus={request.status}
-                  options={STATUS_UPDATE_OPTIONS}
-                  onChange={status => {
-                    const payload = { requestId: request.id, status, formData: request.formData };
-                    if (onStatusChange && typeof onStatusChange.mutate === 'function') {
-                      onStatusChange.mutate(payload);
-                    } else if (typeof onStatusChange === 'function') {
-                      onStatusChange(payload);
-                    }
-                  }}
-                  // Add disabled prop if needed
-                />
-              </Box>
-
-              {/* Date */}
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Submitted: {request.createdAt ? format(new Date(request.createdAt), 'MMM dd, yyyy') : 'Unknown'}
-              </Typography>
-
-              {/* Expand/collapse */}
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
-                <IconButton
-                  size="small"
-                  onClick={e => {
-                    e.stopPropagation();
-                    setExpanded(prev => ({ ...prev, [request.id]: !prev[request.id] }));
-                  }}
-                  aria-label={expanded[request.id] ? "Collapse details" : "Expand details"}
-                >
-                  {expanded[request.id] ? <ExpandLess /> : <ExpandMore />}
-                </IconButton>
-              </Box>
-
-              {/* Expanded details */}
-              <Collapse in={!!expanded[request.id]}>
-                <Divider sx={{ my: 2 }} />
-                {formConfig?.fields && (
-                  <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
-                    <TableBody>
-                      {formConfig.fields.map(field => {
-                        const value = request.formData?.[field.name];
-                        return (
-                          <TableRow key={field.name}>
-                            <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
-                              {field.label || keyToLabel(field.name)}
-                            </TableCell>
-                            <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
-                              {value === undefined || value === '' || value === null
-                                ? '—'
-                                : typeof value === 'object'
-                                  ? JSON.stringify(value)
-                                  : String(value)
-                              }
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </Collapse>
-            </CardContent>
-          </Card>
-        ))
+          
+                {/* Date */}
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Submitted: {request.createdAt ? format(new Date(request.createdAt), 'MMM dd, yyyy') : 'Unknown'}
+                </Typography>
+          
+                {/* Expand/collapse icon for visual feedback only */}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
+                  {expanded[request.id]
+                    ? <ExpandLess sx={{ pointerEvents: 'none' }} />
+                    : <ExpandMore sx={{ pointerEvents: 'none' }} />}
+                </Box>
+          
+                {/* Expanded details */}
+                <Collapse in={!!expanded[request.id]}>
+                  <Divider sx={{ my: 2 }} />
+                  {formConfig?.fields && (
+                    <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
+                      <TableBody>
+                        {formConfig.fields.map(field => {
+                          const value = request.formData?.[field.name];
+                          return (
+                            <TableRow key={field.name}>
+                              <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
+                                {field.label || keyToLabel(field.name)}
+                              </TableCell>
+                              <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
+                                {value === undefined || value === '' || value === null
+                                  ? '—'
+                                  : typeof value === 'object'
+                                    ? JSON.stringify(value)
+                                    : String(value)
+                                }
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </Collapse>
+              </CardContent>
+            </Card>
+          ))
       )}
     </Box>
   );

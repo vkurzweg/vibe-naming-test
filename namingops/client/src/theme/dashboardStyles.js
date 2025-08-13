@@ -1,10 +1,12 @@
 // src/theme/dashboardStyles.js
 
 export const dashboardContainerSx = {
-    maxWidth: 1000,
+    width: '100%',
+    maxWidth: 1100,
     mx: 'auto',
     px: { xs: 2, sm: 3, md: 4 },
-    py: 3,
+    py: { xs: 2, sm: 3, md: 4 },
+    boxSizing: 'border-box',
   };
   
   export const dashboardTabBarSx = {

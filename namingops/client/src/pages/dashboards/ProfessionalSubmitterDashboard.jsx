@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Tabs, Tab, Alert, CircularProgress,
-  Card, CardContent, Divider, Grid, styled, StepConnector, Button, Table, TableBody, TableRow, TableCell
+  Card, CardContent, Divider, styled, StepConnector, Button, Table, TableBody, TableRow, TableCell, IconButton
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -9,8 +9,8 @@ import {
   Search as SearchIcon,
   Description as DescriptionIcon,
   MenuBook as MenuBookIcon,
+  ExpandMore as ExpandMoreIcon
 } from '@mui/icons-material';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,9 +20,19 @@ import { getStatusColor } from '../../theme/newColorPalette';
 import StatusProgressionStepper from '../../components/StatusProgression/StatusProgressionStepper';
 import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
 import NewRequestForm from '../../components/Requests/NewRequestForm';
-import StatusDropdown from '../../components/common/StatusDropdown';
 
-// Shared status label mapping
+// Shared dashboard styles
+import {
+  dashboardContainerSx,
+  dashboardCardSx,
+  dashboardCardTitleSx,
+  dashboardCardSubTitleSx,
+  dashboardCardContentSx,
+  expandIconSx,
+  dashboardTableSx
+} from '../../theme/dashboardStyles';
+
+// Status label mapping
 const STATUS_LABELS = {
   submitted: 'Submitted',
   brand_review: 'Brand Review',
@@ -35,20 +45,6 @@ const STATUS_LABELS = {
 
 function humanizeFieldName(key) {
   return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-// Pretty print for value display
-function prettyPrintValue(key, value) {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'object') {
-    if (key.toLowerCase() === 'user') {
-      return `${value.name || ''}${value.email ? ` (${value.email})` : ''}`;
-    }
-    if (value.name) return value.name;
-    if (value.title) return value.title;
-    return JSON.stringify(value);
-  }
-  return String(value);
 }
 
 const TabPanel = (props) => {
@@ -186,35 +182,6 @@ const ProfessionalSubmitterDashboard = () => {
     }
   }, [formConfig, reset]);
 
-  // Submit new request mutation
-  const submitRequestMutation = useMutation({
-    mutationFn: async (formData) => {
-      setSubmitting(true);
-      try {
-        const response = await api.post('/api/v1/name-requests', formData);
-        return response.data;
-      } catch (error) {
-        throw new Error(error.response?.data?.message || 'Failed to submit request');
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    onSuccess: () => {
-      reset();
-      setSubmitSuccess(true);
-      setSubmitError(null);
-      queryClient.invalidateQueries(['myRequests']);
-      setTimeout(() => setSubmitSuccess(false), 5000);
-    },
-    onError: (error) => {
-      setSubmitError(error.message || 'Something went wrong. Please try again.');
-    }
-  });
-
-  const onSubmit = (data) => {
-    submitRequestMutation.mutate(data);
-  };
-
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
   };
@@ -227,17 +194,16 @@ const ProfessionalSubmitterDashboard = () => {
   };
 
   return (
-    <ResponsiveContainer fluid className="px-5">
+    <ResponsiveContainer className="px-2 px-sm-3 px-md-4">
       <Paper
-        elevation={2}
-        sx={{
-          mt: '2rem',
-          mb: '2rem',
-          p: 0,
-          borderRadius: '0.75rem',
-          overflow: 'hidden',
-          boxSizing: 'border-box',
-        }}
+       elevation={2}
+       sx={{
+         mt: '2rem',
+         mb: '2rem',
+         borderRadius: '0.75rem',
+         overflow: 'hidden',
+         boxSizing: 'border-box',
+       }}
       >
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 0 }}>
           <Tabs
@@ -277,196 +243,174 @@ const ProfessionalSubmitterDashboard = () => {
           </Tabs>
         </Box>
 
-        {/* My Requests Tab Panel */}
-        <TabPanel value={tabValue} index={0}>
-          <Box sx={{ pt: '1.5rem', px: 0 }}>
-            {requestsLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: '2rem' }}>
-                <CircularProgress />
-              </Box>
-            ) : requestsError ? (
-              <Alert severity="error" sx={{ mb: '1.5rem' }}>
-                Failed to load your requests. Please try again.
-              </Alert>
-            ) : myRequests.length === 0 ? (
-              <Alert severity="info" sx={{ mb: '1.5rem' }}>
-                You haven&apos;t submitted any name requests yet. Use the &quot;New Request&quot; tab to create one.
-              </Alert>
-            ) : (
-              <>
-                {/* Request cards */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', mb: '2rem' }}>
-                  {myRequests.map(request => {
-            // Debug: log the request object to inspect data structure
-            console.log('Submitter card request:', request);
+       {/* My Requests Tab Panel */}
+<TabPanel value={tabValue} index={0}>
+  {requestsLoading ? (
+    <Box sx={{ display: 'flex', justifyContent: 'center', p: '2rem' }}>
+      <CircularProgress />
+    </Box>
+  ) : requestsError ? (
+    <Alert severity="error" sx={{ mb: '1.5rem' }}>
+      Failed to load your requests. Please try again.
+    </Alert>
+  ) : myRequests.length === 0 ? (
+    <Alert severity="info" sx={{ mb: '1.5rem' }}>
+      You haven&apos;t submitted any name requests yet. Use the &quot;New Request&quot; tab to create one.
+    </Alert>
+  ) : (
+    myRequests.map(request => {
+      // Only show filled fields from formData
+      const formFields = request.formData && typeof request.formData === 'object'
+        ? Object.entries(request.formData).filter(([_, value]) =>
+            value !== null && value !== undefined && value !== ''
+          )
+        : [];
 
-                    // Only show filled fields from formData
-                    const formFields = request.formData && typeof request.formData === 'object'
-                      ? Object.entries(request.formData).filter(([_, value]) =>
-                          value !== null && value !== undefined && value !== ''
-                        )
-                      : [];
+      // Status history formatting
+      const statusHistory = (request.statusHistory || []).map((history) => {
+        const date = history.timestamp ? new Date(history.timestamp) : null;
+        return {
+          date: date && !isNaN(date) ? date.toLocaleDateString() : '',
+          status: STATUS_LABELS[history.status] || history.status
+        };
+      });
 
-                    // User display (supports user or User)
-                    const user = request.user || request.User;
+      return (
+        <Card
+          key={request.id}
+          sx={{
+            ...dashboardCardSx,
+            borderLeft: `4px solid ${getStatusColor(request.status || 'submitted')}`,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+          onClick={() => handleToggleExpand(request.id)}
+          tabIndex={0}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') handleToggleExpand(request.id);
+          }}
+          aria-expanded={!!expanded[request.id]}
+          role="button"
+        >
+          <CardContent>
+            <Box display="flex" alignItems="center">
+              <Typography sx={dashboardCardTitleSx}>
+                {request.formData?.proposedName1 || 'Untitled Request'}
+              </Typography>
+              <Box sx={{ flexGrow: 1 }} />
+              <ExpandMoreIcon
+                sx={{
+                  ...expandIconSx,
+                  transform: expanded[request.id] ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                  pointerEvents: 'none', // Visual only, not interactive
+                }}
+              />
+            </Box>
+            <Typography sx={dashboardCardSubTitleSx}>
+              Submitted: {request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Unknown'}
+            </Typography>
+            <Box sx={dashboardCardContentSx}>
+              Status: {STATUS_LABELS[request.status] || request.status}
+            </Box>
 
-                    // Status history formatting
-                    const statusHistory = (request.statusHistory || []).map((history, idx) => {
-                      const date = history.timestamp ? new Date(history.timestamp) : null;
-                      return {
-                        date: date && !isNaN(date) ? date.toLocaleDateString() : '',
-                        status: STATUS_LABELS[history.status] || history.status
-                      };
-                    });
+            {/* Expanded content */}
+            {expanded[request.id] && (
+              <Box sx={{ mt: '1rem' }}>
+                <Divider sx={{ my: '1rem' }} />
+                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+                  Request Details
+                </Typography>
+                {formConfig?.fields && (
+                  <Table size="small" sx={dashboardTableSx}>
+                    <TableBody>
+                      {formConfig.fields.map(field => {
+                        const value = request.formData?.[field.name];
+                        return (
+                          <TableRow key={field.name}>
+                            <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
+                              {field.label || humanizeFieldName(field.name)}
+                            </TableCell>
+                            <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
+                              {value === undefined || value === '' || value === null
+                                ? '—'
+                                : typeof value === 'object'
+                                  ? JSON.stringify(value)
+                                  : String(value)
+                              }
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
 
-                    return (
-                      <Card
-                        key={request.id}
-                        sx={{
-                          borderLeft: `4px solid ${getStatusColor(request.status || 'submitted')}`,
-                          borderRadius: '0.5rem',
-                          boxShadow: 2
-                        }}
-                      >
-                        <CardContent>
-                          <Box>
-                            {/* Date Submitted */}
-                            <Typography variant="body2" sx={{ mb: 0.5 }}>
-                              <strong>Date Submitted:</strong> {new Date(request.createdAt).toLocaleDateString()}
-                            </Typography>
+                {/* Status History: only show if there is more than one status (i.e., updated) */}
+                {statusHistory.length > 1 && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+                      Status History
+                    </Typography>
+                    <ul style={{ paddingLeft: '1.5rem', margin: 0 }}>
+                      {statusHistory.slice(1).map((item, idx) => (
+                        <li key={idx}>
+                          <Typography variant="body2">
+                            {item.status}: {item.date || <span style={{ color: '#aaa' }}>—</span>}
+                          </Typography>
+                        </li>
+                      ))}
+                    </ul>
+                  </Box>
+                )}
 
-                            {/* Status Progression Stepper with colored connector */}
-                            <Box sx={{ mb: '1rem' }}>
-                              <StatusProgressionStepper
-                                status={request.status}
-                                orientation="horizontal"
-                                compact={true}
-                                showTimestamps={false}
-                                connectorComponent={ColoredStepConnector}
-                                timestamps={{
-                                  submitted: request.createdAt,
-                                  brand_review: request.updatedAt,
-                                  legal_review: request.updatedAt,
-                                  approved: request.updatedAt
-                                }}
-                              />
-                            </Box>
-
-                            {/* Expand indicator at bottom of collapsed card */}
-                            {!expanded[request.id] && (
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', mt: 2, cursor: 'pointer' }}
-                                onClick={() => handleToggleExpand(request.id)}>
-                                <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
-                                  Expand
-                                </Typography>
-                                <ExpandMoreIcon
-                                  sx={{
-                                    transform: expanded[request.id] ? 'rotate(180deg)' : 'rotate(0deg)',
-                                    transition: 'transform 0.2s'
-                                  }}
-                                />
-                              </Box>
-                            )}
-                          </Box>
-
-                          {/* Expanded content */}
-                          {expanded[request.id] && (
-                            <Box sx={{ mt: '1rem' }}>
-                              <Divider sx={{ my: '1rem' }} />
-                              <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                                Request Details
-                              </Typography>
-                              {formConfig?.fields && (
-                                <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
-                                  <TableBody>
-                                    {formConfig.fields.map(field => {
-                                      const value = request.formData?.[field.name];
-                                      return (
-                                        <TableRow key={field.name}>
-                                          <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
-                                            {field.label || humanizeFieldName(field.name)}
-                                          </TableCell>
-                                          <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
-                                            {value === undefined || value === '' || value === null
-                                              ? '—'
-                                              : typeof value === 'object'
-                                                ? JSON.stringify(value)
-                                                : String(value)
-                                            }
-                                          </TableCell>
-                                        </TableRow>
-                                      );
-                                    })}
-                                  </TableBody>
-                                </Table>
-                              )}
-
-                              {/* Status History: only show if there is more than one status (i.e., updated) */}
-                              {statusHistory.length > 1 && (
-                                <Box sx={{ mt: 2 }}>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                                    Status History
-                                  </Typography>
-                                  <ul style={{ paddingLeft: '1.5rem', margin: 0 }}>
-                                    {statusHistory.slice(1).map((item, idx) => (
-                                      <li key={idx}>
-                                        <Typography variant="body2">
-                                          {item.status}: {item.date || <span style={{ color: '#aaa' }}>—</span>}
-                                        </Typography>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </Box>
-                              )}
-
-                              {/* Status Action Buttons for Submitter */}
-                              <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                                <Button
-                                  variant="outlined"
-                                  sx={{
-                                    borderColor: '#FFD600',
-                                    color: '#FFD600',
-                                    fontWeight: 600,
-                                    '&:hover': { borderColor: '#FFEA00', color: '#FFEA00', background: 'rgba(255,234,0,0.08)' }
-                                  }}
-                                  disabled={['approved', 'rejected', 'canceled', 'on_hold'].includes(request.status)}
-                                  onClick={() => {
-                                    if (window.confirm('Are you sure you want to put this request on hold?')) {
-                                      holdRequestMutation.mutate(request.id);
-                                    }
-                                  }}
-                                >
-                                  Hold
-                                </Button>
-                                <Button
-                                  variant="outlined"
-                                  sx={{
-                                    borderColor: '#D32F2F',
-                                    color: '#D32F2F',
-                                    fontWeight: 600,
-                                    '&:hover': { borderColor: '#B71C1C', color: '#B71C1C', background: 'rgba(211,47,47,0.08)' }
-                                  }}
-                                  disabled={['approved', 'rejected', 'canceled'].includes(request.status)}
-                                  onClick={() => {
-                                    if (window.confirm('Are you sure you want to cancel this request?')) {
-                                      cancelRequestMutation.mutate(request.id);
-                                    }
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
-                              </Box>
-                            </Box>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                {/* Status Action Buttons for Submitter */}
+                <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <Button
+                    variant="outlined"
+                    sx={{
+                      borderColor: '#FFD600',
+                      color: '#FFD600',
+                      fontWeight: 600,
+                      '&:hover': { borderColor: '#FFEA00', color: '#FFEA00', background: 'rgba(255,234,0,0.08)' }
+                    }}
+                    disabled={['approved', 'rejected', 'canceled', 'on_hold'].includes(request.status)}
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (window.confirm('Are you sure you want to put this request on hold?')) {
+                        holdRequestMutation.mutate(request.id);
+                      }
+                    }}
+                  >
+                    Hold
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    sx={{
+                      borderColor: '#D32F2F',
+                      color: '#D32F2F',
+                      fontWeight: 600,
+                      '&:hover': { borderColor: '#B71C1C', color: '#B71C1C', background: 'rgba(211,47,47,0.08)' }
+                    }}
+                    disabled={['approved', 'rejected', 'canceled'].includes(request.status)}
+                    onClick={e => {
+                      e.stopPropagation();
+                      if (window.confirm('Are you sure you want to cancel this request?')) {
+                        cancelRequestMutation.mutate(request.id);
+                      }
+                    }}
+                  >
+                    Cancel
+                  </Button>
                 </Box>
-              </>
+              </Box>
             )}
-          </Box>
-        </TabPanel>
+          </CardContent>
+        </Card>
+      );
+    })
+  )}
+</TabPanel>
 
         {/* New Request Tab Panel */}
         <TabPanel value={tabValue} index={1}>
