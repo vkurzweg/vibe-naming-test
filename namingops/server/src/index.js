@@ -30,6 +30,7 @@ const corsOptions = {
     
     const allowedOrigins = [
       'http://localhost:3000',
+      'https://naming-hq-e263f470c8e7.herokuapp.com',
       'http://127.0.0.1:3000',
       'http://localhost:3001',
       'http://127.0.0.1:3001',
