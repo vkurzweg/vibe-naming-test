@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "test": "jest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "heroku-postbuild": "cd ../client && npm install && npm run build"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.10.0",
