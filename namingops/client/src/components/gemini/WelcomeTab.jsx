@@ -38,19 +38,18 @@ const WelcomeTab = () => {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
-        <Box sx={{ textAlign: 'center', mb: 2 }}>
-          <SmartToyIcon color="primary" sx={{ fontSize: 56 }} />
-          <Typography variant="h4" fontWeight={700} sx={{ mb: 2, padding: '1rem' }}>
+        <Box sx={{ textAlign: 'left', mb: 2 }}>
+          <Typography variant="h4" fontWeight={700} sx={{ mt: '2rem', ml: '2rem', mr: '2rem', mb: '2rem', textAlign: 'left'}}>
             Welcome to NamingHQ
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left' }}>
-            Vibe with our new request form, where Gemini can generate name suggestions and optimize your request Cognizant naming guidelines.
+          <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left'}}>
+            An MVP for scaling domain expertise and knowledge management 🚀 
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left' }}>
-            This MVP is an agent-first platform for scaling domain expertise and knowledge management. 
+          <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left'}}>
+            Try our new request form and vibe with Gemini ✨
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', mb: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left' }}>
-            Role-based access controls have been disabled for development - click on the colored icon in the upper right corner to check out other features, including request management and Gemini generator configuration. 
+          <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', mb: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left'}}>
+            Click the icon on the upper right to manage requests and configure the Gemini generator 😎 
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, mb: 2, padding: '2rem' }}>
