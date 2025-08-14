@@ -42,6 +42,31 @@ const fieldSchema = new mongoose.Schema({
     minLength: { type: Number },
     maxLength: { type: Number },
     pattern: { type: String, description: 'A regex pattern for validation.' }
+  },
+  geminiSuggest: {
+    type: Boolean,
+    default: false,
+    description: 'If true, render a Gemini Suggest button next to this field.'
+  },
+  geminiEvaluate: {
+    type: Boolean,
+    default: false,
+    description: 'If true, render a Gemini Evaluate button next to this field.'
+  },
+  geminiSuggestLabel: {
+    type: String,
+    default: 'Suggest with Gemini',
+    description: 'Custom label for the Gemini Suggest button.'
+  },
+  geminiEvaluateLabel: {
+    type: String,
+    default: 'Evaluate with Gemini',
+    description: 'Custom label for the Gemini Evaluate button.'
+  },
+  geminiHelperText: {
+    type: String,
+    default: '',
+    description: 'Helper text to display under Gemini buttons.'
   }
 }, { _id: false });
 

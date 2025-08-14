@@ -130,6 +130,10 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE ==
   app.use('/v1/form-configurations', formConfigurationRoutes);
 }
 
+// Mount Gemini routes here:
+const geminiRoutes = require('./routes/gemini');
+app.use('/api/gemini', geminiRoutes);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   const status = {

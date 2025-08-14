@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Paper, Typography, Alert, CircularProgress, Button } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,6 +6,9 @@ import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import DynamicFormRenderer from '../DynamicForm/DynamicFormRenderer';
+// Adjust these imports to your actual utility locations:
+import { fetchGeminiNames } from '../../services/gemini';
+import { composeGeminiPrompt } from '../gemini/PromptComposer';
 
 // --- Dynamic Zod Schema Helpers ---
 function zodTypeForField(field) {
@@ -67,7 +70,6 @@ export default function NewRequestForm({ onSuccess }) {
 
   const mutation = useMutation({
     mutationFn: async (data) => {
-      console.log('Submitting data:', data);
       const res = await api.post('/api/v1/name-requests', data);
       return res.data;
     },
@@ -75,8 +77,67 @@ export default function NewRequestForm({ onSuccess }) {
       queryClient.invalidateQueries(['myRequests']);
       if (onSuccess) onSuccess();
       reset();
+      setRationale('');
+      setEvaluation('');
     },
   });
+
+  // --- Gemini Integration State and Handlers ---
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [geminiError, setGeminiError] = useState('');
+  const [rationale, setRationale] = useState('');
+  const [evaluation, setEvaluation] = useState('');
+  const [evalLoading, setEvalLoading] = useState(false);
+
+  // Suggest Names with Gemini
+  const handleGenerateNames = async () => {
+    setGeminiLoading(true);
+    setGeminiError('');
+    setRationale('');
+    try {
+      const formValues = watch();
+      // Compose prompt using config and user description (customize as needed)
+      const prompt = composeGeminiPrompt(formConfigRaw, formValues.description || '');
+      const result = await fetchGeminiNames(prompt);
+
+      // Parse Gemini response (adjust as needed for your output format)
+      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const nameLines = text.split('\n').filter(line => line.trim().length > 0);
+      const names = nameLines.filter(l => /^\d+\./.test(l)).map(l => l.replace(/^\d+\.\s*/, ''));
+      const rationaleLine = nameLines.find(l => l.toLowerCase().includes('rationale:'));
+      setValue('proposedName1', names[0] || '');
+      setValue('proposedName2', names[1] || '');
+      setRationale(rationaleLine ? rationaleLine.replace(/rationale:/i, '').trim() : '');
+    } catch (err) {
+      setGeminiError('Could not generate names. You may have hit the Gemini API quota.');
+    } finally {
+      setGeminiLoading(false);
+    }
+  };
+
+  // Evaluate a user-provided name with Gemini
+  const handleEvaluateName = async () => {
+    setEvalLoading(true);
+    setEvaluation('');
+    setGeminiError('');
+    try {
+      const formValues = watch();
+      const nameToEvaluate = formValues.proposedName1 || '';
+      if (!nameToEvaluate) {
+        setGeminiError('Please enter a name to evaluate.');
+        setEvalLoading(false);
+        return;
+      }
+      const evalPrompt = `Evaluate the following name for the project, considering branding, memorability, and fit: "${nameToEvaluate}". Give a brief assessment and rationale.`;
+      const result = await fetchGeminiNames(evalPrompt);
+      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      setEvaluation(text);
+    } catch (err) {
+      setGeminiError('Could not evaluate name.');
+    } finally {
+      setEvalLoading(false);
+    }
+  };
 
   if (isLoading) return <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>;
   if (error) return <Alert severity="error">Failed to load form configuration.</Alert>;
@@ -96,6 +157,33 @@ export default function NewRequestForm({ onSuccess }) {
           watch={watch}
           role="submitter"
         />
+        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={handleGenerateNames}
+            disabled={geminiLoading}
+          >
+            {geminiLoading ? <CircularProgress size={20} /> : 'Suggest Names with Gemini'}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleEvaluateName}
+            disabled={evalLoading || !watch('proposedName1')}
+          >
+            {evalLoading ? <CircularProgress size={20} /> : 'Evaluate Name with Gemini'}
+          </Button>
+        </Box>
+        {geminiError && <Alert severity="error" sx={{ mb: 2 }}>{geminiError}</Alert>}
+        {rationale && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>Gemini Rationale:</strong> {rationale}
+          </Alert>
+        )}
+        {evaluation && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>Gemini Evaluation:</strong> {evaluation}
+          </Alert>
+        )}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
           <Button
             type="submit"

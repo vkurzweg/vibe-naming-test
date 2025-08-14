@@ -136,6 +136,75 @@ const FormConfigEditor = ({ config, onSave, onCancel, loading }) => {
                       <IconButton color="error" onClick={() => remove(index)}><DeleteIcon /></IconButton>
                     </Box>
                   </Grid>
+                  {/* Gemini Integration Controls */}
+                  <Grid item xs={12} md={2}>
+                    <Controller
+                      name={`fields.${index}.geminiSuggest`}
+                      control={control}
+                      render={({ field: controllerField }) => (
+                        <FormControlLabel
+                          control={<Checkbox {...controllerField} checked={!!controllerField.value} />}
+                          label="Gemini Suggest"
+                        />
+                      )}
+                    />
+                    <Controller
+                      name={`fields.${index}.geminiEvaluate`}
+                      control={control}
+                      render={({ field: controllerField }) => (
+                        <FormControlLabel
+                          control={<Checkbox {...controllerField} checked={!!controllerField.value} />}
+                          label="Gemini Evaluate"
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={10}>
+                    <Grid container spacing={2} alignItems="center" sx={{ mt: 1 }}>
+                      <Grid item xs={12} md={4}>
+                        <Controller
+                          name={`fields.${index}.geminiSuggestLabel`}
+                          control={control}
+                          render={({ field: controllerField }) => (
+                            <TextField
+                              {...controllerField}
+                              label="Suggest Button Label"
+                              size="small"
+                              sx={{ mr: 2, width: 180 }}
+                            />
+                          )}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Controller
+                          name={`fields.${index}.geminiEvaluateLabel`}
+                          control={control}
+                          render={({ field: controllerField }) => (
+                            <TextField
+                              {...controllerField}
+                              label="Evaluate Button Label"
+                              size="small"
+                              sx={{ mr: 2, width: 180 }}
+                            />
+                          )}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Controller
+                          name={`fields.${index}.geminiHelperText`}
+                          control={control}
+                          render={({ field: controllerField }) => (
+                            <TextField
+                              {...controllerField}
+                              label="Gemini Helper Text"
+                              size="small"
+                              sx={{ width: 200 }}
+                            />
+                          )}
+                        />
+                      </Grid>
+                    </Grid>
+                  </Grid>
                 </Grid>
               </Paper>
             ))}

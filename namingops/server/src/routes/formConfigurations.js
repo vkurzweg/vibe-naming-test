@@ -10,9 +10,9 @@ router.get('/active', async (req, res) => {
   try {
     console.log('Fetching active form configuration...');
     const formConfig = await FormConfiguration.findOne({ isActive: true });
-    
+
     console.log('Active form config query result:', formConfig ? 'Found' : 'Not found');
-    
+
     if (!formConfig) {
       console.log('No active form configuration found in database');
       // For development, return a default config if none is found
@@ -45,19 +45,19 @@ router.get('/active', async (req, res) => {
       }
       return res.status(404).json({ msg: 'No active form configuration found' });
     }
-    
-    console.log('Returning active form config with fields:', 
+
+    console.log('Returning active form config with fields:',
       formConfig.fields?.map(f => ({
         name: f.name,
         type: f.fieldType,
         required: f.required
       }))
     );
-    
+
     res.json(formConfig);
   } catch (err) {
     console.error('Error in active form config endpoint:', err);
-    res.status(500).json({ 
+    res.status(500).json({
       msg: 'Server Error',
       error: process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true' ? err.message : undefined
     });
@@ -74,6 +74,19 @@ router.get('/', isAdmin, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET /api/v1/form-configurations/:id
+// @desc    Get a form configuration by ID
+// @access  Admin
+router.get('/:id', isAdmin, async (req, res) => {
+  try {
+    const config = await FormConfiguration.findById(req.params.id);
+    if (!config) return res.status(404).json({ error: 'Not found' });
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -96,7 +109,7 @@ router.post('/', isAdmin, async (req, res) => {
 // @access  Admin
 router.put('/:id', isAdmin, async (req, res) => {
   try {
-    const updatedConfig = await FormConfiguration.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updatedConfig = await FormConfiguration.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!updatedConfig) {
       return res.status(404).json({ msg: 'Form configuration not found' });
     }
@@ -130,12 +143,12 @@ router.put('/:id/activate', isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     console.log(`Activating form configuration with ID: ${id}`);
-    
+
     // Deactivate all configs
     console.log('Deactivating all form configurations');
     const deactivateResult = await FormConfiguration.updateMany({}, { $set: { isActive: false } });
     console.log('Deactivation result:', deactivateResult);
-    
+
     // Activate the selected config
     console.log(`Activating form configuration with ID: ${id}`);
     const activatedConfig = await FormConfiguration.findByIdAndUpdate(
@@ -143,12 +156,12 @@ router.put('/:id/activate', isAdmin, async (req, res) => {
       { $set: { isActive: true } },
       { new: true }
     );
-    
+
     if (!activatedConfig) {
       console.log(`Form configuration with ID ${id} not found`);
       return res.status(404).json({ msg: 'Form configuration not found' });
     }
-    
+
     console.log('Successfully activated form configuration:', activatedConfig);
     res.json(activatedConfig);
   } catch (err) {

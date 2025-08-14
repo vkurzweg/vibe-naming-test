@@ -153,7 +153,6 @@ const FormConfigManager = () => {
       <Box p={3}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box display="flex" alignItems="center" gap={2}>
-            <Typography variant="h4">Form Configurations</Typography>
             <Tooltip title="Refresh">
               <IconButton 
                 onClick={handleRefresh}
@@ -189,7 +188,6 @@ const FormConfigManager = () => {
     <Box p={3}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box display="flex" alignItems="center" gap={2}>
-          <Typography variant="h4">Form Configurations</Typography>
           <Tooltip title="Refresh">
             <IconButton 
               onClick={handleRefresh}
