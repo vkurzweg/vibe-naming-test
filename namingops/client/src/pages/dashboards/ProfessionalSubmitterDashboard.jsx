@@ -34,7 +34,7 @@ import {
   dashboardTableSx
 } from '../../theme/dashboardStyles';
 
-// Status label mapping
+// Status label mapping comment
 const STATUS_LABELS = {
   submitted: 'Submitted',
   brand_review: 'Brand Review',
