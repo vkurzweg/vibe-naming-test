@@ -154,13 +154,13 @@ app.get('/test', (req, res) => {
 const path = require('path');
 
 // Serve static files from the React app build folder (one directory up from src/)
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, '../../client/build')));
+const buildPath = path.join(__dirname, '..', 'build');
+app.use(express.static(buildPath));
 
-// The "catchall" handler: for any request that doesn't match an API route, send back index.html
 app.get('*', (req, res) => {
+  // Only serve index.html for non-API routes
   if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(__dirname, '../../client/build', 'index.html'));
+    res.sendFile(path.join(buildPath, 'index.html'));
   } else {
     res.status(404).json({ error: 'API route not found' });
   }
