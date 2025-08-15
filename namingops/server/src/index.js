@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path'); 
 const express = require('express');
 const session = require('express-session');
 const cors = require('cors');
@@ -18,6 +19,7 @@ const nameRequestRoutes = require('./routes/namingRequests');
 const userRoutes = require('./routes/users');
 const healthRoutes = require('./routes/health');
 const formConfigurationRoutes = require('./routes/formConfigurations');
+const approvedNameRoutes = require('./routes/approvedNames');
 
 const app = express();
 // Set CSP header to allow Google OAuth frames
@@ -134,6 +136,10 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE ==
 const geminiRoutes = require('./routes/gemini');
 app.use('/api/gemini', geminiRoutes);
 
+app.use('/api/approved-names', approvedNameRoutes);
+
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   const status = {
@@ -151,7 +157,7 @@ app.get('/test', (req, res) => {
   res.json({ message: 'Test route is working!' });
 });
 
-const path = require('path');
+
 
 // Serve static files from the React app build folder (one directory up from src/)
 const buildPath = path.join(__dirname, '..', 'build');

@@ -24,6 +24,25 @@ const validateRequest = [
   check('dueDate').optional().isISO8601()
 ];
 
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const uploadDir = path.join(__dirname, '../../uploads/requests');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const reqDir = path.join(uploadDir, req.params.id);
+    if (!fs.existsSync(reqDir)) fs.mkdirSync(reqDir, { recursive: true });
+    cb(null, reqDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage });
+
 // Helper to handle database operations with transactions
 async function withTransaction(operation) {
   const client = getClient();
@@ -361,9 +380,9 @@ router.put('/:id', [
       }
 
       // Authorization check
-      if (request.requestor.toString() !== req.user.id && 
-          !req.user.roles.includes('admin') && 
-          !req.user.roles.includes('reviewer')) {
+      const isOwner = request.user.toString() === req.user.id;
+      const isReviewerOrAdmin = ['admin', 'reviewer'].includes(req.user.role);
+      if (!isOwner && !isReviewerOrAdmin) {
         throw { status: 403, message: 'Not authorized to update this request' };
       }
 
@@ -477,9 +496,94 @@ router.put('/:id/status', isAuthenticated, async (req, res) => {
   }
 });
 
+// PATCH /api/v1/name-requests/:id/notes
+// Allows reviewer/admin to update reviewerNotes or adminNotes
+router.patch('/:id/notes', isAuthenticated, async (req, res) => {
+  try {
+    const { reviewerNotes, adminNotes } = req.body;
+    const request = await NamingRequest.findById(req.params.id);
+
+    if (!request) {
+      return res.status(404).json({ msg: 'Request not found' });
+    }
+
+    const isReviewerOrAdmin = ['reviewer', 'admin'].includes(req.user.role);
+    if (!isReviewerOrAdmin) {
+      return res.status(403).json({ msg: 'Not authorized to edit notes' });
+    }
+
+    if (typeof reviewerNotes === 'string') request.reviewerNotes = reviewerNotes;
+    if (typeof adminNotes === 'string') request.adminNotes = adminNotes;
+
+    await request.save();
+    res.json({ success: true, data: request });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
+// POST /api/v1/name-requests/:id/attachments
+router.post('/:id/attachments', isAuthenticated, upload.single('attachment'), async (req, res) => {
+  try {
+    const request = await NamingRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ msg: 'Request not found' });
+
+    // Allow: (1) Admin/Reviewer, (2) Owner (Submitter/Associate) if request is active
+    const isReviewerOrAdmin = ['reviewer', 'admin'].includes(req.user.role);
+    const isOwner = request.user && request.user.toString() === req.user.id;
+    const isActive = request.isActive !== false; // treat undefined as active
+
+    if (
+      !isReviewerOrAdmin &&
+      !(isOwner && isActive)
+    ) {
+      return res.status(403).json({ msg: 'Not authorized to upload attachments' });
+    }
+
+    if (!req.file) return res.status(400).json({ msg: 'No file uploaded' });
+
+    // Construct file URL
+    const url = `/uploads/requests/${req.params.id}/${req.file.filename}`;
+
+    request.attachments = request.attachments || [];
+    request.attachments.push({
+      filename: req.file.originalname,
+      url,
+      uploadedBy: req.user._id
+    });
+
+    await request.save();
+    res.json({ success: true, attachments: request.attachments });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
 // @route   DELETE /api/name-requests/:id
 // @desc    Delete a naming request (soft delete)
 // @access  Private
-// router.delete('/:id', [
+router.delete('/:id', isAuthenticated, async (req, res) => {
+  try {
+    const request = await NamingRequest.findById(req.params.id);
+    if (!request) {
+      return res.status(404).json({ msg: 'Request not found' });
+    }
+
+    const isOwner = request.user.toString() === req.user.id;
+    const isReviewerOrAdmin = ['reviewer', 'admin'].includes(req.user.role);
+
+    if (!isOwner && !isReviewerOrAdmin) {
+      return res.status(403).json({ msg: 'Not authorized to delete this request' });
+    }
+
+    // Soft delete: mark as inactive (preferred for audit), or use request.remove() for hard delete
+    request.isActive = false;
+    await request.save();
+
+    res.json({ success: true, msg: 'Request deleted (soft delete)' });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
 
 module.exports = router;

@@ -49,6 +49,7 @@ const namingRequestSchema = new mongoose.Schema({
       enum: statusEnum,
       required: true,
     },
+    isActive: { type: Boolean, default: true },
     changedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -71,6 +72,14 @@ const namingRequestSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  reviewerNotes: { type: String, default: '' },
+  adminNotes: { type: String, default: '' },
+  attachments: [{
+    filename: String,
+    url: String,
+    uploadedAt: { type: Date, default: Date.now },
+    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  }],
 });
 
 // Add a text index for searching

@@ -13,6 +13,7 @@ import {
   SmartToy as SmartToyIcon
 } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
+import { useSelector } from 'react-redux';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import api from '../../services/api';
@@ -44,6 +45,22 @@ const STATUS_LABELS = {
   on_hold: 'On Hold',
   canceled: 'Canceled'
 };
+
+
+  async function handleAttachmentUpload(e, requestId) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('attachment', file);
+    try {
+      await api.post(`/api/v1/name-requests/${requestId}/attachments`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      alert('Attachment uploaded! Refresh to see it in the list.');
+    } catch (err) {
+      alert('Failed to upload attachment');
+    }
+  }
 
 function humanizeFieldName(key) {
   if (!key || typeof key !== 'string') return '';
@@ -87,6 +104,7 @@ const ColoredStepConnector = styled(StepConnector)(({ theme }) => ({
 }));
 
 const ProfessionalSubmitterDashboard = () => {
+  const user = useSelector(state => state.auth.user);
   const queryClient = useQueryClient();
   const [tabValue, setTabValue] = useState(0);
   const [expanded, setExpanded] = useState({});
@@ -363,6 +381,36 @@ const ProfessionalSubmitterDashboard = () => {
                           </Table>
                         )}
 
+                        {/* Attachments Section (all roles can view, only allowed can upload) */}
+<Box sx={{ mt: 2 }}>
+  <Typography variant="subtitle2" sx={{ mb: 1 }}>Attachments</Typography>
+  {request.attachments && request.attachments.length > 0 ? (
+    <Box sx={{ mb: 1 }}>
+      {request.attachments.map((att, idx) => (
+        <Box key={idx} sx={{ mb: 0.5 }}>
+          <a href={att.url} target="_blank" rel="noopener noreferrer">{att.filename}</a>
+        </Box>
+      ))}
+    </Box>
+  ) : (
+    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>No attachments</Typography>
+  )}
+  {(
+    ['admin', 'reviewer'].includes(user?.role) ||
+    (user?.id === request.user && request.isActive !== false)
+  ) && (
+    <Box sx={{ mb: 2 }}>
+      <Button variant="outlined" component="label" size="small">
+        Upload Attachment
+        <input
+          type="file"
+          hidden
+          onChange={e => handleAttachmentUpload(e, request.id || request._id)}
+        />
+      </Button>
+    </Box>
+  )}
+</Box>
                         {/* Status History: only show if there is more than one status (i.e., updated) */}
                         {statusHistory.length > 1 && (
                           <Box sx={{ mt: 2 }}>
