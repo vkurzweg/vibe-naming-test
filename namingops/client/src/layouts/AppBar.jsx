@@ -21,221 +21,123 @@ import {
   ListItemIcon,
   ListItemText
 } from '@mui/material';
-import {
-  Notifications as NotificationsIcon,
-  Logout as LogoutIcon,
-  Settings as SettingsIcon,
-  AdminPanelSettings as AdminIcon,
-  RateReview as ReviewerIcon,
-  Send as SubmitterIcon,
-  ArrowDropDown,
-} from '@mui/icons-material';
-import { isDevelopment } from '../utils/environment';
+import LogoutIcon from '@mui/icons-material/Logout';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
-const AppBar = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+export default function AppBar() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  // Get user and loading state from Redux
-  const { user } = useSelector((state) => ({
-    user: state.auth.user,
-  }));
+  // Replace with your actual user selector
+  const user = useSelector(state => state.auth.user);
+  const effectiveRole = useEffectiveRole();
 
   const [anchorEl, setAnchorEl] = useState(null);
-  const [roleAnchorEl, setRoleAnchorEl] = useState(null);
-  const accountMenuOpen = Boolean(anchorEl);
-  const roleMenuOpen = Boolean(roleAnchorEl);
-  const currentRole = useEffectiveRole() || 'submitter';
 
-  const handleMenu = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
+  const handleMenuOpen = (event) => setAnchorEl(event.currentTarget);
+  const handleMenuClose = () => setAnchorEl(null);
 
-  const handleRoleMenu = (event) => {
-    setRoleAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-    setRoleAnchorEl(null);
-  };
-
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     dispatch(logout());
+    handleMenuClose();
     navigate('/login');
-    handleClose();
-  };
+  }, [dispatch, navigate]);
 
-  const handleRoleChange = useCallback((newRole) => {
-    if (isDevelopment) {
-      dispatch(switchRole({ role: newRole }));
-      window.location.reload();
-    }
-    handleClose();
+  const handleSwitchRole = useCallback(() => {
+    dispatch(switchRole());
+    handleMenuClose();
   }, [dispatch]);
 
-  // Get role configuration
-  const getRoleConfig = (role) => {
-    const roles = {
-      admin: { label: 'Admin', icon: <AdminIcon fontSize="small" />, color: 'error' },
-      reviewer: { label: 'Reviewer', icon: <ReviewerIcon fontSize="small" />, color: 'info' },
-      submitter: { label: 'Submitter', icon: <SubmitterIcon fontSize="small" />, color: 'success' },
-    };
-    return roles[role] || { label: role, icon: null, color: 'default' };
+  // Avatar fallback: initials or icon
+  const getAvatarFallback = () => {
+    if (user?.name) {
+      return user.name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase();
+    }
+    if (user?.email) {
+      return user.email[0].toUpperCase();
+    }
+    return <AccountCircleIcon />;
   };
-
-  const roleConfig = getRoleConfig(currentRole);
-  const userInitial = user?.name?.[0]?.toUpperCase() || 'U';
 
   return (
     <MuiAppBar
-      position="fixed"
+      position="static"
+      elevation={0}
       sx={{
-        zIndex: (theme) => theme.zIndex.drawer + 1,
+        background: 'transparent',
         boxShadow: 'none',
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        backgroundColor: theme.palette.background.paper,
-        color: theme.palette.text.primary,
+        borderBottom: '1px solid',
+        borderColor: (theme) => theme.palette.divider,
       }}
     >
-      <Toolbar>
-        <Box sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}>
-          <Typography
-            variant="h6"
-            noWrap
-            component="div"
-            sx={{
-              fontWeight: 700,
-              color: theme.palette.primary.main,
-              textDecoration: 'none',
-              mr: 3,
-            }}
-          >
-            Naming Ops
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Role Switcher - Always visible for now */}
-          {true && (
-            <>
-              <Tooltip title="Switch Role">
-                <Chip
-                  icon={roleConfig.icon}
-                  label={roleConfig.label}
-                  onClick={handleRoleMenu}
-                  color={roleConfig.color}
-                  size="small"
-                  deleteIcon={<ArrowDropDown />}
-                  onDelete={handleRoleMenu}
-                  sx={{
-                    cursor: 'pointer',
-                    '& .MuiChip-deleteIcon': {
-                      color: 'inherit',
-                    },
-                  }}
-                />
-              </Tooltip>
-              <Menu
-                anchorEl={roleAnchorEl}
-                open={roleMenuOpen}
-                onClose={handleClose}
-                MenuListProps={{
-                  'aria-labelledby': 'role-switcher',
-                  dense: true,
-                }}
+      <Toolbar sx={{ minHeight: '3.5rem', px: { xs: 2, sm: 3, md: 4 } }}>
+        {/* Logo or Title */}
+        <Typography
+          variant={isMobile ? "h6" : "h5"}
+          sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: '0.03em' }}
+        >
+          Naming HQ
+        </Typography>
+        {/* Role Chip (optional, remove if not needed) */}
+        {effectiveRole && (
+          <Chip
+            label={effectiveRole.charAt(0).toUpperCase() + effectiveRole.slice(1)}
+            color="primary"
+            sx={{ mr: 2, fontWeight: 600, fontSize: '1rem', height: '2rem' }}
+          />
+        )}
+        {/* Avatar and Menu */}
+        <Box>
+          <Tooltip title={user?.name || user?.email || 'Account'}>
+            <IconButton onClick={handleMenuOpen} sx={{ p: 0 }}>
+              <Avatar
+                sx={{ width: '2.5rem', height: '2.5rem', bgcolor: 'grey.200' }}
+                src={user?.picture || user?.photoURL || ''}
+                alt={user?.name || user?.email || 'User'}
+                imgProps={{ referrerPolicy: 'no-referrer' }}
               >
-                {['admin', 'reviewer', 'submitter'].map((role) => {
-                  const config = getRoleConfig(role);
-                  return (
-                    <MenuItem
-                      key={role}
-                      selected={currentRole === role}
-                      onClick={() => handleRoleChange(role)}
-                      sx={{
-                        minWidth: '120px',
-                        '&.Mui-selected': {
-                          backgroundColor: `${theme.palette.primary.light}20`,
-                          '&:hover': {
-                            backgroundColor: `${theme.palette.primary.light}30`,
-                          },
-                        },
-                      }}
-                    >
-                      <ListItemIcon>{config.icon}</ListItemIcon>
-                      <ListItemText primary={config.label} />
-                    </MenuItem>
-                  );
-                })}
-              </Menu>
-            </>
-          )}
-
-          {/* User Menu */}
-          <Tooltip title="Account settings">
-            <IconButton
-              onClick={handleMenu}
-              size="small"
-              sx={{ ml: 2 }}
-              aria-controls={accountMenuOpen ? 'account-menu' : undefined}
-              aria-haspopup="true"
-              aria-expanded={accountMenuOpen ? 'true' : undefined}
-            >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: theme.palette.primary.main }}>
-                {userInitial}
+                {getAvatarFallback()}
               </Avatar>
             </IconButton>
           </Tooltip>
           <Menu
             anchorEl={anchorEl}
-            id="account-menu"
-            open={accountMenuOpen}
-            onClose={handleClose}
-            onClick={handleClose}
-            PaperProps={{
-              elevation: 0,
-              sx: {
-                overflow: 'visible',
-                filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.1))',
-                mt: 1.5,
-                '& .MuiAvatar-root': {
-                  width: 32,
-                  height: 32,
-                  ml: -0.5,
-                  mr: 1,
-                },
-              },
-            }}
-            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+            open={Boolean(anchorEl)}
+            onClose={handleMenuClose}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           >
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="subtitle2">{user?.name || 'User'}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {user?.email || ''}
-              </Typography>
-            </Box>
-            <Divider sx={{ my: 1 }} />
-            <MenuItem onClick={() => navigate('/settings')}>
-              <ListItemIcon>
-                <SettingsIcon fontSize="small" />
-              </ListItemIcon>
-              Settings
+            <MenuItem disabled>
+              <Box>
+                <Typography variant="subtitle2">{user?.name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {user?.email}
+                </Typography>
+              </Box>
             </MenuItem>
             <Divider />
+            <MenuItem onClick={handleSwitchRole}>
+              <ListItemIcon>
+                <SwapHorizIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Switch Role</ListItemText>
+            </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
-              Logout
+              <ListItemText>Logout</ListItemText>
             </MenuItem>
           </Menu>
         </Box>
       </Toolbar>
     </MuiAppBar>
   );
-};
-
-export default AppBar;
+}

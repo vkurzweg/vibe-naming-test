@@ -10,10 +10,26 @@ const validationSchema = yup.object().shape({
   description: yup.string(),
   fields: yup.array().of(
     yup.object().shape({
-      name: yup.string().matches(/^\S*$/, 'Field name cannot contain spaces').required('Field name is required'),
-      label: yup.string().required('Field label is required'),
+      name: yup.string()
+        .when('fieldType', {
+          is: (val) => val !== 'content',
+          then: (schema) => schema.matches(/^\S*$/, 'Field name cannot contain spaces').required('Field name is required'),
+          otherwise: (schema) => schema.notRequired(),
+        }),
+      label: yup.string()
+        .when('fieldType', {
+          is: (val) => val !== 'content',
+          then: (schema) => schema.required('Field label is required'),
+          otherwise: (schema) => schema.notRequired(),
+        }),
       fieldType: yup.string().required('Field type is required'),
       required: yup.boolean(),
+      // Optionally, add content field for content blocks
+      content: yup.string().when('fieldType', {
+        is: 'content',
+        then: (schema) => schema.required('Content is required'),
+        otherwise: (schema) => schema.notRequired(),
+      }),
     })
   ),
 });

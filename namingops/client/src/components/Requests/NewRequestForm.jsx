@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Paper, Typography, Alert, CircularProgress, Button } from '@mui/material';
+import { Box, Paper, Typography, Alert, CircularProgress, Button, Grid } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -146,57 +146,34 @@ export default function NewRequestForm({ onSuccess }) {
   }
 
   return (
-    <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 600, mx: 'auto' }}>
+    <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
       <Typography variant="h5" mb={2}>Submit New Request</Typography>
       <form onSubmit={handleSubmit(mutation.mutate)}>
-        <DynamicFormRenderer
-          formConfig={normalizedFormConfig}
-          control={control}
-          errors={errors}
-          setValue={setValue}
-          watch={watch}
-          role="submitter"
-        />
-        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleGenerateNames}
-            disabled={geminiLoading}
-          >
-            {geminiLoading ? <CircularProgress size={20} /> : 'Suggest Names with Gemini'}
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={handleEvaluateName}
-            disabled={evalLoading || !watch('proposedName1')}
-          >
-            {evalLoading ? <CircularProgress size={20} /> : 'Evaluate Name with Gemini'}
-          </Button>
-        </Box>
-        {geminiError && <Alert severity="error" sx={{ mb: 2 }}>{geminiError}</Alert>}
-        {rationale && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <strong>Gemini Rationale:</strong> {rationale}
-          </Alert>
-        )}
-        {evaluation && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <strong>Gemini Evaluation:</strong> {evaluation}
-          </Alert>
-        )}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            disabled={mutation.isLoading}
-          >
-            {mutation.isLoading ? <CircularProgress size={20} /> : 'Submit Request'}
-          </Button>
+        <Box sx={{ flexGrow: 1 }}>
+            {/* Form fields column */}
+         
+              <DynamicFormRenderer
+                formConfig={normalizedFormConfig}
+                control={control}
+                errors={errors}
+                setValue={setValue}
+                watch={watch}
+                role="submitter"
+              />
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={mutation.isLoading}
+            >
+              {mutation.isLoading ? <CircularProgress size={20} /> : 'Submit Request'}
+            </Button>
+          </Box>
+          {mutation.isSuccess && <Alert severity="success" sx={{ mt: 2 }}>Request submitted!</Alert>}
+          {mutation.isError && <Alert severity="error" sx={{ mt: 2 }}>{mutation.error.message}</Alert>}
         </Box>
       </form>
-      {mutation.isSuccess && <Alert severity="success" sx={{ mt: 2 }}>Request submitted!</Alert>}
-      {mutation.isError && <Alert severity="error" sx={{ mt: 2 }}>{mutation.error.message}</Alert>}
     </Paper>
   );
 }

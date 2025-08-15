@@ -45,11 +45,8 @@ const WelcomeTab = () => {
           <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left'}}>
             An MVP for scaling domain expertise and knowledge management 🚀 
           </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left'}}>
-            Try our new request form and vibe with Gemini ✨
-          </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mt: '2rem', mb: '2rem', ml: '2rem', mr: '2rem', textAlign: 'left'}}>
-            Click the icon on the upper right to manage requests and configure the Gemini generator 😎 
+            Click the icon on the upper right to manage requests and configure the Gemini generator ✨
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, mb: 2, padding: '2rem' }}>

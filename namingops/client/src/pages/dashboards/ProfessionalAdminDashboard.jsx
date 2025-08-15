@@ -15,6 +15,7 @@ import useRequestManagement from '../../hooks/useRequestManagement';
 import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
 import NewRequestForm from '../../components/Requests/NewRequestForm';
 import ReviewQueue from '../../components/ReviewQueue/ReviewQueue';
+import GeminiConfigTab from '../../components/gemini/GeminiConfigTab';
 
 // --- Gemini Admin UI for Form Fields ---
 import {
@@ -23,6 +24,7 @@ import {
 } from '@mui/material';
 
 function FormConfigGeminiAdmin({ configId }) {
+  const queryClient = useQueryClient();
   const [formConfig, setFormConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,6 +67,7 @@ function FormConfigGeminiAdmin({ configId }) {
       setError('Failed to save changes.');
     } finally {
       setSaving(false);
+      queryClient.invalidateQueries(['activeFormConfig']);
     }
   };
 
@@ -184,6 +187,9 @@ const ProfessionalAdminDashboard = () => {
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+    if (newValue === 1) { // index of New Request tab
+      queryClient.invalidateQueries(['activeFormConfig']);
+    }
   };
 
   // Helper for selecting which config to edit
@@ -202,36 +208,58 @@ const ProfessionalAdminDashboard = () => {
         }}
       >
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 0 }}>
-          <Tabs
-            value={activeTab}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            aria-label="admin dashboard tabs"
-            sx={{ borderBottom: 1, borderColor: 'divider' }}
-          >
-            <Tab
-              icon={<BusinessIcon />}
-              iconPosition="start"
-              label="Review Queue"
-              id="tab-0"
-              aria-controls="tabpanel-0"
-            />
-            <Tab
-              icon={<AddIcon />}
-              iconPosition="start"
-              label="New Request"
-              id="tab-1"
-              aria-controls="tabpanel-1"
-            />
-            <Tab
-              icon={<SettingsIcon />}
-              iconPosition="start"
-              label="Form Configuration"
-              id="tab-2"
-              aria-controls="tabpanel-2"
-            />
-          </Tabs>
+        <Tabs
+  value={activeTab}
+  onChange={handleTabChange}
+  variant="scrollable"
+  scrollButtons="auto"
+  aria-label="admin dashboard tabs"
+  sx={{
+    borderBottom: 1,
+    borderColor: 'divider',
+    // Responsive: scrollable on mobile, fit on desktop
+    '& .MuiTabs-flexContainer': {
+      flexWrap: { xs: 'nowrap', md: 'wrap' }, // no wrap on mobile, wrap on desktop
+      overflowX: { xs: 'auto', md: 'visible' },
+      whiteSpace: { xs: 'nowrap', md: 'normal' },
+      justifyContent: { xs: 'flex-start', md: 'center' }
+    },
+    // Optional: make tabs take less space on desktop
+    '& .MuiTab-root': {
+      minWidth: { xs: 120, md: 100 }, // adjust as needed
+      flex: { md: '1 1 auto' }
+    }
+  }}
+>
+  <Tab
+    icon={<BusinessIcon />}
+    iconPosition="start"
+    label="Review Queue"
+    id="tab-0"
+    aria-controls="tabpanel-0"
+  />
+  <Tab
+    icon={<AddIcon />}
+    iconPosition="start"
+    label="New Request"
+    id="tab-1"
+    aria-controls="tabpanel-1"
+  />
+  <Tab
+    icon={<SettingsIcon />}
+    iconPosition="start"
+    label="Form Configuration"
+    id="tab-2"
+    aria-controls="tabpanel-2"
+  />
+  <Tab
+    icon={<SettingsIcon />}
+    iconPosition="start"
+    label="Gemini Config"
+    id="tab-3"
+    aria-controls="tabpanel-3"
+  />
+</Tabs>
         </Box>
 
         {/* Review Queue Tab Panel */}
@@ -249,21 +277,30 @@ const ProfessionalAdminDashboard = () => {
         </TabPanel>
 
         {/* Form Configuration Tab Panel */}
-        <TabPanel value={activeTab} index={2}>
-          {formConfigsLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-              <CircularProgress />
-            </Box>
-          ) : formConfigsError ? (
-            <Alert severity="error">
-              Failed to load form configurations. Please try again.
-            </Alert>
-          ) : (
-            <>
-              <FormConfigManager />
-              <Divider sx={{ my: 3 }} />
-            </>
-          )}
+<TabPanel value={activeTab} index={2}>
+  {formConfigsLoading ? (
+    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+      <CircularProgress />
+    </Box>
+  ) : formConfigsError ? (
+    <Alert severity="error">
+      Failed to load form configurations. Please try again.
+    </Alert>
+  ) : (
+    <>
+      <FormConfigManager />
+      <Divider sx={{ my: 3 }} />
+      {/* Gemini toggles for the selected config */}
+      {selectedConfigId && (
+        <FormConfigGeminiAdmin configId={selectedConfigId} />
+      )}
+    </>
+  )}
+</TabPanel>
+
+        {/* Gemini Config Tab Panel */}
+        <TabPanel value={activeTab} index={3}>
+          <GeminiConfigTab />
         </TabPanel>
 
         {/* New Request Tab Panel */}

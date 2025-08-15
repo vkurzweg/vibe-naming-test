@@ -20,7 +20,10 @@ import {
   Autocomplete,
   CircularProgress,
   Alert,
+  Tooltip,
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import {
   CheckCircle as ApprovedIcon,
   Schedule as PendingIcon,
@@ -28,12 +31,9 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon,
 } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { getStatusColor } from '../../theme/newColorPalette';
 import { Controller } from 'react-hook-form';
-import { fetchGeminiNames } from '../../services/gemini'; // Adjust path as needed
 
-// Status display component
 const StatusDisplay = ({ value }) => {
   const statusColor = getStatusColor(value);
   return (
@@ -49,7 +49,6 @@ const StatusDisplay = ({ value }) => {
   );
 };
 
-// Helper function to evaluate field conditions
 const evaluateCondition = (condition, formValues) => {
   if (!condition) return true;
   try {
@@ -88,7 +87,6 @@ const evaluateCondition = (condition, formValues) => {
   return true;
 };
 
-// Helper function to format validation error messages
 const formatErrorMessage = (error) => {
   if (!error) return null;
   if (typeof error === 'string') return error;
@@ -110,17 +108,74 @@ const DynamicFormRenderer = ({
   watch,
   role = 'submitter',
   readonly = false,
+  fetchGeminiNames,
+  composeGeminiPrompt,
 }) => {
   const theme = useTheme();
   const [formError, setFormError] = useState(null);
 
-  // --- Gemini state for per-field actions ---
-  const [geminiLoadingField, setGeminiLoadingField] = useState(null); // field name loading
-  const [geminiErrorField, setGeminiErrorField] = useState({});
-  const [geminiEvalField, setGeminiEvalField] = useState({});
+  // Gemini content state
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [geminiError, setGeminiError] = useState('');
+  const [rationale, setRationale] = useState('');
+  const [evaluation, setEvaluation] = useState('');
+  const [evalLoading, setEvalLoading] = useState(false);
 
   // Watch all form values for conditional logic
   const formValues = watch ? watch() : formData;
+
+  // Gemini Handlers
+  const handleGenerateNames = async () => {
+    if (!fetchGeminiNames || !composeGeminiPrompt) {
+      setGeminiError('Gemini integration is not available.');
+      return;
+    }
+    setGeminiLoading(true);
+    setGeminiError('');
+    setRationale('');
+    try {
+      const prompt = composeGeminiPrompt(formConfig, formValues.description || '');
+      const result = await fetchGeminiNames(prompt);
+
+      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const nameLines = text.split('\n').filter(line => line.trim().length > 0);
+      const names = nameLines.filter(l => /^\d+\./.test(l)).map(l => l.replace(/^\d+\.\s*/, ''));
+      const rationaleLine = nameLines.find(l => l.toLowerCase().includes('rationale:'));
+      setValue('proposedName1', names[0] || '');
+      setValue('proposedName2', names[1] || '');
+      setRationale(rationaleLine ? rationaleLine.replace(/rationale:/i, '').trim() : '');
+    } catch (err) {
+      setGeminiError('Could not generate names. You may have hit the Gemini API quota.');
+    } finally {
+      setGeminiLoading(false);
+    }
+  };
+
+  const handleEvaluateName = async () => {
+    if (!fetchGeminiNames) {
+      setGeminiError('Gemini integration is not available.');
+      return;
+    }
+    setEvalLoading(true);
+    setEvaluation('');
+    setGeminiError('');
+    try {
+      const nameToEvaluate = formValues.proposedName1 || '';
+      if (!nameToEvaluate) {
+        setGeminiError('Please enter a name to evaluate.');
+        setEvalLoading(false);
+        return;
+      }
+      const evalPrompt = `Evaluate the following name for the project, considering branding, memorability, and fit: "${nameToEvaluate}". Give a brief assessment and rationale.`;
+      const result = await fetchGeminiNames(evalPrompt);
+      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      setEvaluation(text);
+    } catch (err) {
+      setGeminiError('Could not evaluate name.');
+    } finally {
+      setEvalLoading(false);
+    }
+  };
 
   if (!formConfig || !formConfig.fields || formConfig.fields.length === 0) {
     return (
@@ -132,63 +187,18 @@ const DynamicFormRenderer = ({
     );
   }
 
-  // --- Gemini handlers ---
-  const handleGeminiSuggest = async (field) => {
-    setGeminiLoadingField(field.name);
-    setGeminiErrorField({});
-    try {
-      const description = formValues.description || '';
-      const prompt = `Suggest a creative, on-brand name for: "${description}"`;
-      const result = await fetchGeminiNames(prompt);
-      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const suggested = text.split('\n').find(line => line.trim().length > 0) || text;
-      setValue(field.name, suggested);
-    } catch (err) {
-      setGeminiErrorField(prev => ({ ...prev, [field.name]: 'Gemini error: Could not generate suggestion.' }));
-    } finally {
-      setGeminiLoadingField(null);
-    }
-  };
-
-  const handleGeminiEvaluate = async (field) => {
-    setGeminiLoadingField(field.name + '_eval');
-    setGeminiEvalField({});
-    setGeminiErrorField({});
-    try {
-      const value = formValues[field.name];
-      if (!value) {
-        setGeminiErrorField(prev => ({ ...prev, [field.name]: 'Please enter a name to evaluate.' }));
-        setGeminiLoadingField(null);
-        return;
-      }
-      const evalPrompt = `Evaluate this name for branding and fit: "${value}". Give a brief rationale.`;
-      const result = await fetchGeminiNames(evalPrompt);
-      setGeminiEvalField(prev => ({
-        ...prev,
-        [field.name]: result?.candidates?.[0]?.content?.parts?.[0]?.text || ''
-      }));
-    } catch (err) {
-      setGeminiErrorField(prev => ({ ...prev, [field.name]: 'Gemini error: Could not evaluate.' }));
-    } finally {
-      setGeminiLoadingField(null);
-    }
-  };
-
   // Render form fields with React Hook Form integration
   const renderField = (field) => {
-    // Support both .type and .fieldType for legacy configs
     const fieldType = field.type || field.fieldType;
     const fieldName = field.name;
     const isFieldReadonly = readonly || (field.readonly && field.readonly.includes(role));
     const fieldError = errors?.[fieldName];
     const errorMessage = formatErrorMessage(fieldError);
 
-    // Check if field should be displayed based on conditions
     if (field.condition && !evaluateCondition(field.condition, formValues)) {
       return null;
     }
 
-    // Common props for all field types
     const commonProps = {
       fullWidth: true,
       size: "medium",
@@ -202,49 +212,6 @@ const DynamicFormRenderer = ({
         ...(field.style || {}),
       }
     };
-
-    // --- Gemini Buttons (rendered inline for text fields) ---
-    const renderGeminiButtons = () => (
-      (field.geminiSuggest || field.geminiEvaluate) && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-          {field.geminiSuggest && (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleGeminiSuggest(field)}
-              disabled={geminiLoadingField === field.name}
-            >
-              {geminiLoadingField === field.name
-                ? <CircularProgress size={16} />
-                : (field.geminiSuggestLabel || 'Suggest with Gemini')}
-            </Button>
-          )}
-          {field.geminiEvaluate && (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => handleGeminiEvaluate(field)}
-              disabled={geminiLoadingField === field.name + '_eval' || !formValues[field.name]}
-            >
-              {geminiLoadingField === field.name + '_eval'
-                ? <CircularProgress size={16} />
-                : (field.geminiEvaluateLabel || 'Evaluate with Gemini')}
-            </Button>
-          )}
-          {geminiErrorField[field.name] && (
-            <Typography color="error" variant="body2">{geminiErrorField[field.name]}</Typography>
-          )}
-          {geminiEvalField[field.name] && (
-            <Typography color="primary" variant="body2"><strong>Gemini Evaluation:</strong> {geminiEvalField[field.name]}</Typography>
-          )}
-          {field.geminiHelperText && (
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-              {field.geminiHelperText}
-            </Typography>
-          )}
-        </Box>
-      )
-    );
 
     switch (fieldType) {
       case 'text':
@@ -274,27 +241,24 @@ const DynamicFormRenderer = ({
               validate: field.validate
             }}
             render={({ field: { onChange, onBlur, value, ref } }) => (
-              <Box>
-                <TextField
-                  {...commonProps}
-                  label={field.label}
-                  type={fieldType}
-                  onChange={onChange}
-                  onBlur={onBlur}
-                  value={value || ''}
-                  inputRef={ref}
-                  placeholder={field.placeholder}
-                  InputProps={{
-                    startAdornment: field.prefix ? (
-                      <InputAdornment position="start">{field.prefix}</InputAdornment>
-                    ) : null,
-                    endAdornment: field.suffix ? (
-                      <InputAdornment position="end">{field.suffix}</InputAdornment>
-                    ) : null,
-                  }}
-                />
-                {renderGeminiButtons()}
-              </Box>
+              <TextField
+                {...commonProps}
+                label={field.label}
+                type={fieldType}
+                onChange={onChange}
+                onBlur={onBlur}
+                value={value || ''}
+                inputRef={ref}
+                placeholder={field.placeholder}
+                InputProps={{
+                  startAdornment: field.prefix ? (
+                    <InputAdornment position="start">{field.prefix}</InputAdornment>
+                  ) : null,
+                  endAdornment: field.suffix ? (
+                    <InputAdornment position="end">{field.suffix}</InputAdornment>
+                  ) : null,
+                }}
+              />
             )}
           />
         );
@@ -431,6 +395,41 @@ const DynamicFormRenderer = ({
             )}
           />
         );
+      case 'file':
+        return (
+          <Controller
+            name={fieldName}
+            control={control}
+            defaultValue={[]}
+            render={({ field: { onChange, value } }) => (
+              <Box>
+                <Button variant="outlined" component="label">
+                  {field.label || "Upload File"}
+                  <input
+                    type="file"
+                    hidden
+                    multiple={field.multiple}
+                    accept={field.allowedFileTypes?.map(ext => '.' + ext).join(',')}
+                    onChange={e => onChange([...e.target.files])}
+                  />
+                </Button>
+                {Array.isArray(value) && value.length > 0 && (
+                  <Box mt={1}>
+                    {value.map((file, idx) => (
+                      <Typography key={idx} variant="body2">{file.name}</Typography>
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            )}
+          />
+        );
+      case 'content':
+        return (
+          <Box sx={{ mb: 2 }}>
+            <div dangerouslySetInnerHTML={{ __html: field.content || '' }} />
+          </Box>
+        );
       case 'autocomplete':
         return (
           <Controller
@@ -468,7 +467,7 @@ const DynamicFormRenderer = ({
             )}
           />
         );
-      case 'status': // Custom display for status fields
+      case 'status':
         return (
           <Box sx={{ my: 2 }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>{field.label}</Typography>
@@ -485,20 +484,91 @@ const DynamicFormRenderer = ({
   };
 
   return (
-    <Box>
-      <Grid container spacing={2}>
-        {formConfig.fields.map((field, idx) => (
-          <Grid item xs={12} sm={field.fullWidth ? 12 : 6} key={field.name || idx}>
-            {renderField(field)}
-          </Grid>
-        ))}
+    <Grid container spacing={8} alignItems="flex-start">
+      {/* Form Fields Column */}
+      <Grid item xs={12} md={6}>
+        <Grid container spacing={1}>
+          {formConfig.fields.map((field, idx) => (
+            <Grid item xs={10} key={field.name || idx}>
+              {renderField(field)}
+            </Grid>
+          ))}
+        </Grid>
+        {formError && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {formError}
+          </Alert>
+        )}
       </Grid>
-      {formError && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {formError}
-        </Alert>
-      )}
-    </Box>
+      {/* Gemini Section Column */}
+      <Grid item xs={12} md={6}>
+        <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={handleGenerateNames}
+            disabled={geminiLoading}
+          >
+            {geminiLoading ? <CircularProgress size={20} /> : 'Suggest Names with Gemini'}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleEvaluateName}
+            disabled={evalLoading || !formValues.proposedName1}
+          >
+            {evalLoading ? <CircularProgress size={20} /> : 'Evaluate Name with Gemini'}
+          </Button>
+        </Box>
+        {geminiError && <Alert severity="error" sx={{ mb: 2 }}>{geminiError}</Alert>}
+        {rationale && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>Gemini Rationale:</strong> {rationale}
+          </Alert>
+        )}
+        {evaluation && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>Gemini Evaluation:</strong> {evaluation}
+          </Alert>
+        )}
+        {/* Gemini Display Container */}
+        <Box
+          sx={{
+            background: theme.palette.mode === 'dark'
+              ? 'rgba(30,30,30,0.85)'
+              : 'rgba(255,255,255,0.85)',
+            border: `1px solid ${theme.palette.divider}`,
+            borderRadius: theme.shape.borderRadius,
+            boxShadow: 'none',
+            color: theme.palette.text.primary,
+            p: { xs: 2, sm: 3 },
+            minHeight: 200,
+            maxHeight: 600,
+            overflowY: 'auto',
+            transition: 'background 0.2s',
+            mt: 2,
+          }}
+          aria-label="Gemini Output"
+        >
+          {(rationale || evaluation) ? (
+            <>
+              {rationale && (
+                <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem', mb: 1 }}>
+                  <strong>Rationale:</strong> {rationale}
+                </Typography>
+              )}
+              {evaluation && (
+                <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem' }}>
+                  <strong>Evaluation:</strong> {evaluation}
+                </Typography>
+              )}
+            </>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Gemini suggestions and evaluations will appear here.
+            </Typography>
+          )}
+        </Box>
+      </Grid>
+    </Grid>
   );
 };
 

@@ -1,20 +1,75 @@
 // Service for handling authentication-related API calls
+import api from '../../services/api'; // Adjust if your API service is elsewhere
 import { store } from '../../app/store';
+
 const isDevOrDemo = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE === 'true';
+
+// --- Register ---
+const register = async (userData) => {
+  const res = await api.post('/api/v1/auth/register', userData);
+  // Expect { user, token, ... }
+  if (isDevOrDemo) {
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+  }
+  return res.data.user;
+};
+
+// --- Login ---
+const login = async (userData) => {
+  const res = await api.post('/api/v1/auth/login', userData);
+  if (isDevOrDemo) {
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+  }
+  return res.data.user;
+};
+
+// --- Logout ---
+const logout = async () => {
+  await api.post('/api/v1/auth/logout');
+  localStorage.removeItem('user');
+};
+
+// --- Google OAuth Login ---
+const googleLogin = async (tokenResponse) => {
+  // tokenResponse: { credential: string, ... }
+  const res = await api.post('/api/v1/auth/google', { token: tokenResponse.credential });
+  // Expect { user, token, ... } and user.picture for avatar
+  if (isDevOrDemo) {
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+  }
+  return res.data.user;
+};
+
+// --- Update User ---
+const updateUser = async (userData, token) => {
+  const res = await api.put('/api/v1/auth/me', userData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  if (isDevOrDemo) {
+    localStorage.setItem('user', JSON.stringify(res.data.user));
+  }
+  return res.data.user;
+};
+
+// --- Change Password ---
+const changePassword = async (passwordData, token) => {
+  await api.post('/api/v1/auth/change-password', passwordData, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+};
+
+// --- Role Switcher (Dev/Demo Only) ---
 export const switchRole = async (newRole) => {
   if (!isDevOrDemo) {
     console.warn('Role switching is only available in development or demo mode');
     return Promise.reject('Role switching is only available in development or demo mode');
   }
-
   try {
     const currentState = store.getState();
     const currentUser = currentState.auth.user;
-    
     if (!currentUser) {
       throw new Error('No user is currently logged in');
     }
-
     // Create updated user with new role
     const updatedUser = {
       ...currentUser,
@@ -23,11 +78,7 @@ export const switchRole = async (newRole) => {
       email: `${newRole}@example.com`,
       _isDev: true
     };
-
-    // Update localStorage
     localStorage.setItem('user', JSON.stringify(updatedUser));
-    
-    // Return the updated user to be used by the Redux action
     return Promise.resolve(updatedUser);
   } catch (error) {
     console.error('Error switching role:', error);
@@ -35,7 +86,14 @@ export const switchRole = async (newRole) => {
   }
 };
 
-// Export other auth-related functions as needed
-export default {
+const authService = {
+  register,
+  login,
+  logout,
+  googleLogin,
+  updateUser,
+  changePassword,
   switchRole,
 };
+
+export default authService;

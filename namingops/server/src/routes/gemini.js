@@ -3,22 +3,42 @@ const { GoogleGenAI } = require('@google/genai');
 const GeminiConfig = require('../models/GeminiConfig');
 const router = express.Router();
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// --- ADMIN CONFIG ENDPOINTS ---
 
-// GET config
+// GET Gemini config (apiKey, defaultPrompt)
 router.get('/config', async (req, res) => {
-  let config = await GeminiConfig.findOne();
-  if (!config) {
-    // Create default config if not present
-    config = await GeminiConfig.create({
-      basePrompt: { text: "You are a creative naming assistant for NamingHQ.", active: true },
-      principles: [],
-      dos: [],
-      donts: []
+  try {
+    let config = await GeminiConfig.findOne();
+    if (!config) {
+      config = await GeminiConfig.create({});
+    }
+    res.json({
+      apiKey: config.apiKey || '',
+      defaultPrompt: config.defaultPrompt || ''
     });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch Gemini config' });
   }
-  res.json(config);
 });
+
+// POST Gemini config (save apiKey, defaultPrompt)
+router.post('/config', async (req, res) => {
+  try {
+    const { apiKey, defaultPrompt } = req.body;
+    let config = await GeminiConfig.findOne();
+    if (!config) {
+      config = await GeminiConfig.create({});
+    }
+    if (typeof apiKey === 'string') config.apiKey = apiKey;
+    if (typeof defaultPrompt === 'string') config.defaultPrompt = defaultPrompt;
+    await config.save();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save Gemini config' });
+  }
+});
+
+// --- ADVANCED CONFIG ENDPOINTS ---
 
 // ADD new item (POST /config/:element)
 router.post('/config/:element', async (req, res) => {
@@ -61,32 +81,45 @@ router.patch('/config/basePrompt', async (req, res) => {
   res.json(config);
 });
 
+// --- GEMINI GENERATION ENDPOINTS ---
+
 // POST /naming - Generate names using Gemini
 router.post('/naming', async (req, res) => {
-    const { prompt } = req.body;
-    if (!prompt) {
-      return res.status(400).json({ error: 'Prompt is required' });
-    }
-  
-    try {
-      const result = await ai.models.generateContent({
-        model: 'models/gemini-1.5-pro-latest', // or 'models/gemini-1.5-pro'
-        contents: [{ role: 'user', parts: [{ text: prompt }] }]
-      });
-      res.json(result);
-    } catch (error) {
-      console.error('Gemini API error:', error);
-      res.status(500).json({ error: 'Failed to generate names', details: error.message });
-    }
-  });
+  const { prompt } = req.body;
+  if (!prompt) {
+    return res.status(400).json({ error: 'Prompt is required' });
+  }
 
-  router.get('/models', async (req, res) => {
-    try {
-      const modelsList = await ai.models.list();
-      res.json(modelsList);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
+  try {
+    // Use config.apiKey if present, else fallback to process.env
+    const config = await GeminiConfig.findOne();
+    const apiKey = config?.apiKey || process.env.GEMINI_API_KEY;
+    const ai = new GoogleGenAI({ apiKey });
+
+    const result = await ai.models.generateContent({
+      model: 'models/gemini-1.5-pro-latest',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
+    });
+    res.json(result);
+  } catch (error) {
+    console.error('Gemini API error:', error);
+    res.status(500).json({ error: 'Failed to generate names', details: error.message });
+  }
+});
+
+// GET /models - List available Gemini models
+router.get('/models', async (req, res) => {
+  try {
+    // Use config.apiKey if present, else fallback to process.env
+    const config = await GeminiConfig.findOne();
+    const apiKey = config?.apiKey || process.env.GEMINI_API_KEY;
+    const ai = new GoogleGenAI({ apiKey });
+
+    const modelsList = await ai.models.list();
+    res.json(modelsList);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;

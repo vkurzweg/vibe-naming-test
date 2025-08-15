@@ -92,9 +92,11 @@ const [sortBy, setSortBy] = useState('date_desc');
     return result;
   }, [requests, searchTerm, statusFilter, sortBy]);
 
-  const keyToLabel = (key) => {
-    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
+  function keyToLabel(key) {
+    if (!key || typeof key !== 'string') return '';
+    // your existing logic, e.g.:
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  }
 
   return (
     <Box sx={{ p: { xs: 0, md: 2 } }}>

@@ -71,17 +71,13 @@ const FormConfigManager = () => {
     setDialogOpen(false);
   };
 
+ 
   const handleSave = async (formData) => {
     try {
       if (editingConfig) {
-        await dispatch(saveFormConfiguration({ 
-          id: editingConfig._id, 
-          formData: {
-            ...formData,
-            _id: undefined,
-            __v: undefined
-          } 
-        })).unwrap();
+        // Remove _id and __v from formData before sending
+        const { _id, __v, ...rest } = formData;
+        await dispatch(saveFormConfiguration({ id: editingConfig._id, ...rest })).unwrap();
         setSnackbar({
           open: true,
           message: 'Form configuration updated successfully',

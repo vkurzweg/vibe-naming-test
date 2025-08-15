@@ -1,21 +1,19 @@
 const express = require('express');
 const passport = require('passport');
+const jwt = require('jsonwebtoken');
 const router = express.Router();
-const { generateJwtToken } = require('../utils/auth');
+const { generateJwtToken, verifyGoogleToken } = require('../utils/auth');
 const User = require('../models/User');
 
-// Google OAuth login route
+// Google OAuth login route (session/cookie flow)
 router.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'], session: true })
 );
 
-// Google OAuth callback
+// Google OAuth callback (session/cookie flow)
 router.get('/google/callback',
   passport.authenticate('google', { failureRedirect: '/login', session: true }),
   (req, res) => {
-    // Option 1: Use session (recommended for web apps)
-    // Redirect to frontend with session cookie set
-    // Use full URL for Heroku and local
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     res.redirect(clientUrl);
 
@@ -30,6 +28,71 @@ router.get('/logout', (req, res) => {
   req.logout(() => {
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     res.redirect(clientUrl);
+  });
+});
+
+// POST /api/v1/auth/google (JWT flow for SPA)
+router.post('/google', async (req, res) => {
+  try {
+    const { token } = req.body;
+    const ticket = await verifyGoogleToken(token);
+    const payload = ticket.getPayload();
+
+    // Find or create user in your DB
+    let user = await User.findOne({ email: payload.email });
+    if (!user) {
+      user = await User.create({
+        name: payload.name,
+        email: payload.email,
+        picture: payload.picture,
+        // ...other fields
+      });
+    }
+
+    // Generate JWT for the user
+    const jwtToken = generateJwtToken(user);
+
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        picture: user.picture
+      },
+      token: jwtToken
+    });
+  } catch (error) {
+    res.status(401).json({ message: 'Google authentication failed', error: error.message });
+  }
+});
+
+// JWT Middleware
+function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ message: 'No token' });
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+}
+
+// GET /api/v1/auth/me (JWT-protected user info)
+router.get('/me', requireAuth, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  res.json({
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      picture: user.picture
+    }
   });
 });
 

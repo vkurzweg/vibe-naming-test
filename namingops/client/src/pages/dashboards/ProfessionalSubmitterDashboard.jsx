@@ -46,6 +46,7 @@ const STATUS_LABELS = {
 };
 
 function humanizeFieldName(key) {
+  if (!key || typeof key !== 'string') return '';
   return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
@@ -165,7 +166,7 @@ const ProfessionalSubmitterDashboard = () => {
   const [submitError, setSubmitError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const { handleSubmit, control, reset, formState: { errors } } = useForm({
+  const { handleSubmit, control, reset, formState: { errors }, setValue, watch } = useForm({
     resolver: zodResolver(z.object({})),
     mode: 'onChange',
   });
@@ -430,10 +431,8 @@ const ProfessionalSubmitterDashboard = () => {
 
         {/* New Request Tab Panel */}
         <TabPanel value={tabValue} index={2}>
-          <Box sx={{ p: 0 }}>
-            <NewRequestForm onSuccess={() => {/* Optionally handle success, e.g. show a toast or switch tabs */}} />
-          </Box>
-        </TabPanel>
+                 <NewRequestForm onSuccess={() => { /* Optionally handle success, e.g. show a toast or switch tabs */ }} />
+               </TabPanel>
 
         {/* Search Names Tab Panel */}
         <TabPanel value={tabValue} index={3}>

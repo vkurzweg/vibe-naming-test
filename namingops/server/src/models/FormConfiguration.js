@@ -3,20 +3,22 @@ const mongoose = require('mongoose');
 const fieldSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true,
+    required: function() { return this.fieldType !== 'content'; },
     trim: true,
     description: 'The machine-readable name for the field (e.g., projectName).'
   },
   label: {
     type: String,
-    required: true,
+    required: function() { return this.fieldType !== 'content'; },
     trim: true,
     description: 'The human-readable label displayed in the UI.'
   },
   fieldType: {
     type: String,
     required: true,
-    enum: ['text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'number'],
+    enum: [
+      'text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'number', 'content'
+    ], // <-- add 'content' to enum
     description: 'The type of the form input field.'
   },
   options: {
@@ -28,6 +30,11 @@ const fieldSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
     description: 'Specifies whether the field must be filled out.'
+  },
+  content: {
+    type: String,
+    required: function() { return this.fieldType === 'content'; },
+    description: 'HTML or text content for content blocks.'
   },
   defaultValue: {
     type: mongoose.Schema.Types.Mixed,

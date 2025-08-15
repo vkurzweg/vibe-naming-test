@@ -132,26 +132,18 @@ export const loadActiveFormConfig = createAsyncThunk(
   }
 );
 
+
+
 export const saveFormConfiguration = createAsyncThunk(
-  'formConfig/save',
-  async (formData, { rejectWithValue, dispatch }) => {
-    try {
-      const method = formData._id ? 'put' : 'post';
-      const url = formData._id 
-        ? `/api/v1/form-configurations/${formData._id}`
-        : '/api/v1/form-configurations';
-      
-      console.log('Sending form data:', formData); 
-      const response = await api[method](url, formData);
-      
-      // If this is being set as active, update the active config
-      if (formData.isActive) {
-        await dispatch(loadActiveFormConfig());
-      }
-      
+  'formConfig/saveFormConfiguration',
+  async (payload, thunkAPI) => {
+    if (payload.id) {
+      const { id, ...rest } = payload;
+      const response = await api.put(`/api/v1/form-configurations/${id}`, rest);
       return response.data;
-    } catch (error) {
-      return rejectWithValue(createSerializableError(error));
+    } else {
+      const response = await api.post('/api/v1/form-configurations', payload);
+      return response.data;
     }
   }
 );
