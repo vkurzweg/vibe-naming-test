@@ -10,7 +10,7 @@ const initialState = {
   lastFetched: null,
 };
 
-// Async Thunks
+// Async Thunks s
 export const fetchUsers = createAsyncThunk(
   'users/fetchUsers',
   async (_, { rejectWithValue }) => {
