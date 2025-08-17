@@ -158,7 +158,8 @@ export default function NewRequestForm({ onSuccess }) {
                 errors={errors}
                 setValue={setValue}
                 watch={watch}
-                role="submitter"
+                fetchGeminiNames={fetchGeminiNames}
+                composeGeminiPrompt={composeGeminiPrompt}
               />
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
             <Button

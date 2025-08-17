@@ -5,6 +5,7 @@ import {
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { fetchGeminiNames, fetchGeminiConfig } from '../../services/gemini';
 import { composeGeminiPrompt } from './PromptComposer';
+import GeminiButton from './Button';
 
 const WelcomeTab = () => {
   const [prompt, setPrompt] = useState('');
@@ -51,22 +52,16 @@ const WelcomeTab = () => {
         </Box>
         <Box sx={{ display: 'flex', gap: 2, mb: 2, padding: '2rem' }}>
           <TextField
-            label="Describe your project"
+            label="What are you naming?"
             variant="outlined"
             fullWidth
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
             disabled={loading}
           />
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleGenerate}
-            disabled={loading || !prompt.trim()}
-            sx={{ minWidth: 160 }}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Generate Names'}
-          </Button>
+           <GeminiButton onClick={handleGenerate} disabled={loading || !prompt.trim()} style={{ minWidth: 160 }}>
+            Generate Names
+          </GeminiButton>
         </Box>
         {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
         {!!names.length && (

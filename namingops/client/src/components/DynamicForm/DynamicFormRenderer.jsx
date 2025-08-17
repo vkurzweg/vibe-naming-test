@@ -117,6 +117,7 @@ const DynamicFormRenderer = ({
   // Gemini content state
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [geminiError, setGeminiError] = useState('');
+  const [suggestedNames, setSuggestedNames] = useState([]);
   const [rationale, setRationale] = useState('');
   const [evaluation, setEvaluation] = useState('');
   const [evalLoading, setEvalLoading] = useState(false);
@@ -133,16 +134,15 @@ const DynamicFormRenderer = ({
     setGeminiLoading(true);
     setGeminiError('');
     setRationale('');
+    setSuggestedNames([]);
     try {
       const prompt = composeGeminiPrompt(formConfig, formValues.description || '');
       const result = await fetchGeminiNames(prompt);
-
       const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
       const nameLines = text.split('\n').filter(line => line.trim().length > 0);
       const names = nameLines.filter(l => /^\d+\./.test(l)).map(l => l.replace(/^\d+\.\s*/, ''));
+      setSuggestedNames(names);
       const rationaleLine = nameLines.find(l => l.toLowerCase().includes('rationale:'));
-      setValue('proposedName1', names[0] || '');
-      setValue('proposedName2', names[1] || '');
       setRationale(rationaleLine ? rationaleLine.replace(/rationale:/i, '').trim() : '');
     } catch (err) {
       setGeminiError('Could not generate names. You may have hit the Gemini API quota.');
@@ -518,18 +518,6 @@ const DynamicFormRenderer = ({
             {evalLoading ? <CircularProgress size={20} /> : 'Evaluate Name with Gemini'}
           </Button>
         </Box>
-        {geminiError && <Alert severity="error" sx={{ mb: 2 }}>{geminiError}</Alert>}
-        {rationale && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <strong>Gemini Rationale:</strong> {rationale}
-          </Alert>
-        )}
-        {evaluation && (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <strong>Gemini Evaluation:</strong> {evaluation}
-          </Alert>
-        )}
-        {/* Gemini Display Container */}
         <Box
           sx={{
             background: theme.palette.mode === 'dark'
@@ -537,31 +525,39 @@ const DynamicFormRenderer = ({
               : 'rgba(255,255,255,0.85)',
             border: `1px solid ${theme.palette.divider}`,
             borderRadius: theme.shape.borderRadius,
-            boxShadow: 'none',
             color: theme.palette.text.primary,
             p: { xs: 2, sm: 3 },
             minHeight: 200,
             maxHeight: 600,
             overflowY: 'auto',
-            transition: 'background 0.2s',
             mt: 2,
           }}
           aria-label="Gemini Output"
         >
-          {(rationale || evaluation) ? (
-            <>
-              {rationale && (
-                <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem', mb: 1 }}>
-                  <strong>Rationale:</strong> {rationale}
-                </Typography>
-              )}
-              {evaluation && (
-                <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem' }}>
-                  <strong>Evaluation:</strong> {evaluation}
-                </Typography>
-              )}
-            </>
-          ) : (
+          {geminiError && (
+            <Alert severity="error" sx={{ mb: 2 }}>{geminiError}</Alert>
+          )}
+          {suggestedNames.length > 0 && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle1"><strong>Suggested Names:</strong></Typography>
+              <ul>
+                {suggestedNames.map((name, idx) => (
+                  <li key={idx}>{name}</li>
+                ))}
+              </ul>
+            </Box>
+          )}
+          {rationale && (
+            <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem', mb: 1 }}>
+              <strong>Rationale:</strong> {rationale}
+            </Typography>
+          )}
+          {evaluation && (
+            <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem' }}>
+              <strong>Evaluation:</strong> {evaluation}
+            </Typography>
+          )}
+          {(!suggestedNames.length && !rationale && !evaluation && !geminiError) && (
             <Typography variant="body2" color="text.secondary">
               Gemini suggestions and evaluations will appear here.
             </Typography>
