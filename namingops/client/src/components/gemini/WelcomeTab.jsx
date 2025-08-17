@@ -5,7 +5,7 @@ import {
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { fetchGeminiNames, fetchGeminiConfig } from '../../services/gemini';
 import { composeGeminiPrompt } from './PromptComposer';
-import GeminiButton from './Button';
+import GeminiSparkle from './GeminiButton';
 
 const WelcomeTab = () => {
   const [prompt, setPrompt] = useState('');
@@ -59,9 +59,7 @@ const WelcomeTab = () => {
             onChange={e => setPrompt(e.target.value)}
             disabled={loading}
           />
-           <GeminiButton onClick={handleGenerate} disabled={loading || !prompt.trim()} style={{ minWidth: 160 }}>
-            Generate Names
-          </GeminiButton>
+           <GeminiSparkle onClick={handleGenerate} disabled={loading || !prompt.trim() } />
         </Box>
         {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
         {!!names.length && (
