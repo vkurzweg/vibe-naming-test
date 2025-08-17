@@ -1,7 +1,7 @@
 // GeminiPromptComposer.js
 
 /**
- * Compose the prompt for Gemini using admin config and user input.
+ * Compose the prompt for Gemini using admin config and user input..
  * @param {Object} config - The Gemini config object from the backend.
  * @param {string} userInput - The user's input/description.
  * @returns {string} The composed prompt string.
