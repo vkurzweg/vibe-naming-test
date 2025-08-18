@@ -9,10 +9,6 @@ module.exports = {
     ]
   ],
   plugins: [
-    // Force all JSX transforms to use the same runtime
-    ['@babel/plugin-transform-react-jsx', {
-      runtime: 'automatic',
-      importSource: 'react'
-    }]
-  ]
+  process.env.NODE_ENV === 'development' && 'react-refresh/babel'
+].filter(Boolean)
 };
