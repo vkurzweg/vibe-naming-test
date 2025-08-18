@@ -42,6 +42,7 @@
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.7.1",
     "jsx-runtime": "^1.2.0",
+    "process": "^0.11.10",
     "radix-ui": "^1.0.1",
     "react": "^18.2.0",
     "react-bootstrap": "^2.9.1",
@@ -92,7 +93,6 @@
     "ajv-keywords": "^5.1.0",
     "html-webpack-plugin": "^5.5.3",
     "http-proxy-middleware": "^2.0.6",
-    "process": "^0.11.10",
     "react-refresh": "^0.14.0",
     "react-scripts": "^5.0.1"
   },
