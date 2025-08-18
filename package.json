@@ -1,4 +1,7 @@
 {
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "heroku-postbuild": "cd namingops/client && npm install && npm run build && rm -rf namingops/server/build && cp -r namingops/client/build namingops/server/build",
     "start": "cd namingops/server && npm install && npm start"
