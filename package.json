@@ -4,6 +4,7 @@
   },
   "scripts": {
     "heroku-postbuild": "cd namingops/client && npm install && npm run build && rm -rf ../server/build && cp -r build ../server/build",
+    "postinstall": "cd namingops/client && npm install && cd ../server && npm install",
     "start": "cd namingops/server && npm install && npm start"
   }
 }
