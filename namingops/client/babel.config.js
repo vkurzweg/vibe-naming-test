@@ -1,6 +1,5 @@
 const enableReactRefresh =
-  process.env.NODE_ENV === 'development' ||
-  process.env.REACT_APP_DEMO_MODE === 'true';
+  process.env.NODE_ENV === 'development';
 
 module.exports = {
   presets: [
@@ -13,6 +12,6 @@ module.exports = {
     ]
   ],
   plugins: [
-    enableReactRefresh ? ['react-refresh/babel', { skipEnvCheck: true }] : null
+    enableReactRefresh && 'react-refresh/babel'
   ].filter(Boolean)
 };
