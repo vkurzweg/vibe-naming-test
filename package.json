@@ -1,3 +1,4 @@
+// filepath: /Users/972010/code/vibe-naming-test/package.json
 {
   "scripts": {
     "heroku-postbuild": "cd namingops/client && npm install && npm run build && rm -rf namingops/server/build && cp -r namingops/client/build namingops/server/build",
