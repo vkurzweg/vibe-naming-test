@@ -2,7 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 import { combineReducers } from 'redux';
-import reduxThunk from 'redux-thunk';
+import thunk from 'redux-thunk';
 import namingReducer from '../features/naming/namingSlice';
 import authReducer from '../features/auth/authSlice';
 import reviewReducer from '../features/review/reviewSlice';
@@ -60,7 +60,7 @@ export const store = configureStore({
         // Add any extra arguments for thunks here
         extraArgument: {},
       },
-    }).concat([reduxThunk, errorMiddleware]),
+    }).concat([thunk, errorMiddleware]),
   devTools: process.env.NODE_ENV !== 'production',
 });
 
