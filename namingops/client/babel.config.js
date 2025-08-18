@@ -11,6 +11,6 @@ module.exports = {
     ]
   ],
   plugins: [
-    enableReactRefresh && 'react-refresh/babel'
-  ].filter(Boolean)
+    ...(enableReactRefresh ? ['react-refresh/babel'] : [])
+  ]
 };
