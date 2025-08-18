@@ -3,7 +3,7 @@ const path = require('path');
 module.exports = {
   babel: {
     loaderOptions: {
-      babelrc: true,
+      babelrc: false,
       configFile: path.resolve(__dirname, 'babel.config.js')
     }
   },

@@ -1,5 +1,4 @@
-const enableReactRefresh =
-  process.env.NODE_ENV === 'development';
+const enableReactRefresh = process.env.NODE_ENV === 'development';
 
 module.exports = {
   presets: [
