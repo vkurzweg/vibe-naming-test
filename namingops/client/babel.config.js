@@ -13,6 +13,6 @@ module.exports = {
     ]
   ],
   plugins: [
-    enableReactRefresh && 'react-refresh/babel'
+    enableReactRefresh ? ['react-refresh/babel', { skipEnvCheck: true }] : null
   ].filter(Boolean)
 };
