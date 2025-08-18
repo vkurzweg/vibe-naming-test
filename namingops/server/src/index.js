@@ -107,7 +107,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Initialize Passport configuration
-require('./config/passport');
+require('./config/passport')(passport);
 
 // Socket.io
 io.on('connection', (socket) => {
