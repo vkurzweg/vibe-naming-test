@@ -6,22 +6,32 @@ const { generateJwtToken, verifyGoogleToken } = require('../utils/auth');
 const User = require('../models/User');
 
 // Google OAuth login route (session/cookie flow)
-router.get('/google',
-  passport.authenticate('google', { scope: ['profile', 'email'], session: true })
-);
-
-// Google OAuth callback (session/cookie flow)
-router.get('/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login', session: true }),
-  (req, res) => {
+if (process.env.NODE_ENV === 'development') {
+  router.get('/google', (req, res) => {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  res.redirect(clientUrl);
+});
+  router.get('/google/callback', (req, res) => {
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     res.redirect(clientUrl);
+  });
+} else {
+  router.get('/google',
+    passport.authenticate('google', { scope: ['profile', 'email'], session: true })
+  );
 
-    // Option 2: If you want JWT instead of session, uncomment below:
-    // const token = generateJwtToken(req.user);
-    // res.redirect(`${clientUrl}/auth/callback?token=${token}`);
-  }
-);
+  router.get('/google/callback',
+    passport.authenticate('google', { failureRedirect: '/login', session: true }),
+    (req, res) => {
+      const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+      res.redirect(clientUrl);
+
+      // Option 2: If you want JWT instead of session, uncomment below:
+      // const token = generateJwtToken(req.user);
+      // res.redirect(`${clientUrl}/auth/callback?token=${token}`);
+    }
+  );
+}
 
 // Logout route
 router.get('/logout', (req, res) => {
@@ -68,18 +78,24 @@ router.post('/google', async (req, res) => {
 });
 
 // JWT Middleware
-function requireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ message: 'No token' });
-  const token = authHeader.split(' ')[1];
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(401).json({ message: 'Invalid token' });
-  }
-}
+const requireAuth = process.env.NODE_ENV === 'development'
+  ? (req, res, next) => {
+      // Mock user for development
+      req.user = { id: 'dev-user', name: 'Dev User', email: 'dev@example.com', role: 'admin' };
+      next();
+    }
+  : function(req, res, next) {
+      const authHeader = req.headers.authorization;
+      if (!authHeader) return res.status(401).json({ message: 'No token' });
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = decoded;
+        next();
+      } catch (err) {
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+    };
 
 // GET /api/v1/auth/me (JWT-protected user info)
 router.get('/me', requireAuth, async (req, res) => {
