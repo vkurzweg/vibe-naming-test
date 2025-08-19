@@ -1,17 +1,33 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const axios = require('axios');
-const ApprovedName = require('./models/ApprovedName');
+const ApprovedName = require('./src/models/ApprovedName');
 
 // --- YOUR CUSTOMIZATIONS HERE ---
 const API_KEY = process.env.SHEETS_API_KEY;
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
-const SHEET_NAME = 'approvedNames'; // e.g., 'COMPLETE LIST'
+const SHEET_NAME = 'COMPLETE LIST';
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const RANGE = `${SHEET_NAME}!A:M`; // Adjust the range to cover all your data
 
-// --- DO NOT CHANGE ANYTHING BELOW THIS LINE ---
+// Mapping from spreadsheet headers to model field names
+const headerMap = {
+  'Year list': 'yearList',
+  'Service Line': 'serviceLine',
+  'IPR': 'ipr',
+  'Approved name': 'approvedName',
+  'Approval date': 'approvalDate',
+  'Description': 'description',
+  'Contact person': 'contactPerson',
+  'Trademark': 'trademark',
+  'Notes': 'notes',
+  'Previously Known As / AKA': 'previouslyKnownAs',
+  'Category': 'category',
+  'Class': 'class',
+  'IPR Asset Status': 'iprAssetStatus',
+};
+
 async function importDataFromGoogleSheets() {
   try {
     // 1. Fetch data from Google Sheets API
@@ -29,12 +45,14 @@ async function importDataFromGoogleSheets() {
     const headers = rows[0];
     const dataRows = rows.slice(1);
 
-    // 2. Convert data to an array of JSON objects
+    // 2. Convert data to an array of JSON objects, mapping headers to model fields
     const jsonData = dataRows.map(row => {
       const obj = {};
       headers.forEach((header, index) => {
-        // Use the header as the key and the row value as the value
-        obj[header] = row[index];
+        const modelField = headerMap[header];
+        if (modelField) {
+          obj[modelField] = row[index];
+        }
       });
       return obj;
     });

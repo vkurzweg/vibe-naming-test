@@ -7,14 +7,14 @@ import {
   Business as BusinessIcon,
   Add as AddIcon,
 } from '@mui/icons-material';
-import ArchiveIcon from '@mui/icons-material/Archive';
 import api from '../../services/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import ReviewQueue from '../../components/ReviewQueue/ReviewQueue';
 import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
 import useRequestManagement from '../../hooks/useRequestManagement';
-import NewRequestForm from '../../components/Requests/NewRequestForm'; // <-- Import the form
+import NewRequestForm from '../../components/Requests/NewRequestForm';
+import SearchNames from '../../components/common/SearchNames';
 
 // Helper function to get status label
 const getStatusLabel = (status) => {
@@ -185,9 +185,9 @@ const handleDeleteRequest = (id) => {
               aria-controls="tabpanel-1"
             />
             <Tab 
-              icon={<ArchiveIcon />}
+              icon={<SearchIcon />}
               iconPosition="start"
-              label="Archive" 
+              label="Search Names"
               id="tab-2" 
               aria-controls="tabpanel-2" 
             />
@@ -209,16 +209,16 @@ const handleDeleteRequest = (id) => {
           />
         </TabPanel>
 
-        {/* Archive Tab Panel */}
-        <TabPanel value={activeTab} index={2}>
-          {/* You can implement the archive tab here or leave it blank for now */}
-        </TabPanel>
-
         {/* New Request Tab Panel */}
         <TabPanel value={activeTab} index={1}>
           <Box sx={{ p: 0 }}>
             <NewRequestForm onSuccess={() => { /* Optionally handle success, e.g. show a toast or switch tabs */ }} />
           </Box>
+        </TabPanel>
+
+        {/* Search Names Tab Panel */}
+        <TabPanel value={activeTab} index={2}>
+          <SearchNames />
         </TabPanel>
       </Paper>
     </ResponsiveContainer>

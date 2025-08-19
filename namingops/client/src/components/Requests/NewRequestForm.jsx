@@ -98,13 +98,18 @@ export default function NewRequestForm({ onSuccess }) {
 
   // Suggest Names with Gemini
   const handleGenerateNames = async () => {
+    const formValues = watch();
+    if (!formValues.description || !formValues.description.trim()) {
+      setGeminiErrorLocal('Please enter a description before generating names.');
+      return;
+    }
     setGeminiLoadingLocal(true);
     setGeminiErrorLocal('');
     setRationale('');
     try {
-      const formValues = watch();
       // Compose prompt using Gemini config and user description
       const prompt = composeGeminiPrompt(geminiConfig, formValues.description || '');
+      console.log('Gemini prompt:', prompt); // <-- Add this line
       const result = await fetchGeminiNames(prompt);
 
       // Parse Gemini response (adjust as needed for your output format)

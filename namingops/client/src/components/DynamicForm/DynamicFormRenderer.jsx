@@ -110,6 +110,7 @@ const DynamicFormRenderer = ({
   readonly = false,
   fetchGeminiNames,
   composeGeminiPrompt,
+   geminiConfig,
 }) => {
   const theme = useTheme();
   const [formError, setFormError] = useState(null);
@@ -121,12 +122,14 @@ const DynamicFormRenderer = ({
   const [rationale, setRationale] = useState('');
   const [evaluation, setEvaluation] = useState('');
   const [evalLoading, setEvalLoading] = useState(false);
+  const [text, setText] = useState('');
 
   // Watch all form values for conditional logic
   const formValues = watch ? watch() : formData;
 
   // Gemini Handlers
   const handleGenerateNames = async () => {
+    console.log('Gemini Suggest Names button clicked');
     if (!fetchGeminiNames || !composeGeminiPrompt) {
       setGeminiError('Gemini integration is not available.');
       return;
@@ -136,10 +139,11 @@ const DynamicFormRenderer = ({
     setRationale('');
     setSuggestedNames([]);
     try {
-      const prompt = composeGeminiPrompt(formConfig, formValues.description || '');
+      const prompt = composeGeminiPrompt(geminiConfig, formValues.description || '');
       const result = await fetchGeminiNames(prompt);
-      const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const nameLines = text.split('\n').filter(line => line.trim().length > 0);
+      const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      setText(rawText);
+      const nameLines = rawText.split('\n').filter(line => line.trim().length > 0);
       const names = nameLines.filter(l => /^\d+\./.test(l)).map(l => l.replace(/^\d+\.\s*/, ''));
       setSuggestedNames(names);
       const rationaleLine = nameLines.find(l => l.toLowerCase().includes('rationale:'));
@@ -537,14 +541,24 @@ const DynamicFormRenderer = ({
           {geminiError && (
             <Alert severity="error" sx={{ mb: 2 }}>{geminiError}</Alert>
           )}
-          {suggestedNames.length > 0 && (
+          {suggestedNames.length > 0 ? (
   <Box sx={{ mb: 2 }}>
     <Typography variant="subtitle1"><strong>Suggested Names:</strong></Typography>
-    <Box
-      sx={{ background: 'none', p: 2, fontSize: '1.05rem' }}
-      dangerouslySetInnerHTML={{ __html: suggestedNames.map(name => `<div>${name}</div>`).join('') }}
-    />
+    <Box sx={{ background: 'none', p: 2, fontSize: '1.05rem' }}>
+      {suggestedNames.map((name, idx) => (
+        <div key={idx}>{name}</div>
+      ))}
+    </Box>
   </Box>
+) : (
+  text && (
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="subtitle1"><strong>Gemini Raw Output:</strong></Typography>
+      <Box sx={{ background: 'none', p: 2, fontSize: '1.05rem' }}>
+        {text}
+      </Box>
+    </Box>
+  )
 )}
           {rationale && (
             <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem', mb: 1 }}>

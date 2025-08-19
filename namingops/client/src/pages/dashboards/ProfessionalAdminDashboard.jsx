@@ -6,6 +6,7 @@ import {
   Settings as SettingsIcon,
   Add as AddIcon,
   Business as BusinessIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import api from '../../services/api';
 import FormConfigManager from '../../features/admin/FormConfigManager';
@@ -16,6 +17,7 @@ import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
 import NewRequestForm from '../../components/Requests/NewRequestForm';
 import ReviewQueue from '../../components/ReviewQueue/ReviewQueue';
 import GeminiConfigTab from '../../components/gemini/GeminiConfigTab';
+import SearchNames from '../../components/common/SearchNames';
 
 // --- Gemini Admin UI for Form Fields ---
 import {
@@ -208,58 +210,63 @@ const ProfessionalAdminDashboard = () => {
         }}
       >
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 0 }}>
-        <Tabs
-  value={activeTab}
-  onChange={handleTabChange}
-  variant="scrollable"
-  scrollButtons="auto"
-  aria-label="admin dashboard tabs"
-  sx={{
-    borderBottom: 1,
-    borderColor: 'divider',
-    // Responsive: scrollable on mobile, fit on desktop
-    '& .MuiTabs-flexContainer': {
-      flexWrap: { xs: 'nowrap', md: 'wrap' }, // no wrap on mobile, wrap on desktop
-      overflowX: { xs: 'auto', md: 'visible' },
-      whiteSpace: { xs: 'nowrap', md: 'normal' },
-      justifyContent: { xs: 'flex-start', md: 'center' }
-    },
-    // Optional: make tabs take less space on desktop
-    '& .MuiTab-root': {
-      minWidth: { xs: 120, md: 100 }, // adjust as needed
-      flex: { md: '1 1 auto' }
-    }
-  }}
->
-  <Tab
-    icon={<BusinessIcon />}
-    iconPosition="start"
-    label="Review Queue"
-    id="tab-0"
-    aria-controls="tabpanel-0"
-  />
-  <Tab
-    icon={<AddIcon />}
-    iconPosition="start"
-    label="New Request"
-    id="tab-1"
-    aria-controls="tabpanel-1"
-  />
-  <Tab
-    icon={<SettingsIcon />}
-    iconPosition="start"
-    label="Form Configuration"
-    id="tab-2"
-    aria-controls="tabpanel-2"
-  />
-  <Tab
-    icon={<SettingsIcon />}
-    iconPosition="start"
-    label="Gemini Config"
-    id="tab-3"
-    aria-controls="tabpanel-3"
-  />
-</Tabs>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            aria-label="admin dashboard tabs"
+            sx={{
+              borderBottom: 1,
+              borderColor: 'divider',
+              '& .MuiTabs-flexContainer': {
+                flexWrap: { xs: 'nowrap', md: 'wrap' },
+                overflowX: { xs: 'auto', md: 'visible' },
+                whiteSpace: { xs: 'nowrap', md: 'normal' },
+                justifyContent: { xs: 'flex-start', md: 'center' }
+              },
+              '& .MuiTab-root': {
+                minWidth: { xs: 120, md: 100 },
+                flex: { md: '1 1 auto' }
+              }
+            }}
+          >
+            <Tab
+              icon={<BusinessIcon />}
+              iconPosition="start"
+              label="Review Queue"
+              id="tab-0"
+              aria-controls="tabpanel-0"
+            />
+            <Tab
+              icon={<AddIcon />}
+              iconPosition="start"
+              label="New Request"
+              id="tab-1"
+              aria-controls="tabpanel-1"
+            />
+            <Tab
+              icon={<SettingsIcon />}
+              iconPosition="start"
+              label="Form Configuration"
+              id="tab-2"
+              aria-controls="tabpanel-2"
+            />
+            <Tab
+              icon={<SettingsIcon />}
+              iconPosition="start"
+              label="Gemini Config"
+              id="tab-3"
+              aria-controls="tabpanel-3"
+            />
+            <Tab
+              icon={<SearchIcon />}
+              iconPosition="start"
+              label="Search Names"
+              id="tab-4"
+              aria-controls="tabpanel-4"
+            />
+          </Tabs>
         </Box>
 
         {/* Review Queue Tab Panel */}
@@ -276,36 +283,40 @@ const ProfessionalAdminDashboard = () => {
           />
         </TabPanel>
 
+        {/* New Request Tab Panel */}
+        <TabPanel value={activeTab} index={1}>
+          <NewRequestForm onSuccess={() => { /* Optionally handle success */ }} />
+        </TabPanel>
+
         {/* Form Configuration Tab Panel */}
-<TabPanel value={activeTab} index={2}>
-  {formConfigsLoading ? (
-    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-      <CircularProgress />
-    </Box>
-  ) : formConfigsError ? (
-    <Alert severity="error">
-      Failed to load form configurations. Please try again.
-    </Alert>
-  ) : (
-    <>
-      <FormConfigManager />
-      <Divider sx={{ my: 3 }} />
-      {/* Gemini toggles for the selected config */}
-      {selectedConfigId && (
-        <FormConfigGeminiAdmin configId={selectedConfigId} />
-      )}
-    </>
-  )}
-</TabPanel>
+        <TabPanel value={activeTab} index={2}>
+          {formConfigsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+              <CircularProgress />
+            </Box>
+          ) : formConfigsError ? (
+            <Alert severity="error">
+              Failed to load form configurations. Please try again.
+            </Alert>
+          ) : (
+            <>
+              <FormConfigManager />
+              <Divider sx={{ my: 3 }} />
+              {selectedConfigId && (
+                <FormConfigGeminiAdmin configId={selectedConfigId} />
+              )}
+            </>
+          )}
+        </TabPanel>
 
         {/* Gemini Config Tab Panel */}
         <TabPanel value={activeTab} index={3}>
           <GeminiConfigTab />
         </TabPanel>
 
-        {/* New Request Tab Panel */}
-        <TabPanel value={activeTab} index={1}>
-          <NewRequestForm onSuccess={() => { /* Optionally handle success, e.g. show a toast or switch tabs */ }} />
+        {/* Search Names Tab Panel */}
+        <TabPanel value={activeTab} index={4}>
+          <SearchNames />
         </TabPanel>
       </Paper>
     </ResponsiveContainer>

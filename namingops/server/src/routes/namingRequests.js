@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { check, validationResult, query } = require('express-validator');
 const NamingRequest = require('../models/NamingRequest');
+const ApprovedName = require('../models/ApprovedName');
 const NotificationService = require('../services/notificationService');
 const { isAuthenticated, hasRole } = require('../middleware/auth');
 const { getClient } = require('../config/db');
@@ -488,6 +489,16 @@ router.put('/:id/status', isAuthenticated, async (req, res) => {
     });
 
     await request.save();
+    if (status === 'approved') {
+      await ApprovedName.create({
+        name: request.proposedNames?.[0]?.name || request.proposedName || request.title,
+        description: request.description || '',
+        sourceRequest: request._id,
+        approvedAt: new Date(),
+        approvedBy: req.user.id,
+        // add other fields as needed
+      });
+    }
 
     res.json({ success: true, data: request });
   } catch (err) {

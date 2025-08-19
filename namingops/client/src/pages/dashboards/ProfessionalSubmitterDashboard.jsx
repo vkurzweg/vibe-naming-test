@@ -23,6 +23,7 @@ import StatusProgressionStepper from '../../components/StatusProgression/StatusP
 import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
 import NewRequestForm from '../../components/Requests/NewRequestForm';
 import WelcomeTab from '../../components/gemini/WelcomeTab';
+import SearchNames from '../../components/common/SearchNames';
 
 // Shared dashboard styles
 import {
@@ -478,13 +479,7 @@ const ProfessionalSubmitterDashboard = () => {
         {/* Search Names Tab Panel */}
         <TabPanel value={tabValue} index={3}>
           <Box sx={{ p: 0 }}>
-            <Typography variant="h6" component="h2" sx={{ mb: '1.5rem' }}>
-              Search Approved Names
-            </Typography>
-
-            <Alert severity="info" sx={{ mb: '1.5rem' }}>
-              Search functionality will be available soon. This feature is still under development.
-            </Alert>
+            <SearchNames />
           </Box>
         </TabPanel>
 
@@ -494,7 +489,6 @@ const ProfessionalSubmitterDashboard = () => {
             <Typography variant="h6" component="h2" sx={{ mb: '1.5rem' }}>
               Naming Guidelines
             </Typography>
-
             <Alert severity="info" sx={{ mb: '1.5rem' }}>
               Naming guidelines content will be available soon. This feature is still under development.
             </Alert>

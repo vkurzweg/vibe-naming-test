@@ -25,7 +25,6 @@ const options = {
   // Server API version
   serverApi: {
     version: '1',
-    strict: true,
     deprecationErrors: true,
   }
 };

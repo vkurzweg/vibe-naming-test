@@ -136,7 +136,7 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE ==
 const geminiRoutes = require('./routes/gemini');
 app.use('/api/v1/gemini', geminiRoutes);
 
-app.use('/api/approved-names', approvedNameRoutes);
+app.use('/api/v1/approved-names', approvedNameRoutes);
 
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
