@@ -12,25 +12,30 @@ router.get('/config', async (req, res) => {
     if (!config) {
       config = await GeminiConfig.create({});
     }
+   // Only return editable fields, not apiKey
     res.json({
-      apiKey: config.apiKey || '',
-      defaultPrompt: config.defaultPrompt || ''
+      basePrompt: config.basePrompt || { text: '', active: true },
+      principles: config.principles || [],
+      dos: config.dos || [],
+      donts: config.donts || []
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch Gemini config' });
   }
 });
 
-// POST Gemini config (save apiKey, defaultPrompt)
+// POST Gemini config (save basePrompt, principles, dos, donts)
 router.post('/config', async (req, res) => {
   try {
-    const { apiKey, defaultPrompt } = req.body;
+    const { basePrompt, principles, dos, donts } = req.body;
     let config = await GeminiConfig.findOne();
     if (!config) {
       config = await GeminiConfig.create({});
     }
-    if (typeof apiKey === 'string') config.apiKey = apiKey;
-    if (typeof defaultPrompt === 'string') config.defaultPrompt = defaultPrompt;
+    if (basePrompt) config.basePrompt = basePrompt;
+    if (principles) config.principles = principles;
+    if (dos) config.dos = dos;
+    if (donts) config.donts = donts;
     await config.save();
     res.json({ success: true });
   } catch (err) {

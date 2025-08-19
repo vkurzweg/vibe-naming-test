@@ -6,8 +6,7 @@ import { z } from 'zod';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import DynamicFormRenderer from '../DynamicForm/DynamicFormRenderer';
-// Adjust these imports to your actual utility locations:
-import { fetchGeminiNames } from '../../services/gemini';
+import { fetchGeminiConfig, fetchGeminiNames } from '../../services/gemini';
 import { composeGeminiPrompt } from '../gemini/PromptComposer';
 
 // --- Dynamic Zod Schema Helpers ---
@@ -41,12 +40,20 @@ function buildZodSchemaFromFields(fields) {
 
 export default function NewRequestForm({ onSuccess }) {
   const queryClient = useQueryClient();
+
+  // Fetch form config
   const { data: formConfigRaw, isLoading, error } = useQuery({
     queryKey: ['formConfig'],
     queryFn: async () => {
       const res = await api.get('/api/v1/form-configurations/active');
       return res.data;
     },
+  });
+
+  // Fetch Gemini config
+  const { data: geminiConfig, isLoading: geminiLoading, error: geminiError } = useQuery({
+    queryKey: ['geminiConfig'],
+    queryFn: fetchGeminiConfig,
   });
 
   // Normalize fields: convert fieldType -> type for compatibility with renderer
@@ -83,21 +90,21 @@ export default function NewRequestForm({ onSuccess }) {
   });
 
   // --- Gemini Integration State and Handlers ---
-  const [geminiLoading, setGeminiLoading] = useState(false);
-  const [geminiError, setGeminiError] = useState('');
+  const [geminiLoadingLocal, setGeminiLoadingLocal] = useState(false);
+  const [geminiErrorLocal, setGeminiErrorLocal] = useState('');
   const [rationale, setRationale] = useState('');
   const [evaluation, setEvaluation] = useState('');
   const [evalLoading, setEvalLoading] = useState(false);
 
   // Suggest Names with Gemini
   const handleGenerateNames = async () => {
-    setGeminiLoading(true);
-    setGeminiError('');
+    setGeminiLoadingLocal(true);
+    setGeminiErrorLocal('');
     setRationale('');
     try {
       const formValues = watch();
-      // Compose prompt using config and user description (customize as needed)
-      const prompt = composeGeminiPrompt(formConfigRaw, formValues.description || '');
+      // Compose prompt using Gemini config and user description
+      const prompt = composeGeminiPrompt(geminiConfig, formValues.description || '');
       const result = await fetchGeminiNames(prompt);
 
       // Parse Gemini response (adjust as needed for your output format)
@@ -109,38 +116,52 @@ export default function NewRequestForm({ onSuccess }) {
       setValue('proposedName2', names[1] || '');
       setRationale(rationaleLine ? rationaleLine.replace(/rationale:/i, '').trim() : '');
     } catch (err) {
-      setGeminiError('Could not generate names. You may have hit the Gemini API quota.');
+      setGeminiErrorLocal('Could not generate names. You may have hit the Gemini API quota.');
     } finally {
-      setGeminiLoading(false);
+      setGeminiLoadingLocal(false);
     }
   };
 
   // Evaluate a user-provided name with Gemini
   const handleEvaluateName = async () => {
-    setEvalLoading(true);
-    setEvaluation('');
-    setGeminiError('');
-    try {
-      const formValues = watch();
-      const nameToEvaluate = formValues.proposedName1 || '';
-      if (!nameToEvaluate) {
-        setGeminiError('Please enter a name to evaluate.');
-        setEvalLoading(false);
-        return;
-      }
-      const evalPrompt = `Evaluate the following name for the project, considering branding, memorability, and fit: "${nameToEvaluate}". Give a brief assessment and rationale.`;
+  setEvalLoading(true);
+  setEvaluation('');
+  setGeminiErrorLocal('');
+  try {
+    const formValues = watch();
+    // Collect all proposed names from form values
+    const proposedNames = Object.keys(formValues)
+      .filter(key => key.startsWith('proposedName') && formValues[key])
+      .map(key => formValues[key]);
+
+    if (!proposedNames.length) {
+      setGeminiErrorLocal('Please enter at least one name to evaluate.');
+      setEvalLoading(false);
+      return;
+    }
+
+    // Evaluate each name using Gemini and admin config
+    const evaluations = [];
+    for (const name of proposedNames) {
+      const evalPrompt = composeGeminiPrompt(geminiConfig, `Evaluate this name: "${name}"`);
       const result = await fetchGeminiNames(evalPrompt);
       const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      setEvaluation(text);
-    } catch (err) {
-      setGeminiError('Could not evaluate name.');
-    } finally {
-      setEvalLoading(false);
+      evaluations.push({ name, evaluation: text });
     }
-  };
 
-  if (isLoading) return <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>;
-  if (error) return <Alert severity="error">Failed to load form configuration.</Alert>;
+    // Format the evaluations for display
+    setEvaluation(
+      evaluations.map(ev => `**${ev.name}**\n${ev.evaluation}`).join('\n\n')
+    );
+  } catch (err) {
+    setGeminiErrorLocal('Could not evaluate names.');
+  } finally {
+    setEvalLoading(false);
+  }
+};
+
+  if (isLoading || geminiLoading) return <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>;
+  if (error || geminiError) return <Alert severity="error">Failed to load form or Gemini configuration.</Alert>;
   if (!normalizedFormConfig || !normalizedFormConfig.fields || !normalizedFormConfig.fields.length) {
     return <Alert severity="warning">No form configuration available. Please contact an administrator.</Alert>;
   }
@@ -150,17 +171,16 @@ export default function NewRequestForm({ onSuccess }) {
       <Typography variant="h5" mb={2}>Submit New Request</Typography>
       <form onSubmit={handleSubmit(mutation.mutate)}>
         <Box sx={{ flexGrow: 1 }}>
-            {/* Form fields column */}
-         
-              <DynamicFormRenderer
-                formConfig={normalizedFormConfig}
-                control={control}
-                errors={errors}
-                setValue={setValue}
-                watch={watch}
-                fetchGeminiNames={fetchGeminiNames}
-                composeGeminiPrompt={composeGeminiPrompt}
-              />
+          <DynamicFormRenderer
+            formConfig={normalizedFormConfig}
+            control={control}
+            errors={errors}
+            setValue={setValue}
+            watch={watch}
+            fetchGeminiNames={fetchGeminiNames}
+            composeGeminiPrompt={composeGeminiPrompt}
+            geminiConfig={geminiConfig}
+          />
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
             <Button
               type="submit"

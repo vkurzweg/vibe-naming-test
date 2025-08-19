@@ -15,7 +15,6 @@ const fieldListSections = [
 ];
 
 const GeminiConfigTab = () => {
-  const [apiKey, setApiKey] = useState('');
   const [basePrompt, setBasePrompt] = useState({ text: '', active: true });
   const [principles, setPrinciples] = useState([]);
   const [dos, setDos] = useState([]);
@@ -31,15 +30,13 @@ const GeminiConfigTab = () => {
       setLoading(true);
       setError('');
       try {
-        const res = await api.get('/api/v1/gemini-config');
+        const res = await api.get('/api/v1/gemini/config');
         if (res.data) {
-          setApiKey(res.data.apiKey || '');
           setBasePrompt(res.data.basePrompt || { text: '', active: true });
           setPrinciples(res.data.principles || []);
           setDos(res.data.dos || []);
           setDonts(res.data.donts || []);
           lastLoaded.current = {
-            apiKey: res.data.apiKey || '',
             basePrompt: res.data.basePrompt || { text: '', active: true },
             principles: res.data.principles || [],
             dos: res.data.dos || [],
@@ -60,15 +57,14 @@ const GeminiConfigTab = () => {
     setError('');
     setSuccess('');
     try {
-      await api.post('/api/v1/gemini-config', {
-        apiKey,
+      await api.post('/api/v1/gemini/config', {
         basePrompt,
         principles,
         dos,
         donts,
       });
       setSuccess('Configuration saved!');
-      lastLoaded.current = { apiKey, basePrompt, principles, dos, donts };
+      lastLoaded.current = { basePrompt, principles, dos, donts };
     } catch (err) {
       setError('Failed to save configuration.');
     } finally {
@@ -77,7 +73,6 @@ const GeminiConfigTab = () => {
   };
 
   const handleReset = () => {
-    setApiKey(lastLoaded.current.apiKey);
     setBasePrompt(lastLoaded.current.basePrompt);
     setPrinciples(lastLoaded.current.principles);
     setDos(lastLoaded.current.dos);
@@ -132,15 +127,6 @@ const GeminiConfigTab = () => {
         <Typography variant="h5" fontWeight={700} mb={2}>
           Gemini Generator Configuration
         </Typography>
-        <TextField
-          label="Gemini API Key"
-          variant="outlined"
-          value={apiKey}
-          onChange={e => setApiKey(e.target.value)}
-          fullWidth
-          type="password"
-          helperText="Your Gemini API key (kept secure, not visible to users)"
-        />
         <Divider sx={{ my: 2 }} />
         <Box>
           <Typography variant="subtitle1" fontWeight={600} mb={1}>Base Prompt</Typography>

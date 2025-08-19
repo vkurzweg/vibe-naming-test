@@ -6,23 +6,23 @@
  * @param {string} userInput - The user's input/description.
  * @returns {string} The composed prompt string.
  */
-export function composeGeminiPrompt(config, userInput) {
-    if (!config) return userInput;
-  
-    return `
-  ${config.basePrompt?.active ? config.basePrompt.text : ''}
-  
-  Principles:
-  ${(config.principles || []).filter(p => p.active).map(p => '- ' + p.text).join('\n')}
-  
-  Do:
-  ${(config.dos || []).filter(d => d.active).map(d => '- ' + d.text).join('\n')}
-  
-  Don't:
-  ${(config.donts || []).filter(d => d.active).map(d => '- ' + d.text).join('\n')}
-  
-  User description: ${userInput}
-  
-  Generate 5 creative, on-brand name ideas.
-    `.trim();
+
+export function composeGeminiPrompt(config, userInput = '') {
+  let prompt = '';
+  if (config.basePrompt?.active) {
+    prompt += config.basePrompt.text + '\n';
+  }
+  if (userInput) {
+    prompt += `User Input:\n${userInput}\n`;
+  }
+  if (config.principles?.length) {
+    prompt += 'Principles:\n' + config.principles.filter(p => p.active).map(p => '- ' + p.text).join('\n') + '\n';
+  }
+  if (config.dos?.length) {
+    prompt += "Do's:\n" + config.dos.filter(d => d.active).map(d => '- ' + d.text).join('\n') + '\n';
+  }
+  if (config.donts?.length) {
+    prompt += "Don'ts:\n" + config.donts.filter(d => d.active).map(d => '- ' + d.text).join('\n') + '\n';
+  }
+  return prompt.trim();
 }

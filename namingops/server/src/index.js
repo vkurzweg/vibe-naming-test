@@ -134,7 +134,7 @@ if (process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEMO_MODE ==
 
 // Mount Gemini routes here:
 const geminiRoutes = require('./routes/gemini');
-app.use('/api/gemini', geminiRoutes);
+app.use('/api/v1/gemini', geminiRoutes);
 
 app.use('/api/approved-names', approvedNameRoutes);
 

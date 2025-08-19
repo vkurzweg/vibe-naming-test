@@ -538,25 +538,29 @@ const DynamicFormRenderer = ({
             <Alert severity="error" sx={{ mb: 2 }}>{geminiError}</Alert>
           )}
           {suggestedNames.length > 0 && (
-            <Box sx={{ mb: 2 }}>
-              <Typography variant="subtitle1"><strong>Suggested Names:</strong></Typography>
-              <ul>
-                {suggestedNames.map((name, idx) => (
-                  <li key={idx}>{name}</li>
-                ))}
-              </ul>
-            </Box>
-          )}
+  <Box sx={{ mb: 2 }}>
+    <Typography variant="subtitle1"><strong>Suggested Names:</strong></Typography>
+    <Box
+      sx={{ background: 'none', p: 2, fontSize: '1.05rem' }}
+      dangerouslySetInnerHTML={{ __html: suggestedNames.map(name => `<div>${name}</div>`).join('') }}
+    />
+  </Box>
+)}
           {rationale && (
             <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem', mb: 1 }}>
               <strong>Rationale:</strong> {rationale}
             </Typography>
           )}
           {evaluation && (
-            <Typography variant="body1" sx={{ wordBreak: 'break-word', fontSize: '1.05rem' }}>
-              <strong>Evaluation:</strong> {evaluation}
-            </Typography>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle1"><strong>Evaluation:</strong></Typography>
+              <Box
+                sx={{ background: 'none', p: 2, fontSize: '1.05rem' }}
+                dangerouslySetInnerHTML={{ __html: evaluation.replace(/\n/g, '<br />') }}
+              />
+            </Box>
           )}
+
           {(!suggestedNames.length && !rationale && !evaluation && !geminiError) && (
             <Typography variant="body2" color="text.secondary">
               Gemini suggestions and evaluations will appear here.

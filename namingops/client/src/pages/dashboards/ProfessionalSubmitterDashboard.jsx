@@ -10,7 +10,7 @@ import {
   Description as DescriptionIcon,
   MenuBook as MenuBookIcon,
   ExpandMore as ExpandMoreIcon,
-  SmartToy as SmartToyIcon
+  AutoAwesome as AutoAwesomeIcon,
 } from '@mui/icons-material';
 import { useForm } from 'react-hook-form';
 import { useSelector } from 'react-redux';
@@ -236,7 +236,7 @@ const ProfessionalSubmitterDashboard = () => {
             sx={{ borderBottom: 1, borderColor: 'divider' }}
           >
             <Tab
-              icon={<SmartToyIcon />}
+              icon={<AutoAwesomeIcon />}
               iconPosition="start"
               label="Welcome"
               id="tab-0"
@@ -262,13 +262,6 @@ const ProfessionalSubmitterDashboard = () => {
               label="Search Names"
               id="tab-3"
               aria-controls="tabpanel-3"
-            />
-            <Tab
-              icon={<MenuBookIcon />}
-              iconPosition="start"
-              label="Guidelines"
-              id="tab-4"
-              aria-controls="tabpanel-4"
             />
           </Tabs>
         </Box>
