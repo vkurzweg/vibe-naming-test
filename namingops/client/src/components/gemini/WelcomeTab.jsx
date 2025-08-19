@@ -42,10 +42,10 @@ const WelcomeTab = () => {
             Welcome to NamingHQ
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            An MVP for scaling domain expertise and knowledge management 🚀 
+            MVP for scaling domain expertise and knowledge management 🚀 
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 8 }}>
-            Click the icon on the upper right to manage requests and configure the Gemini generator ✨
+            Click the icon on the upper right to access dashboards for managing requests (Reviewer) and configuring forms and Gemini prompts (Admin)
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, mb: 8 }}>
