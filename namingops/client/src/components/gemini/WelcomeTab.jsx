@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Container, Box, Typography, Paper, TextField, CircularProgress, Alert, Grid
+  Container, Box, Typography, Paper, TextField, CircularProgress, Alert, Grid, List, ListItem, ListItemText, Divider, Card, CardContent
 } from '@mui/material';
 import { fetchGeminiNames, fetchGeminiConfig } from '../../services/gemini';
 import { composeGeminiPrompt } from './PromptComposer';
 import GeminiSparkle from './GeminiButton';
+import Markdown from 'markdown-to-jsx';
 
 const WelcomeTab = () => {
   const [prompt, setPrompt] = useState('');
@@ -84,47 +85,62 @@ const WelcomeTab = () => {
               </Box>
             )}
             {!!names.length && (
-              <Paper
-                elevation={0}
-                variant="outlined"
+              <Card
+                elevation={2}
                 sx={{
                   mt: 0,
                   mb: 3,
-                  p: 0,
-                  ml: 0,
-                  boxShadow: '0 2px 12px 0 rgba(90,70,255,0.15)',
-                  filter: 'brightness(1.1)',
-                  borderImage: 'linear-gradient(90deg, #5a46ff, #e05cff, #00d5ff, #00ffc8) 1',
-                  maxWidth: 'none',
-                  alignSelf: 'flex-start',
+                  borderRadius: 3,
+                  boxShadow: 2,
+                  bgcolor: theme => theme.palette.background.paper,
                 }}
               >
-                <Typography variant="h6" sx={{ mb: 2, px: 3, pt: 3, textAlign: 'left' }}>
-                  Gemini Suggestions
-                </Typography>
-                <TextField
-                  value={names.join('\n\n')}
-                  variant="standard"
-                  fullWidth
-                  multiline
-                  minRows={Math.min(6, names.length)}
-                  inputProps={{ style: { textAlign: 'left' } }}
-                  InputProps={{
-                    readOnly: true,
-                    disableUnderline: true,
-                    sx: {
-                      background: 'transparent',
-                      px: 3,
-                      pb: 3,
-                      fontSize: { xs: '0.95rem', md: '1.1rem' },
-                      color: 'text.primary',
-                      fontFamily: 'inherit',
-                      lineHeight: 1.7,
-                      letterSpacing: '0.01em',
-                    },
+                <CardContent
+                  sx={{
+                    px: { xs: 3, md: 5 },
+                    py: { xs: 3, md: 4 },
                   }}
-                />
-              </Paper>
+                >
+                  <Typography variant="h6" sx={{ mb: 2, textAlign: 'left', fontWeight: 600 }}>
+                    Gemini Suggestions
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    {names.map((name, idx) => (
+                      <Typography
+                        key={idx}
+                        variant="body1"
+                        color="text.secondary"
+                        sx={{
+                          textAlign: 'left',
+                          fontWeight: 400,
+                          py: 1,
+                          mb: 0,
+                          borderBottom: idx < names.length - 1 ? `1px solid ${theme => theme.palette.divider}` : 'none'
+                        }}
+                        component="div"
+                      >
+                        <Markdown
+                          options={{
+                            forceBlock: true,
+                            overrides: {
+                              p: {
+                                component: Typography,
+                                props: {
+                                  variant: "body1",
+                                  color: "text.secondary",
+                                  sx: { m: 0 }
+                                }
+                              }
+                            }
+                          }}
+                        >
+                          {name}
+                        </Markdown>
+                      </Typography>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
             )}
           </Grid>
         </Grid>
