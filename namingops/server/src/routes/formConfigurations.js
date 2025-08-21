@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const FormConfiguration = require('../models/FormConfiguration');
 const { isAdmin } = require('../middleware/auth');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' }); // Configure as needed
 
 // @route   GET /api/v1/form-configurations/active
 // @desc    Get the active form configuration
@@ -105,11 +107,17 @@ router.post('/', isAdmin, async (req, res) => {
 });
 
 // @route   PUT /api/v1/form-configurations/:id
-// @desc    Update a form configuration
+// @desc    Update a form configuration (supports file upload)
 // @access  Admin
 router.put('/:id', isAdmin, async (req, res) => {
   try {
-    const updatedConfig = await FormConfiguration.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const updateData = req.body;
+    console.log('Update payload:', updateData);
+    const updatedConfig = await FormConfiguration.findByIdAndUpdate(
+      req.params.id,
+      { $set: { ...updateData, fields: updateData.fields } },
+      { new: true, runValidators: true }
+    );
     if (!updatedConfig) {
       return res.status(404).json({ msg: 'Form configuration not found' });
     }
@@ -166,6 +174,71 @@ router.put('/:id/activate', isAdmin, async (req, res) => {
     res.json(activatedConfig);
   } catch (err) {
     console.error('Error activating form configuration:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @route   PUT /api/v1/form-configurations/deactivate
+// @desc    Deactivate all form configurations (set isActive=false for all)
+// @access  Admin
+router.put('/deactivate', isAdmin, async (req, res) => {
+  try {
+    console.log('Deactivating all form configurations');
+    const result = await FormConfiguration.updateMany({}, { $set: { isActive: false } });
+    console.log('Deactivation result:', result);
+    res.json({ msg: 'All form configurations deactivated', result });
+  } catch (err) {
+    console.error('Error deactivating form configurations:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @route   PUT /api/v1/form-configurations/:id/deactivate
+// @desc    Deactivate a single form configuration (set isActive=false for this config)
+// @access  Admin
+router.put('/:id/deactivate', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deactivatedConfig = await FormConfiguration.findByIdAndUpdate(
+      id,
+      { $set: { isActive: false } },
+      { new: true }
+    );
+    if (!deactivatedConfig) {
+      return res.status(404).json({ msg: 'Form configuration not found' });
+    }
+    res.json(deactivatedConfig);
+  } catch (err) {
+    console.error('Error deactivating form configuration:', err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @route   PUT /api/v1/form-configurations/:id/reorder-fields
+// @desc    Reorder fields/components of a form configuration
+// @access  Admin
+router.put('/:id/reorder-fields', isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fields } = req.body; // fields should be an array in the desired order
+
+    if (!Array.isArray(fields)) {
+      return res.status(400).json({ msg: 'Fields must be an array.' });
+    }
+
+    const updatedConfig = await FormConfiguration.findByIdAndUpdate(
+      id,
+      { $set: { fields } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedConfig) {
+      return res.status(404).json({ msg: 'Form configuration not found' });
+    }
+
+    res.json(updatedConfig);
+  } catch (err) {
+    console.error('Error reordering fields:', err);
     res.status(500).json({ message: err.message });
   }
 });

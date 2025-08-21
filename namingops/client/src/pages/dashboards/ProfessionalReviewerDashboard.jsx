@@ -79,9 +79,9 @@ const ProfessionalReviewerDashboard = () => {
     onSuccess: () => queryClient.invalidateQueries(['requests', 'all']),
   });
 
-const handleDeleteRequest = (id) => {
-  deleteRequest.mutate(id);
-};
+  const handleDeleteRequest = (id) => {
+    deleteRequest.mutate(id);
+  };
 
   const filteredRequests = useMemo(() => {
     if (!reviewQueue) return [];
@@ -197,7 +197,7 @@ const handleDeleteRequest = (id) => {
         {/* Review Queue Tab Panel */}
         <TabPanel value={activeTab} index={0}>
           <ReviewQueue
-            requests={reviewQueue}
+            requests={filteredRequests} // <-- use filteredRequests instead of reviewQueue
             loading={queueLoading}
             error={queueError}
             onStatusChange={updateStatus}

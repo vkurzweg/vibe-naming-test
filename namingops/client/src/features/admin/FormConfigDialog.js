@@ -24,7 +24,6 @@ const validationSchema = yup.object().shape({
         }),
       fieldType: yup.string().required('Field type is required'),
       required: yup.boolean(),
-      // Optionally, add content field for content blocks
       content: yup.string().when('fieldType', {
         is: 'content',
         then: (schema) => schema.required('Content is required'),
@@ -54,8 +53,9 @@ const FormConfigDialog = ({ open, onClose, onSubmit, initialData }) => {
     }
   }, [initialData, reset]);
 
-  const handleFormSubmit = (data) => {
-    onSubmit(data);
+  // Only call onClose after successful submit
+  const handleFormSubmit = async (data) => {
+    await onSubmit(data);
     onClose();
   };
 
@@ -95,7 +95,7 @@ const FormConfigDialog = ({ open, onClose, onSubmit, initialData }) => {
             />
           </Box>
           <Typography variant="h6" sx={{ mb: 2 }}>Fields</Typography>
-          <FieldEditor control={control} register={register} />
+          <FieldEditor control={control} register={register} errors={errors} />
         </DialogContent>
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>

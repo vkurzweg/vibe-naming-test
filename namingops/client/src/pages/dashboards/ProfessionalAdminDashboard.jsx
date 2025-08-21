@@ -10,7 +10,7 @@ import {
 } from '@mui/icons-material';
 import api from '../../services/api';
 import FormConfigManager from '../../features/admin/FormConfigManager';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSelector } from 'react-redux';
 import useRequestManagement from '../../hooks/useRequestManagement';
 import ResponsiveContainer from '../../components/Layout/ResponsiveContainer';
@@ -145,7 +145,7 @@ const ProfessionalAdminDashboard = () => {
   const queryClient = useQueryClient();
 
   // Admin request management hooks
-  const { updateStatus, claimRequest, deleteRequest, activateFormConfig } = useRequestManagement();
+  const { updateStatus, claimRequest, deleteRequest: deleteRequestMutation, activateFormConfig } = useRequestManagement();
 
   const [activeTab, setActiveTab] = useState(0);
 
@@ -196,6 +196,15 @@ const ProfessionalAdminDashboard = () => {
 
   // Helper for selecting which config to edit
   const [selectedConfigId, setSelectedConfigId] = useState(null);
+
+  const deleteRequest = useMutation({
+    mutationFn: (id) => api.delete(`/api/v1/name-requests/${id}`),
+    onSuccess: () => queryClient.invalidateQueries(['requests', 'all']),
+  });
+
+  const handleDeleteRequest = (id) => {
+    deleteRequest.mutate(id);
+  };
 
   return (
     <ResponsiveContainer className="px-2 px-sm-3 px-md-4">
@@ -280,6 +289,7 @@ const ProfessionalAdminDashboard = () => {
             showClaimButton={true}
             currentUserId={user?.id}
             formConfig={activeFormConfig}
+            onDeleteRequest={handleDeleteRequest}
           />
         </TabPanel>
 

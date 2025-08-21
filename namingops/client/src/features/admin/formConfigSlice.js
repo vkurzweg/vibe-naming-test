@@ -184,6 +184,32 @@ export const activateFormConfiguration = createAsyncThunk(
   }
 );
 
+export const deactivateFormConfiguration = createAsyncThunk(
+  'formConfig/deactivate',
+  async (id, { rejectWithValue, dispatch }) => {
+    try {
+      const response = await api.put(`/api/v1/form-configurations/${id}/deactivate`);
+      // After deactivation, refetch configs
+      await dispatch(fetchFormConfigurations()).unwrap();
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(createSerializableError(error));
+    }
+  }
+);
+
+export const reorderFormConfigFields = createAsyncThunk(
+  'formConfig/reorderFields',
+  async ({ id, fields }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/api/v1/form-configurations/${id}/reorder-fields`, { fields });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
+
 const formConfigSlice = createSlice({
   name: 'formConfig',
   initialState,
@@ -341,6 +367,21 @@ const formConfigSlice = createSlice({
     builder.addCase(activateFormConfiguration.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload || 'Failed to activate form configuration';
+    });
+
+    // Handle deactivateFormConfiguration
+    builder.addCase(deactivateFormConfiguration.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(deactivateFormConfiguration.fulfilled, (state, action) => {
+      state.loading = false;
+      state.error = null;
+      // Optionally update state.formConfigs here if needed
+    });
+    builder.addCase(deactivateFormConfiguration.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload || action.error;
     });
   },
 });

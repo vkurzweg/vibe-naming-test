@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Paper, Tabs, Tab, Alert, CircularProgress,
-  Card, CardContent, Divider, styled, StepConnector, Button, Table, TableBody, TableRow, TableCell, IconButton
+  Card, CardContent, Divider, styled, StepConnector, Button, Table, TableBody, TableRow, TableCell, IconButton,
+  Grid // <-- ADD THIS IMPORT
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -287,187 +288,233 @@ const ProfessionalSubmitterDashboard = () => {
               You haven&apos;t submitted any name requests yet. Use the &quot;New Request&quot; tab to create one.
             </Alert>
           ) : (
-            myRequests.map(request => {
-              // Only show filled fields from formData
-              const formFields = request.formData && typeof request.formData === 'object'
-                ? Object.entries(request.formData).filter(([_, value]) =>
-                    value !== null && value !== undefined && value !== ''
-                  )
-                : [];
+            <Grid container spacing={4} sx={{ px: { xs: 1, sm: 2, md: 3 }, py: 2 }}>
+              {myRequests.map(request => {
+                const formFields = request.formData && typeof request.formData === 'object'
+                  ? Object.entries(request.formData).filter(([_, value]) =>
+                      value !== null && value !== undefined && value !== ''
+                    )
+                  : [];
+                const statusHistory = (request.statusHistory || []).map((history) => {
+                  const date = history.timestamp ? new Date(history.timestamp) : null;
+                  return {
+                    date: date && !isNaN(date) ? date.toLocaleDateString() : '',
+                    status: STATUS_LABELS[history.status] || history.status
+                  };
+                });
 
-              // Status history formatting
-              const statusHistory = (request.statusHistory || []).map((history) => {
-                const date = history.timestamp ? new Date(history.timestamp) : null;
-                return {
-                  date: date && !isNaN(date) ? date.toLocaleDateString() : '',
-                  status: STATUS_LABELS[history.status] || history.status
-                };
-              });
-
+                return (
+                  <Grid item xs={12} sm={6} md={6} key={request.id}>
+                    <Card
+                      sx={{
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        backgroundColor: 'background.paper',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'box-shadow 0.2s',
+                        boxShadow: 1,
+                        '&:hover': { boxShadow: 4 },
+                        m: 0,
+                        p: 0,
+                      }}
+                      variant="outlined"
+                      onClick={() => handleToggleExpand(request.id)}
+                      tabIndex={0}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') handleToggleExpand(request.id);
+                      }}
+                      aria-expanded={!!expanded[request.id]}
+                      role="button"
+                    >
+                      <CardContent
+  sx={{
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    pb: 3,
+    pt: 3,
+    px: 3,
+    gap: 2, // space between main sections
+  }}
+>
+  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+    <Box>
+      <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+        {request.formData?.proposedName1 || 'Untitled Request'}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+        Submitted: {request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Unknown'}
+      </Typography>
+    </Box>
+    <ExpandMoreIcon
+      sx={{
+        transform: expanded[request.id] ? 'rotate(180deg)' : 'rotate(0deg)',
+        transition: 'transform 0.2s',
+        pointerEvents: 'none',
+      }}
+    />
+  </Box>
+  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+    Status: {STATUS_LABELS[request.status] || request.status}
+  </Typography>
+  <Divider sx={{ my: 2 }} />
+  {expanded[request.id] && (
+    <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Typography
+        variant="subtitle2"
+        sx={{
+          mb: 1,
+          fontWeight: 'bold',
+          alignSelf: 'flex-start',
+          textAlign: 'left',
+          pt: 0.5
+        }}
+      >
+        Request Details
+      </Typography>
+      {formConfig?.fields && (
+        <Table size="small" sx={{ mb: 2 }}>
+          <TableBody>
+            {formConfig.fields.map(field => {
+              const value = request.formData?.[field.name];
               return (
-                <Card
-                  key={request.id}
-                  sx={{
-                    ...dashboardCardSx,
-                    borderLeft: `4px solid ${getStatusColor(request.status || 'submitted')}`,
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                  }}
-                  onClick={() => handleToggleExpand(request.id)}
-                  tabIndex={0}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') handleToggleExpand(request.id);
-                  }}
-                  aria-expanded={!!expanded[request.id]}
-                  role="button"
-                >
-                  <CardContent>
-                    <Box display="flex" alignItems="center">
-                      <Typography sx={dashboardCardTitleSx}>
-                        {request.formData?.proposedName1 || 'Untitled Request'}
-                      </Typography>
-                      <Box sx={{ flexGrow: 1 }} />
-                      <ExpandMoreIcon
-                        sx={{
-                          ...expandIconSx,
-                          transform: expanded[request.id] ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform 0.2s',
-                          pointerEvents: 'none', // Visual only, not interactive
-                        }}
-                      />
-                    </Box>
-                    <Typography sx={dashboardCardSubTitleSx}>
-                      Submitted: {request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Unknown'}
-                    </Typography>
-                    <Box sx={dashboardCardContentSx}>
-                      Status: {STATUS_LABELS[request.status] || request.status}
-                    </Box>
-
-                    {/* Expanded content */}
-                    {expanded[request.id] && (
-                      <Box sx={{ mt: '1rem' }}>
-                        <Divider sx={{ my: '1rem' }} />
-                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
-                          Request Details
-                        </Typography>
-                        {formConfig?.fields && (
-                          <Table size="small" sx={dashboardTableSx}>
-                            <TableBody>
-                              {formConfig.fields.map(field => {
-                                const value = request.formData?.[field.name];
-                                return (
-                                  <TableRow key={field.name}>
-                                    <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
-                                      {field.label || humanizeFieldName(field.name)}
-                                    </TableCell>
-                                    <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
-                                      {value === undefined || value === '' || value === null
-                                        ? '—'
-                                        : typeof value === 'object'
-                                          ? JSON.stringify(value)
-                                          : String(value)
-                                      }
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        )}
-
-                        {/* Attachments Section (all roles can view, only allowed can upload) */}
-<Box sx={{ mt: 2 }}>
-  <Typography variant="subtitle2" sx={{ mb: 1 }}>Attachments</Typography>
-  {request.attachments && request.attachments.length > 0 ? (
-    <Box sx={{ mb: 1 }}>
-      {request.attachments.map((att, idx) => (
-        <Box key={idx} sx={{ mb: 0.5 }}>
-          <a href={att.url} target="_blank" rel="noopener noreferrer">{att.filename}</a>
-        </Box>
-      ))}
-    </Box>
-  ) : (
-    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>No attachments</Typography>
-  )}
-  {(
-    ['admin', 'reviewer'].includes(user?.role) ||
-    (user?.id === request.user && request.isActive !== false)
-  ) && (
-    <Box sx={{ mb: 2 }}>
-      <Button variant="outlined" component="label" size="small">
-        Upload Attachment
-        <input
-          type="file"
-          hidden
-          onChange={e => handleAttachmentUpload(e, request.id || request._id)}
-        />
-      </Button>
-    </Box>
-  )}
-</Box>
-                        {/* Status History: only show if there is more than one status (i.e., updated) */}
-                        {statusHistory.length > 1 && (
-                          <Box sx={{ mt: 2 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                              Status History
-                            </Typography>
-                            <ul style={{ paddingLeft: '1.5rem', margin: 0 }}>
-                              {statusHistory.slice(1).map((item, idx) => (
-                                <li key={idx}>
-                                  <Typography variant="body2">
-                                    {item.status}: {item.date || <span style={{ color: '#aaa' }}>—</span>}
-                                  </Typography>
-                                </li>
-                              ))}
-                            </ul>
-                          </Box>
-                        )}
-
-                        {/* Status Action Buttons for Submitter */}
-                        <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                          <Button
-                            variant="outlined"
-                            sx={{
-                              borderColor: '#FFD600',
-                              color: '#FFD600',
-                              fontWeight: 600,
-                              '&:hover': { borderColor: '#FFEA00', color: '#FFEA00', background: 'rgba(255,234,0,0.08)' }
-                            }}
-                            disabled={['approved', 'rejected', 'canceled', 'on_hold'].includes(request.status)}
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (window.confirm('Are you sure you want to put this request on hold?')) {
-                                holdRequestMutation.mutate(request.id);
-                              }
-                            }}
-                          >
-                            Hold
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            sx={{
-                              borderColor: '#D32F2F',
-                              color: '#D32F2F',
-                              fontWeight: 600,
-                              '&:hover': { borderColor: '#B71C1C', color: '#B71C1C', background: 'rgba(211,47,47,0.08)' }
-                            }}
-                            disabled={['approved', 'rejected', 'canceled'].includes(request.status)}
-                            onClick={e => {
-                              e.stopPropagation();
-                              if (window.confirm('Are you sure you want to cancel this request?')) {
-                                cancelRequestMutation.mutate(request.id);
-                              }
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                        </Box>
-                      </Box>
-                    )}
-                  </CardContent>
-                </Card>
+                <TableRow key={field.name} sx={{ verticalAlign: 'top' }}>
+                  <TableCell
+                    sx={{
+                      border: 0,
+                      pl: 0,
+                      pr: 2,
+                      width: 180,
+                      color: 'text.secondary',
+                      fontWeight: 500,
+                      verticalAlign: 'top', // top align label
+                      py: 1.2 // more vertical space between rows
+                    }}
+                  >
+                    {field.label || humanizeFieldName(field.name)}
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      border: 0,
+                      pl: 0,
+                      color: value ? 'text.primary' : '#aaa',
+                      wordBreak: 'break-word',
+                      verticalAlign: 'top',
+                      py: 1.2
+                    }}
+                  >
+                    {value === undefined || value === '' || value === null
+                      ? '—'
+                      : typeof value === 'object'
+                        ? JSON.stringify(value)
+                        : String(value)
+                    }
+                  </TableCell>
+                </TableRow>
               );
-            })
+            })}
+          </TableBody>
+        </Table>
+      )}
+
+      {/* Attachments Section */}
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>Attachments</Typography>
+        {request.attachments && request.attachments.length > 0 ? (
+          <Box sx={{ mb: 1 }}>
+            {request.attachments.map((att, idx) => (
+              <Box key={idx} sx={{ mb: 0.5 }}>
+                <a href={att.url} target="_blank" rel="noopener noreferrer">{att.filename}</a>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>No attachments</Typography>
+        )}
+        {(
+          ['admin', 'reviewer'].includes(user?.role) ||
+          (user?.id === request.user && request.isActive !== false)
+        ) && (
+          <Box sx={{ mb: 2 }}>
+            <Button variant="outlined" component="label" size="small">
+              Upload Attachment
+              <input
+                type="file"
+                hidden
+                onChange={e => handleAttachmentUpload(e, request.id || request._id)}
+              />
+            </Button>
+          </Box>
+        )}
+      </Box>
+      {/* Status History */}
+      {statusHistory.length > 1 && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
+            Status History
+          </Typography>
+          <ul style={{ paddingLeft: '1.5rem', margin: 0 }}>
+            {statusHistory.slice(1).map((item, idx) => (
+              <li key={idx}>
+                <Typography variant="body2">
+                  {item.status}: {item.date || <span style={{ color: '#aaa' }}>—</span>}
+                </Typography>
+              </li>
+            ))}
+          </ul>
+        </Box>
+      )}
+      {/* Card Actions */}
+      <Box sx={{ mt: 4, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+        <Button
+          variant="outlined"
+          sx={{
+            borderColor: '#FFD600',
+            color: '#FFD600',
+            fontWeight: 600,
+            '&:hover': { borderColor: '#FFEA00', color: '#FFEA00', background: 'rgba(255,234,0,0.08)' }
+          }}
+          disabled={['approved', 'rejected', 'canceled', 'on_hold'].includes(request.status)}
+          onClick={e => {
+            e.stopPropagation();
+            if (window.confirm('Are you sure you want to put this request on hold?')) {
+              holdRequestMutation.mutate(request.id);
+            }
+          }}
+        >
+          Hold
+        </Button>
+        <Button
+          variant="outlined"
+          sx={{
+            borderColor: '#D32F2F',
+            color: '#D32F2F',
+            fontWeight: 600,
+            '&:hover': { borderColor: '#B71C1C', color: '#B71C1C', background: 'rgba(211,47,47,0.08)' }
+          }}
+          disabled={['approved', 'rejected', 'canceled'].includes(request.status)}
+          onClick={e => {
+            e.stopPropagation();
+            if (window.confirm('Are you sure you want to cancel this request?')) {
+              cancelRequestMutation.mutate(request.id);
+            }
+          }}
+        >
+          Cancel
+        </Button>
+      </Box>
+    </Box>
+  )}
+</CardContent>
+                  </Card>
+                  </Grid>
+                );
+              })}
+            </Grid>
           )}
         </TabPanel>
 

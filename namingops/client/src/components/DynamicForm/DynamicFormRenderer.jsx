@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import { getStatusColor } from '../../theme/newColorPalette';
 import { Controller } from 'react-hook-form';
+import GeminiSparkle from '../gemini/GeminiButton';
 
 const StatusDisplay = ({ value }) => {
   const statusColor = getStatusColor(value);
@@ -407,7 +408,13 @@ const DynamicFormRenderer = ({
             defaultValue={[]}
             render={({ field: { onChange, value } }) => (
               <Box>
-                <Button variant="outlined" component="label">
+                <Button sx={{
+              bgcolor: 'none', 
+              color: theme.palette.getContrastText(theme.palette.mode === 'dark' ? '#8e24aa' : '#ce93d8'),
+              mt: 1,
+              mb: 1,
+              boxShadow: 3,
+            }} component="label">
                   {field.label || "Upload File"}
                   <input
                     type="file"
@@ -454,7 +461,7 @@ const DynamicFormRenderer = ({
                   onBlur={onBlur}
                   disabled={isFieldReadonly}
                   renderInput={(params) => (
-                    <TextField
+                    <FormControlLabel
                       {...params}
                       label={field.label}
                       error={!!fieldError}
@@ -488,39 +495,76 @@ const DynamicFormRenderer = ({
   };
 
   return (
-    <Grid container spacing={8} alignItems="flex-start">
+    <Grid
+      container
+      spacing={{ xs: 4, md: 10, lg: 16 }}
+      alignItems="flex-start"
+      sx={{
+        pt: { xs: 2, md: 8 },
+        pb: { xs: 2, md: 8 },
+        px: { xs: 1, sm: 4, md: 8, lg: 16 }, // Extra horizontal padding
+      }}
+    >
       {/* Form Fields Column */}
-      <Grid item xs={12} md={6}>
-        <Grid container spacing={1}>
+      <Grid
+        item
+        xs={12}
+        md={6}
+        sx={{
+          pr: { xs: 0, md: 8, lg: 12 },
+        }}
+      >
+        <Grid container spacing={2}>
           {formConfig.fields.map((field, idx) => (
-            <Grid item xs={10} key={field.name || idx}>
+            <Grid item xs={12} key={field.name || idx}>
               {renderField(field)}
             </Grid>
           ))}
+          {/* Submit Request button inside the dynamic form */}
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+              >
+                Submit Request
+              </Button>
+            </Box>
+          </Grid>
+          {formError && (
+            <Grid item xs={12}>
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {formError}
+              </Alert>
+            </Grid>
+          )}
         </Grid>
-        {formError && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {formError}
-          </Alert>
-        )}
       </Grid>
       {/* Gemini Section Column */}
-      <Grid item xs={12} md={6}>
-        <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
+      <Grid
+        item
+        xs={12}
+        md={6}
+        sx={{
+          pl: { xs: 0, md: 8, lg: 12 }, // More left padding on desktop
+        }}
+      >
+        <Box sx={{ mb: 4, display: 'flex', gap: 2 }}>
+          <GeminiSparkle
             onClick={handleGenerateNames}
             disabled={geminiLoading}
+            sx={{
+                width: '100%',
+                minWidth: 0,
+                height: '56px',
+                fontSize: { xs: '0.95rem', md: '1rem' },
+                fontWeight: 400,
+                alignItem: 'left',
+              }}
           >
-            {geminiLoading ? <CircularProgress size={20} /> : 'Suggest Names with Gemini'}
-          </Button>
-          <Button
-            variant="outlined"
-            onClick={handleEvaluateName}
-            disabled={evalLoading || !formValues.proposedName1}
-          >
-            {evalLoading ? <CircularProgress size={20} /> : 'Evaluate Name with Gemini'}
-          </Button>
+            {geminiLoading ? <CircularProgress size={20} /> : 'Help from Gemini'}
+          </GeminiSparkle>
         </Box>
         <Box
           sx={{
@@ -530,7 +574,7 @@ const DynamicFormRenderer = ({
             border: `1px solid ${theme.palette.divider}`,
             borderRadius: theme.shape.borderRadius,
             color: theme.palette.text.primary,
-            p: { xs: 2, sm: 3 },
+            p: { xs: 3, md: 4 },
             minHeight: 200,
             maxHeight: 600,
             overflowY: 'auto',

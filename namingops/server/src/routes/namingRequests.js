@@ -570,6 +570,48 @@ router.post('/:id/attachments', isAuthenticated, upload.single('attachment'), as
   }
 });
 
+// POST /api/v1/name-requests/:id/form-field-attachment/:fieldName
+router.post('/:id/form-field-attachment/:fieldName', isAuthenticated, upload.single('attachment'), async (req, res) => {
+  try {
+    const request = await NamingRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ msg: 'Request not found' });
+
+    // Allow: (1) Admin/Reviewer, (2) Owner (Submitter/Associate) if request is active
+    const isReviewerOrAdmin = ['reviewer', 'admin'].includes(req.user.role);
+    const isOwner = request.user && request.user.toString() === req.user.id;
+    const isActive = request.isActive !== false;
+
+    if (
+      !isReviewerOrAdmin &&
+      !(isOwner && isActive)
+    ) {
+      return res.status(403).json({ msg: 'Not authorized to upload attachments' });
+    }
+
+    if (!req.file) return res.status(400).json({ msg: 'No file uploaded' });
+
+    // Construct file URL
+    const url = `/uploads/requests/${req.params.id}/${req.file.filename}`;
+    const fieldName = req.params.fieldName;
+
+    // PATCH: Push file object to the correct file field in formData
+    if (!request.formData[fieldName]) {
+      request.formData[fieldName] = [];
+    }
+    request.formData[fieldName].push({
+      name: req.file.originalname,
+      url,
+      uploadedAt: new Date(),
+      uploadedBy: req.user._id
+    });
+
+    await request.save();
+    res.json({ success: true, files: request.formData[fieldName] });
+  } catch (err) {
+    res.status(500).json({ msg: err.message });
+  }
+});
+
 // @route   DELETE /api/name-requests/:id
 // @desc    Delete a naming request (soft delete)
 // @access  Private

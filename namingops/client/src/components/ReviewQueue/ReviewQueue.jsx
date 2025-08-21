@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box, Card, CardContent, Typography, Collapse, TextField,
   FormControl, InputLabel, Select, MenuItem, Divider,
-  CircularProgress, Alert, Table, TableBody, TableRow, TableCell, Button
+  CircularProgress, Alert, Table, TableBody, TableRow, TableCell, Button,
+  Grid
 } from '@mui/material';
 import { Search as SearchIcon, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { format } from 'date-fns';
@@ -10,6 +11,7 @@ import StatusDropdown from '../common/StatusDropdown';
 import ReactSimpleWYSIWYG from "react-simple-wysiwyg";
 import { useSelector } from 'react-redux';
 import api from '../../services/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All Requests' },
@@ -131,7 +133,13 @@ export default function ReviewQueue({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date_desc');
-  const user = useSelector(state => state.auth.user);
+  const [localRequests, setLocalRequests] = useState(requests);
+  const queryClient = useQueryClient(); // <-- Add this
+  const user = useSelector(state => state.auth.user); // <-- Add this
+
+  useEffect(() => {
+    setLocalRequests(requests);
+  }, [requests]);
 
   // Attachment upload handler
   async function handleAttachmentUpload(e, requestId) {
@@ -151,7 +159,7 @@ export default function ReviewQueue({
   }
 
   const filteredRequests = useMemo(() => {
-    let result = [...requests];
+    let result = [...localRequests]; // <-- Use localRequests instead of requests
     // Exclude deleted/inactive requests
     result = result.filter(r => r.isActive !== false);
     if (statusFilter === 'active') {
@@ -187,16 +195,34 @@ export default function ReviewQueue({
       }
     });
     return result;
-  }, [requests, searchTerm, statusFilter, sortBy]);
+  }, [localRequests, searchTerm, statusFilter, sortBy]);
 
   function keyToLabel(key) {
     if (!key || typeof key !== 'string') return '';
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   }
 
+  // Example for mutation
+  const mutation = useMutation({
+    mutationFn: async (id) => await api.delete(`/api/v1/name-requests/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['requests']);
+    }
+  });
+
   return (
     <Box sx={{ p: { xs: 0, md: 2 } }}>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2, alignItems: 'center' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 2,
+          mb: 2,
+          alignItems: 'center',
+          pt: { xs: 3, md: 5 },
+          pb: { xs: 3, md: 5 },
+        }}
+      >
         <TextField
           placeholder="Search requests..."
           variant="outlined"
@@ -249,68 +275,72 @@ export default function ReviewQueue({
           No requests found.
         </Alert>
       ) : (
-        filteredRequests.map(request => (
-          <Card
-            key={request.id || request._id}
-            sx={{
-              mb: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              backgroundColor: 'background.paper',
-              cursor: 'pointer',
-              userSelect: 'none',
-            }}
-            variant="outlined"
-            onClick={() => setExpanded(prev => ({ ...prev, [request.id || request._id]: !prev[request.id || request._id] }))}
-            tabIndex={0}
-            onKeyDown={e => {
-              if (e.key === 'Enter' || e.key === ' ') setExpanded(prev => ({ ...prev, [request.id || request._id]: !prev[request.id || request._id] }));
-            }}
-            aria-expanded={!!expanded[request.id || request._id]}
-            role="button"
-          >
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    {(request.formData?.proposedName1 || request.requestData?.proposedName1) || '—'}
+        <Grid container spacing={2}>
+          {filteredRequests.map(request => (
+            <Grid item xs={12} sm={6} md={6} key={request.id || request._id}>
+              <Card
+                sx={{
+                  mb: 0,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  backgroundColor: 'background.paper',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+                variant="outlined"
+                onClick={() => setExpanded(prev => ({ ...prev, [request.id || request._id]: !prev[request.id || request._id] }))}
+                tabIndex={0}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') setExpanded(prev => ({ ...prev, [request.id || request._id]: !prev[request.id || request._id] }));
+                }}
+                aria-expanded={!!expanded[request.id || request._id]}
+                role="button"
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {(request.formData?.proposedName1 || request.requestData?.proposedName1) || '—'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {(request.formData?.contactName || request.requestData?.contactName) || '—'}
+                      </Typography>
+                    </Box>
+                    <StatusDropdown
+                      currentStatus={request.status}
+                      options={STATUS_UPDATE_OPTIONS}
+                      onChange={status => {
+                        const payload = { requestId: request.id || request._id, status, formData: request.formData };
+                        if (onStatusChange && typeof onStatusChange.mutate === 'function') {
+                          onStatusChange.mutate(payload);
+                        } else if (typeof onStatusChange === 'function') {
+                          onStatusChange(payload);
+                        }
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Submitted: {request.createdAt ? format(new Date(request.createdAt), 'MMM dd, yyyy') : 'Unknown'}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {(request.formData?.contactName || request.requestData?.contactName) || '—'}
-                  </Typography>
-                </Box>
-                <StatusDropdown
-                  currentStatus={request.status}
-                  options={STATUS_UPDATE_OPTIONS}
-                  onChange={status => {
-                    const payload = { requestId: request.id || request._id, status, formData: request.formData };
-                    if (onStatusChange && typeof onStatusChange.mutate === 'function') {
-                      onStatusChange.mutate(payload);
-                    } else if (typeof onStatusChange === 'function') {
-                      onStatusChange(payload);
-                    }
-                  }}
-                />
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Submitted: {request.createdAt ? format(new Date(request.createdAt), 'MMM dd, yyyy') : 'Unknown'}
-              </Typography>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
-                {expanded[request.id || request._id]
-                  ? <ExpandLess sx={{ pointerEvents: 'none' }} />
-                  : <ExpandMore sx={{ pointerEvents: 'none' }} />}
-              </Box>
-              <Collapse in={!!expanded[request.id || request._id]}>
-                <Divider sx={{ my: 2 }} />
-                {formConfig?.fields && (
-                  <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
-                    <TableBody>
-                      {formConfig.fields.map(field => {
-                        const value = request.formData?.[field.name];
-                        return (
-                          <TableRow key={field.name}>
-                            <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
-                              {field.label || keyToLabel(field.name)}
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 1 }}>
+                    {expanded[request.id || request._id]
+                      ? <ExpandLess sx={{ pointerEvents: 'none' }} />
+                      : <ExpandMore sx={{ pointerEvents: 'none' }} />}
+                  </Box>
+                  <Collapse in={!!expanded[request.id || request._id]}>
+                    <Divider sx={{ my: 2 }} />
+                    {formConfig?.fields && (
+                      <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
+                        <TableBody>
+                          {formConfig.fields.map(field => {
+                            const value = request.formData?.[field.name];
+                            return (
+                              <TableRow key={field.name}>
+                                <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 180, color: 'text.secondary', fontWeight: 500 }}>
+                                  {field.label || keyToLabel(field.name)}
                             </TableCell>
                             <TableCell sx={{ border: 0, pl: 0, color: value ? 'text.primary' : '#aaa', wordBreak: 'break-word' }}>
                               {value === undefined || value === '' || value === null
@@ -342,7 +372,7 @@ export default function ReviewQueue({
                       ))}
                     </Box>
                   ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>No attachments</Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>No attachments</Typography>
                   )}
                   {/* Upload (admin/reviewer only) */}
                   {['admin', 'reviewer'].includes(user?.role) && (
@@ -358,6 +388,131 @@ export default function ReviewQueue({
                     </Box>
                   )}
                 </Box>
+                {/*
+                {formConfig?.fields?.filter(f => f.fieldType === 'file').map(field => {
+                  const files = request.formData?.[field.name] || [];
+                  return (
+                    <Box key={field.name} sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        {field.label || "Supporting Attachments"}
+                      </Typography>
+                      <Box sx={{
+                        mb: 1,
+                        display: 'flex',
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        gap: 1,
+                        alignItems: { xs: 'stretch', sm: 'center' }
+                      }}>
+                        {Array.isArray(files) && files.length > 0 ? (
+                          files.map((file, idx) => (
+                            <Box key={idx} sx={{
+                              display: 'flex',
+                              flexDirection: { xs: 'column', sm: 'row' },
+                              gap: 1,
+                              alignItems: { xs: 'stretch', sm: 'center' },
+                              mb: { xs: 1, sm: 0 }
+                            }}>
+                              <Typography variant="body2" sx={{ mr: { sm: 2, xs: 0 }, minWidth: 120 }}>
+                                {file.name || file.filename}
+                              </Typography>
+                              <Button
+                                variant="outlined"
+                                size="medium"
+                                href={file.url}
+                                target="_blank"
+                                rel="noopener"
+                                sx={{ minWidth: 120 }}
+                                onClick={e => e.stopPropagation()}
+                              >
+                                View
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                size="medium"
+                                href={file.url}
+                                download={file.name || file.filename}
+                                sx={{ minWidth: 120 }}
+                                onClick={e => e.stopPropagation()}
+                              >
+                                Download
+                              </Button>
+                              {['admin', 'reviewer'].includes(user?.role) && (
+                                <Button
+                                  variant="outlined"
+                                  size="medium"
+                                  component="label"
+                                  sx={{ minWidth: 120 }}
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  Upload
+                                  <input
+                                    type="file"
+                                    hidden
+                                    onChange={e => {
+                                      e.stopPropagation();
+                                      const file = e.target.files[0];
+                                      if (!file) return;
+                                      const formData = new FormData();
+                                      formData.append('attachment', file);
+                                      api.post(`/api/v1/name-requests/${request.id || request._id}/form-field-attachment/${field.name}`, formData, {
+                                        headers: { 'Content-Type': 'multipart/form-data' }
+                                      }).then(() => {
+                                        alert('Attachment uploaded! Refresh to see it in the list.');
+                                      }).catch(() => {
+                                        alert('Failed to upload attachment');
+                                      });
+                                    }}
+                                  />
+                                </Button>
+                              )}
+                            </Box>
+                          ))
+                        ) : (
+                          <Box sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            gap: 1,
+                            alignItems: { xs: 'stretch', sm: 'center' }
+                          }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120 }}>
+                              No attachments submitted.
+                            </Typography>
+                            {['admin', 'reviewer'].includes(user?.role) && (
+                              <Button
+                                variant="outlined"
+                                size="medium"
+                                component="label"
+                                sx={{ minWidth: 120 }}
+                                onClick={e => e.stopPropagation()}
+                              >
+                                Upload
+                                <input
+                                  type="file"
+                                  hidden
+                                  onChange={e => {
+                                    e.stopPropagation();
+                                    const file = e.target.files[0];
+                                    if (!file) return;
+                                    const formData = new FormData();
+                                    formData.append('attachment', file);
+                                    api.post(`/api/v1/name-requests/${request.id || request._id}/form-field-attachment/${field.name}`, formData, {
+                                      headers: { 'Content-Type': 'multipart/form-data' }
+                                    }).then(() => {
+                                      alert('Attachment uploaded! Refresh to see it in the list.');
+                                    }).catch(() => {
+                                      alert('Failed to upload attachment');
+                                    });
+                                  }}
+                                />
+                              </Button>
+                            )}
+                          </Box>
+                        )}
+                      </Box>
+                    </Box>
+                  );
+                })}
+                */}
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
                   <Button
                     size="small"
@@ -374,7 +529,8 @@ export default function ReviewQueue({
                     onClick={e => {
                       e.stopPropagation();
                       if (window.confirm('Are you sure you want to delete this request?')) {
-                        onDeleteRequest?.(request.id || request._id);
+                        setLocalRequests(prev => prev.filter(r => (r.id || r._id) !== (request.id || request._id))); // <-- Remove locally
+                        onDeleteRequest?.(request.id || request._id); // <-- Call parent mutation
                       }
                     }}
                   >
@@ -384,8 +540,10 @@ export default function ReviewQueue({
               </Collapse>
             </CardContent>
           </Card>
-        ))
+        </Grid>
+      ))}
+    </Grid>
       )}
-    </Box>
+  </Box>
   );
 }

@@ -173,7 +173,6 @@ export default function NewRequestForm({ onSuccess }) {
 
   return (
     <Paper sx={{ p: { xs: 2, md: 4 }, maxWidth: 1200, mx: 'auto' }}>
-      <Typography variant="h5" mb={2}>Submit New Request</Typography>
       <form onSubmit={handleSubmit(mutation.mutate)}>
         <Box sx={{ flexGrow: 1 }}>
           <DynamicFormRenderer

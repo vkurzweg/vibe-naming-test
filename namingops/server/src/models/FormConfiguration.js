@@ -17,8 +17,8 @@ const fieldSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      'text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'number', 'content'
-    ], // <-- add 'content' to enum
+      'text', 'textarea', 'select', 'radio', 'checkbox', 'date', 'number', 'content', 'file' // <-- add 'file' here
+    ],
     description: 'The type of the form input field.'
   },
   options: {

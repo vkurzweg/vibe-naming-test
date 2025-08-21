@@ -21,9 +21,12 @@ import {
   saveFormConfiguration,
   deleteFormConfiguration,
   activateFormConfiguration,
+  deactivateFormConfiguration,
   clearFormConfigError,
+  reorderFormConfigFields,
 } from './formConfigSlice';
 import FormConfigDialog from './FormConfigDialog';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const FormConfigManager = () => {
   const dispatch = useDispatch();
@@ -71,20 +74,51 @@ const FormConfigManager = () => {
     setDialogOpen(false);
   };
 
- 
+  const allowedFieldTypes = ['text', 'textarea', 'number', 'select', 'checkbox', 'radio', 'file', 'content']; // <-- update to match your backend
+
   const handleSave = async (formData) => {
     try {
+      const { _id, __v, ...rest } = formData;
+      // Ensure all required field properties are present
+      const sanitizedFields = Array.isArray(rest.fields)
+        ? rest.fields.filter(f => allowedFieldTypes.includes(f.fieldType))
+          .map(f => {
+            if (f.fieldType === 'content') {
+              return {
+                ...f,
+                content: f.content || ''
+              };
+            }
+            if (f.fieldType === 'file') {
+              // Add any file-specific properties you want to save
+              return {
+                ...f,
+                label: f.label || '',
+                name: f.name || '',
+                required: !!f.required,
+                fieldType: f.fieldType,
+                // fileMeta: f.fileMeta || {}, // if you want to store file metadata
+              };
+            }
+            return {
+              ...f,
+              label: f.label || '',
+              name: f.name || '',
+              required: !!f.required,
+              fieldType: f.fieldType
+            };
+          })
+        : [];
+      const payload = { ...rest, fields: sanitizedFields };
       if (editingConfig) {
-        // Remove _id and __v from formData before sending
-        const { _id, __v, ...rest } = formData;
-        await dispatch(saveFormConfiguration({ id: editingConfig._id, ...rest })).unwrap();
+        await dispatch(saveFormConfiguration({ id: editingConfig._id, ...payload })).unwrap();
         setSnackbar({
           open: true,
           message: 'Form configuration updated successfully',
           severity: 'success'
         });
       } else {
-        await dispatch(saveFormConfiguration(formData)).unwrap();
+        await dispatch(saveFormConfiguration(payload)).unwrap();
         setSnackbar({
           open: true,
           message: 'Form configuration created successfully',
@@ -92,7 +126,6 @@ const FormConfigManager = () => {
         });
       }
       handleCloseDialog();
-      // Refresh the list
       dispatch(fetchFormConfigurations());
     } catch (error) {
       setSnackbar({
@@ -142,6 +175,52 @@ const FormConfigManager = () => {
 
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  const FormConfigFieldsEditor = ({ fields, setFields, configId }) => {
+    const handleDragEnd = (result) => {
+      if (!result.destination) return;
+      const reordered = Array.from(fields);
+      const [removed] = reordered.splice(result.source.index, 1);
+      reordered.splice(result.destination.index, 0, removed);
+      setFields(reordered);
+      // Optionally: dispatch reorder thunk here if you want instant backend sync
+      // dispatch(reorderFormConfigFields({ id: configId, fields: reordered }));
+    };
+
+    return (
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="fields-list">
+          {(provided) => (
+            <div ref={provided.innerRef} {...provided.droppableProps}>
+              {fields.map((field, idx) => (
+                <Draggable key={field._id || idx} draggableId={field._id || String(idx)} index={idx}>
+                  {(provided) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      {...provided.dragHandleProps}
+                      style={{
+                        ...provided.draggableProps.style,
+                        padding: '8px',
+                        marginBottom: '4px',
+                        background: '#f5f5f5',
+                        borderRadius: '4px',
+                        border: '1px solid #ddd',
+                        cursor: 'grab'
+                      }}
+                    >
+                      {field.label || field.name || `Field ${idx + 1}`}
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
+    );
   };
 
   if (loading && formConfigs.length === 0) {
@@ -223,70 +302,95 @@ const FormConfigManager = () => {
           </Box>
         ) : (
           <List>
-            {formConfigs.map((config) => (
-              <ListItem 
-                key={config._id} 
-                sx={{ 
-                  mb: 1, 
-                  bgcolor: 'background.paper',
-                  borderRadius: 1,
-                  boxShadow: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  px: 2,
-                  py: 1
-                }}
-              >
-                <ListItemText 
-                  primary={config.name} 
-                  secondary={config.description || 'No description provided'}
-                  primaryTypographyProps={{ fontWeight: 'medium' }}
-                  sx={{ flex: 1, mr: 2 }}
-                />
-                
-                {/* Action buttons container */}
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Button 
-                    variant={config.isActive ? 'contained' : 'outlined'}
-                    color={config.isActive ? 'success' : 'primary'}
-                    size="small"
-                    disabled={config.isActive}
-                    onClick={() => {
-                      if (!config.isActive) {
-                        dispatch(activateFormConfiguration(config._id))
-                          .unwrap()
-                          .then(() => {
-                            setSnackbar({ open: true, message: 'Form activated successfully', severity: 'success' });
-                            // Refresh the form configurations to update the UI
-                            dispatch(fetchFormConfigurations());
-                          })
-                          .catch((error) => setSnackbar({ open: true, message: error?.message || 'Failed to activate form', severity: 'error' }));
-                      }
-                    }}
-                  >
-                    {config.isActive ? 'Active' : 'Activate'}
-                  </Button>
-                  
-                  <Button 
-                    onClick={() => handleOpenDialog(config)}
-                    size="small"
-                    data-testid={`edit-${config._id}`}
-                  >
-                    Edit
-                  </Button>
-                  
-                  <Button 
-                    onClick={() => handleDelete(config._id)}
-                    color="error"
-                    size="small"
-                    data-testid={`delete-${config._id}`}
-                  >
-                    Delete
-                  </Button>
-                </Box>
-              </ListItem>
-            ))}
+            {formConfigs.map((config) => {
+              // Only one config should be active
+              const isActive = !!config.isActive;
+              return (
+                <ListItem 
+                  key={config._id}
+                  sx={{
+                    mb: 1,
+                    bgcolor: 'background.paper',
+                    borderRadius: 1,
+                    boxShadow: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    px: 2,
+                    py: 1
+                  }}
+                >
+                  <ListItemText
+                    primary={config.name}
+                    secondary={config.description || 'No description provided'}
+                    primaryTypographyProps={{ fontWeight: 'medium' }}
+                    sx={{ flex: 1, mr: 2 }}
+                  />
+                  <Box display="flex" alignItems="center" gap={1}>
+                    {isActive ? (
+                      <>
+                        <Button
+                          variant="contained"
+                          color="success"
+                          size="small"
+                          disabled
+                        >
+                          Active
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          size="small"
+                          onClick={() => {
+                            dispatch(deactivateFormConfiguration(config._id))
+                              .unwrap()
+                              .then(() => {
+                                setSnackbar({ open: true, message: 'Form deactivated successfully', severity: 'success' });
+                                dispatch(fetchFormConfigurations());
+                              })
+                              .catch((error) => setSnackbar({ open: true, message: error?.message || 'Failed to deactivate form', severity: 'error' }));
+                          }}
+                        >
+                          Deactivate
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        size="small"
+                        onClick={() => {
+                          dispatch(activateFormConfiguration(config._id))
+                            .unwrap()
+                            .then(() => {
+                              setSnackbar({ open: true, message: 'Form activated successfully', severity: 'success' });
+                              dispatch(fetchFormConfigurations());
+                            })
+                            .catch((error) => setSnackbar({ open: true, message: error?.message || 'Failed to activate form', severity: 'error' }));
+                        }}
+                      >
+                        Activate
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => handleOpenDialog(config)}
+                      size="small"
+                      data-testid={`edit-${config._id}`}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      onClick={() => handleDelete(config._id)}
+                      color="error"
+                      size="small"
+                      data-testid={`delete-${config._id}`}
+                    >
+                      Delete
+                    </Button>
+                  </Box>
+                </ListItem>
+              );
+            })}
           </List>
         )}
       </Paper>

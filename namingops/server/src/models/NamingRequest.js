@@ -9,6 +9,14 @@ const statusEnum = [
   'canceled'
 ];
 
+// Define a reusable file schema for file fields
+const fileSchema = new mongoose.Schema({
+  name: String,
+  url: String,
+  uploadedAt: { type: Date, default: Date.now },
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+}, { _id: false });
+
 const namingRequestSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
@@ -19,9 +27,12 @@ const namingRequestSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  // PATCH: allow formData to have file arrays for file fields
   formData: {
     type: Object,
     required: true,
+    // Example: supportingDocs: [fileSchema], otherField: String
+    // You will need to enforce this structure in your upload/update logic
   },
   status: {
     type: String,
