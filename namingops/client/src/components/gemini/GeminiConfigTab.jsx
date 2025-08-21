@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Paper, Typography, Box, TextField, Button, Alert, CircularProgress, IconButton, Switch, Divider } from '@mui/material';
+import { Paper, Typography, Box, TextField, Button, Alert, CircularProgress, IconButton, Switch, Divider, Grid, Accordion, AccordionSummary, AccordionDetails } from '@mui/material';
 import { Add, Delete, DragIndicator } from '@mui/icons-material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import api from '../../services/api';
 import {
   DragDropContext,
@@ -123,90 +124,142 @@ const GeminiConfigTab = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-      <Paper sx={{ p: 4, maxWidth: 700, mx: 'auto', mt: 3 }}>
+      <Paper sx={{
+        p: { xs: 2, sm: 4 },
+        maxWidth: 900,
+        mx: 'auto',
+        mt: 3,
+        bgcolor: theme => theme.palette.background.paper,
+        boxShadow: 2,
+      }}>
         <Typography variant="h5" fontWeight={700} mb={2}>
-          Gemini Generator Configuration
+          Gemini Configuration
         </Typography>
         <Divider sx={{ my: 2 }} />
-        <Box>
-          <Typography variant="subtitle1" fontWeight={600} mb={1}>Base Prompt</Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <TextField
-              label="Base Prompt"
-              variant="outlined"
-              value={basePrompt.text}
-              onChange={e => setBasePrompt({ ...basePrompt, text: e.target.value })}
-              fullWidth
-              multiline
-              minRows={2}
-              helperText="General instructions to guide Gemini's naming style."
-              sx={{ flex: 1 }}
-            />
-            <Box display="flex" alignItems="center" gap={1}>
-              <Typography variant="body2">Active</Typography>
-              <Switch
-                checked={basePrompt.active}
-                onChange={e => setBasePrompt({ ...basePrompt, active: e.target.checked })}
-              />
-            </Box>
-          </Box>
+
+        {/* Base Prompt */}
+        <Box
+          sx={{
+            p: { xs: 2, sm: 3 },
+            bgcolor: theme => theme.palette.background.paper,
+            borderRadius: 2,
+            mb: 3,
+            width: '100%',
+          }}
+        >
+          <TextField
+            label="Base Prompt to Gemini (auto-generated)"
+            value={
+              `You are an expert naming assistant. When evaluating or generating names, apply the principles and criteria set by the admin.
+${principles.filter(p => p.text).length > 0 ? `Principles: ${principles.filter(p => p.text).map(p => p.text).join('; ')}` : ''}
+${dos.filter(d => d.text).length > 0 ? `Always: ${dos.filter(d => d.text).map(d => d.text).join('; ')}` : ''}
+${donts.filter(d => d.text).length > 0 ? `Never: ${donts.filter(d => d.text).map(d => d.text).join('; ')}` : ''}
+
+Use these guidelines to ensure your naming recommendations and evaluations are aligned with our standards. Respond in clear, concise language and explain how your suggestions meet the configured criteria.`
+            }
+            multiline
+            minRows={7}
+            fullWidth
+            InputProps={{
+              readOnly: true,
+            }}
+            sx={{
+              width: '100%',
+              fontSize: '1rem',
+              fontFamily: theme => theme.typography.fontFamily,
+              color: theme => theme.palette.text.secondary,
+              backgroundColor: theme => theme.palette.background.paper,
+              '.MuiInputBase-input': {
+                p: 2,
+                fontSize: '1rem',
+                color: theme => theme.palette.text.secondary,
+                backgroundColor: theme => theme.palette.background.paper,
+                borderRadius: 2,
+              }
+            }}
+            helperText="This prompt is dynamically generated and will be sent to Gemini when users request name evaluations or suggestions."
+          />
         </Box>
+
         <Divider sx={{ my: 2 }} />
+
+        {/* Config Sections as Accordions */}
         {fieldListSections.map(section => (
-          <Box key={section.key} sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" fontWeight={600} mb={1}>{section.label}</Typography>
-            <DragDropContext onDragEnd={result => handleDragEnd(section.key, result)}>
-              <Droppable droppableId={section.key} direction="vertical">
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps}>
-                    {(section.key === 'principles' ? principles : section.key === 'dos' ? dos : donts).map((item, idx) => (
-                      <Draggable key={idx} draggableId={`${section.key}-${idx}`} index={idx}>
-                        {(dragProvided, dragSnapshot) => (
-                          <Box
-                            ref={dragProvided.innerRef}
-                            {...dragProvided.draggableProps}
-                            sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, background: dragSnapshot.isDragging ? '#f0f0fa' : 'transparent', borderRadius: 1, boxShadow: dragSnapshot.isDragging ? 2 : 0 }}
-                          >
-                            <span {...dragProvided.dragHandleProps} style={{ cursor: 'grab', display: 'flex', alignItems: 'center' }}>
-                              <DragIndicator fontSize="small" sx={{ color: '#b0b0c3', mr: 1 }} />
-                            </span>
-                            <TextField
-                              value={item.text}
-                              onChange={e => handleListChange(section.key, idx, 'text', e.target.value)}
-                              label={`${section.label.slice(0, -1)} ${idx + 1}`}
-                              fullWidth
-                              size="small"
-                              sx={{ flex: 1 }}
-                            />
-                            <Typography variant="body2">Active</Typography>
-                            <Switch
-                              checked={item.active}
-                              onChange={e => handleListChange(section.key, idx, 'active', e.target.checked)}
-                              size="small"
-                            />
-                            <IconButton onClick={() => handleDeleteItem(section.key, idx)} size="small" aria-label="Delete">
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </Box>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </DragDropContext>
-            <Button
-              variant="outlined"
-              startIcon={<Add />}
-              onClick={() => handleAddItem(section.key)}
-              sx={{ mt: 1 }}
-            >
-              Add {section.label.slice(0, -1)}
-            </Button>
-          </Box>
+          <Accordion key={section.key} sx={{ mb: 2 }}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle1" fontWeight={600}>{section.label}</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <DragDropContext onDragEnd={result => handleDragEnd(section.key, result)}>
+                <Droppable droppableId={section.key} direction="vertical">
+                  {(provided) => (
+                    <div ref={provided.innerRef} {...provided.droppableProps}>
+                      {(section.key === 'principles' ? principles : section.key === 'dos' ? dos : donts).map((item, idx) => (
+                        <Draggable key={idx} draggableId={`${section.key}-${idx}`} index={idx}>
+                          {(dragProvided, dragSnapshot) => (
+                            <Box
+                              ref={dragProvided.innerRef}
+                              {...dragProvided.draggableProps}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                mb: 1,
+                                background: dragSnapshot.isDragging ? theme => theme.palette.action.selected : theme => theme.palette.background.paper,
+                                borderRadius: 2,
+                                boxShadow: dragSnapshot.isDragging ? 2 : 0,
+                                p: 1.5,
+                              }}
+                            >
+                              <span {...dragProvided.dragHandleProps} style={{ cursor: 'grab', display: 'flex', alignItems: 'center' }}>
+                                <DragIndicator fontSize="small" sx={{ color: 'text.disabled', mr: 1 }} />
+                              </span>
+                              <TextField
+                                value={item.text}
+                                onChange={e => handleListChange(section.key, idx, 'text', e.target.value)}
+                                label={`${section.label.slice(0, -1)} ${idx + 1}`}
+                                fullWidth
+                                size="small"
+                                sx={{
+                                  flex: 1,
+                                  '.MuiInputBase-input': {
+                                    fontSize: '0.95rem',
+                                    color: theme => theme.palette.text.primary,
+                                  }
+                                }}
+                              />
+                              <Typography variant="body2" sx={{ color: 'text.secondary' }}>Active</Typography>
+                              <Switch
+                                checked={item.active}
+                                onChange={e => handleListChange(section.key, idx, 'active', e.target.checked)}
+                                size="small"
+                              />
+                              <IconButton onClick={() => handleDeleteItem(section.key, idx)} size="small" aria-label="Delete">
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+              <Button
+                variant="outlined"
+                startIcon={<Add />}
+                onClick={() => handleAddItem(section.key)}
+                sx={{ mt: 1 }}
+                fullWidth
+              >
+                Add {section.label.slice(0, -1)}
+              </Button>
+            </AccordionDetails>
+          </Accordion>
         ))}
-        <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+
+        <Box sx={{ display: 'flex', gap: 2, mt: 3, justifyContent: 'flex-end' }}>
           <Button
             variant="contained"
             color="primary"
@@ -224,8 +277,8 @@ const GeminiConfigTab = () => {
             Reset
           </Button>
         </Box>
-        {error && <Alert severity="error">{error}</Alert>}
-        {success && <Alert severity="success">{success}</Alert>}
+        {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+        {success && <Alert severity="success" sx={{ mt: 2 }}>{success}</Alert>}
       </Paper>
     </Box>
   );

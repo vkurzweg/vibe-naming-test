@@ -18,6 +18,16 @@ import { Delete as DeleteIcon } from '@mui/icons-material';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ReactSimpleWYSIWYG from "react-simple-wysiwyg";
 
+const FIELD_TYPES = [
+  { value: 'text', label: 'Text' },
+  { value: 'textarea', label: 'Textarea' },
+  { value: 'number', label: 'Number' },
+  { value: 'select', label: 'Select' },
+  { value: 'checkbox', label: 'Checkbox' },
+  { value: 'content', label: 'Content Block' },
+  // Add other field types as needed
+];
+
 const FieldEditor = ({ control, register, errors }) => {
   const { fields, append, remove, move } = useFieldArray({
     control,
