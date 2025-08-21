@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, TextField, Button, Paper, Typography, Select, MenuItem, Grid } from '@mui/material';
+import { Box, TextField, Button, Paper, Typography, Select, MenuItem, Grid, Card, CardContent, Divider, Table, TableBody, TableRow, TableCell } from '@mui/material';
 import axios from 'axios';
 // Add these imports for Excel
 import * as XLSX from 'xlsx';
@@ -199,21 +199,90 @@ const SearchNames = () => {
         </Grid>
       </Grid>
       <Box mt={3}>
-        {results.map((name, idx) => (
-          <Paper key={idx} sx={{ p: 2, mb: 2 }}>
-            <Typography variant="h6">{name.approvedName}</Typography>
-            <Typography variant="body2">{name.description}</Typography>
-            {Object.entries(name).map(([key, value]) =>
-              value && (
-                <Typography key={key} variant="body2">
-                  {`${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}`}
-                </Typography>
-              )
-            )}
-          </Paper>
-        ))}
         {loading && <Typography>Loading...</Typography>}
-        {!loading && results.length === 0 && <Typography>No results found.</Typography>}
+        {!loading && results.length === 0 && (
+          <Typography>No results found.</Typography>
+        )}
+        <Grid container spacing={4} sx={{ px: { xs: 1, sm: 2, md: 3 }, py: 2 }}>
+          {results.map((name, idx) => (
+            <Grid item xs={12} sm={6} md={6} key={idx}>
+              <Card
+                sx={{
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  backgroundColor: 'background.paper',
+                  boxShadow: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  transition: 'box-shadow 0.2s',
+                  '&:hover': { boxShadow: 4 },
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                }}
+                variant="outlined"
+              >
+                <CardContent
+                  sx={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    pb: 3,
+                    pt: 3,
+                    px: 3,
+                    gap: 2,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {name.approvedName || '—'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {name.contactPerson || '—'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {name.description}
+                  </Typography>
+                  <Divider sx={{ my: 2 }} />
+                  <Box sx={{ mt: 1 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        mb: 1,
+                        fontWeight: 'bold',
+                        alignSelf: 'flex-start',
+                        textAlign: 'left',
+                        pt: 0.5
+                      }}
+                    >
+                      Details
+                    </Typography>
+                    <Table size="small" sx={{ mb: 2, background: 'transparent' }}>
+                      <TableBody>
+                        {Object.entries(name).map(([key, value]) =>
+                          value &&
+                          !['approvedName', 'description', 'contactPerson', '_id'].includes(key) ? (
+                            <TableRow key={key}>
+                              <TableCell sx={{ border: 0, pl: 0, pr: 2, width: 140, color: 'text.secondary', fontWeight: 500, verticalAlign: 'top', py: 1.2 }}>
+                                {key.charAt(0).toUpperCase() + key.slice(1)}
+                              </TableCell>
+                              <TableCell sx={{ border: 0, py: 1.2, verticalAlign: 'top' }}>
+                                {value}
+                              </TableCell>
+                            </TableRow>
+                          ) : null
+                        )}
+                      </TableBody>
+                    </Table>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
       </Box>
     </Paper>
   );

@@ -24,7 +24,7 @@ const FieldEditor = ({ control, register, errors }) => {
     name: 'fields',
   });
 
-  const getFieldKey = (item, idx) => item._id || item.id || String(idx);
+  const getFieldKey = (field, idx) => field._id || field.id || String(idx);
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
@@ -36,136 +36,98 @@ const FieldEditor = ({ control, register, errors }) => {
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="fields-list">
           {(provided) => (
-            <Box ref={provided.innerRef} {...provided.droppableProps}>
-              {fields.map((item, index) => (
-                <Draggable key={getFieldKey(item, index)} draggableId={getFieldKey(item, index)} index={index}>
+            <Box
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              sx={{
+                bgcolor: 'background.default',
+                p: 2,
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                minHeight: 100,
+              }}
+            >
+              {fields.map((field, idx) => (
+                <Draggable key={getFieldKey(field, idx)} draggableId={getFieldKey(field, idx)} index={idx}>
                   {(provided, snapshot) => (
                     <Box
                       ref={provided.innerRef}
                       {...provided.draggableProps}
                       sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
                         mb: 2,
-                        p: 2,
-                        border: '1px solid #ccc',
-                        borderRadius: 1,
-                        boxShadow: snapshot.isDragging ? 3 : 1,
+                        p: 1.5,
                         bgcolor: snapshot.isDragging ? 'action.selected' : 'background.paper',
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: snapshot.isDragging ? 'primary.main' : 'divider',
+                        boxShadow: snapshot.isDragging ? 3 : 1,
+                        color: 'text.primary',
                       }}
                     >
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }}>
-                        <Box {...provided.dragHandleProps} sx={{ cursor: 'grab', mr: 1, mt: 2 }}>
-                          <DragIndicatorIcon />
-                        </Box>
-                        {item.fieldType !== 'content' && (
-                          <>
-                            <TextField
-                              {...register(`fields.${index}.label`)}
-                              label="Field Label"
-                              defaultValue={item.label}
-                              sx={{ mr: 1, flexGrow: 1, minWidth: 180 }}
-                              error={!!errors?.fields?.[index]?.label}
-                              helperText={errors?.fields?.[index]?.label?.message}
-                            />
-                            <TextField
-                              {...register(`fields.${index}.name`)}
-                              label="Field Name (no spaces)"
-                              defaultValue={item.name}
-                              sx={{ mr: 1, flexGrow: 1, minWidth: 180 }}
-                              error={!!errors?.fields?.[index]?.name}
-                              helperText={errors?.fields?.[index]?.name?.message}
-                            />
-                          </>
-                        )}
-                        <FormControl sx={{ minWidth: 120, mr: 1 }}>
-                          <InputLabel>Field Type</InputLabel>
-                          <Controller
-                            name={`fields.${index}.fieldType`}
-                            control={control}
-                            defaultValue={item.fieldType || 'text'}
-                            render={({ field }) => (
-                              <Select {...field} label="Field Type">
-                                <MenuItem value="text">Text</MenuItem>
-                                <MenuItem value="textarea">Textarea</MenuItem>
-                                <MenuItem value="select">Select</MenuItem>
-                                <MenuItem value="checkbox">Checkbox</MenuItem>
-                                <MenuItem value="radio">Radio</MenuItem>
-                                <MenuItem value="file">File Upload</MenuItem>
-                                <MenuItem value="content">Content Block</MenuItem>
-                              </Select>
-                            )}
-                          />
-                        </FormControl>
-                        {item.fieldType === 'content' && (
-                          <Box sx={{ width: '100%', mt: 2 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                              Content Block (Markdown, Links, Headings, Lists)
-                            </Typography>
-                            <Controller
-                              name={`fields.${index}.content`}
-                              control={control}
-                              defaultValue={item.content || ''}
-                              render={({ field }) => (
-                                <ReactSimpleWYSIWYG value={field.value} onChange={field.onChange} />
-                              )}
-                            />
-                            <Typography variant="caption" color="text.secondary">
-                              Supports Markdown: **bold**, _italic_, [links](https://...), lists, headings, etc.
-                            </Typography>
-                          </Box>
-                        )}
+                      <Box {...provided.dragHandleProps} sx={{ cursor: 'grab', color: 'text.secondary', mr: 1 }}>
+                        <DragIndicatorIcon />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <TextField
+                          {...register(`fields.${idx}.label`)}
+                          label="Label"
+                          size="small"
+                          sx={{ mr: 1, mb: 1 }}
+                          error={!!errors?.fields?.[idx]?.label}
+                          helperText={errors?.fields?.[idx]?.label?.message}
+                        />
+                        <TextField
+                          {...register(`fields.${idx}.name`)}
+                          label="Name"
+                          size="small"
+                          sx={{ mr: 1, mb: 1 }}
+                          error={!!errors?.fields?.[idx]?.name}
+                          helperText={errors?.fields?.[idx]?.name?.message}
+                        />
+                        <TextField
+                          {...register(`fields.${idx}.fieldType`)}
+                          label="Type"
+                          size="small"
+                          select
+                          sx={{ mr: 1, mb: 1, minWidth: 120 }}
+                          error={!!errors?.fields?.[idx]?.fieldType}
+                          helperText={errors?.fields?.[idx]?.fieldType?.message}
+                        >
+                          {FIELD_TYPES.map((option) => (
+                            <MenuItem key={option.value} value={option.value}>
+                              {option.label}
+                            </MenuItem>
+                          ))}
+                        </TextField>
                         <FormControlLabel
                           control={
-                            <Controller
-                              name={`fields.${index}.required`}
-                              control={control}
-                              defaultValue={item.required || false}
-                              render={({ field }) => <Checkbox {...field} checked={field.value} />}
+                            <Checkbox
+                              {...register(`fields.${idx}.required`)}
+                              defaultChecked={field.required}
                             />
                           }
                           label="Required"
+                          sx={{ mb: 1 }}
                         />
-                        {['text', 'textarea'].includes(item.fieldType) && (
-                          <>
-                            <FormControlLabel
-                              control={
-                                <Controller
-                                  name={`fields.${index}.geminiSuggest`}
-                                  control={control}
-                                  defaultValue={item.geminiSuggest || false}
-                                  render={({ field }) => (
-                                    <Checkbox
-                                      {...field}
-                                      checked={!!field.value}
-                                      color="primary"
-                                    />
-                                  )}
-                                />
-                              }
-                              label="Gemini Suggest"
-                            />
-                            <FormControlLabel
-                              control={
-                                <Controller
-                                  name={`fields.${index}.geminiEvaluate`}
-                                  control={control}
-                                  defaultValue={item.geminiEvaluate || false}
-                                  render={({ field }) => (
-                                    <Checkbox
-                                      {...field}
-                                      checked={!!field.value}
-                                      color="primary"
-                                    />
-                                  )}
-                                />
-                              }
-                              label="Gemini Evaluate"
-                            />
-                          </>
+                        {field.fieldType === 'content' && (
+                          <TextField
+                            {...register(`fields.${idx}.content`)}
+                            label="Content"
+                            size="small"
+                            multiline
+                            sx={{ mb: 1 }}
+                            error={!!errors?.fields?.[idx]?.content}
+                            helperText={errors?.fields?.[idx]?.content?.message}
+                          />
                         )}
-                        <IconButton onClick={() => remove(index)}>
-                          <DeleteIcon />
-                        </IconButton>
                       </Box>
+                      <IconButton onClick={() => remove(idx)} color="error">
+                        <DeleteIcon />
+                      </IconButton>
                     </Box>
                   )}
                 </Draggable>
@@ -175,30 +137,17 @@ const FieldEditor = ({ control, register, errors }) => {
           )}
         </Droppable>
       </DragDropContext>
-      <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+      <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
         <Button
-          variant="contained"
-          onClick={() =>
-            append({
-              name: '',
-              label: '',
-              fieldType: 'text',
-              required: false,
-              geminiSuggest: false,
-              geminiEvaluate: false
-            })
-          }
+          variant="outlined"
+          onClick={() => append({ label: '', name: '', fieldType: '', required: false })}
         >
           Add Field
         </Button>
         <Button
           variant="outlined"
-          onClick={() =>
-            append({
-              fieldType: 'content',
-              content: ''
-            })
-          }
+          color="secondary"
+          onClick={() => append({ label: '', name: '', fieldType: 'content', required: false, content: '' })}
         >
           Add Content Block
         </Button>
