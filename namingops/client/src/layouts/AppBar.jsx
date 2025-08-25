@@ -70,6 +70,7 @@ export default function AppBar() {
     <MuiAppBar
       position="static"
       elevation={0}
+      color="transparent"
       sx={{
         background: 'transparent',
         boxShadow: 'none',

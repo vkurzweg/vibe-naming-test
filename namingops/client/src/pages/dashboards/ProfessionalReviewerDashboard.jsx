@@ -29,8 +29,13 @@ const getStatusLabel = (status) => {
   return statusLabels[status] || 'Unknown';
 };
 
+const reviewerColor = '#41c7cb';
+
+const getRoleColor = () => reviewerColor;
+
 const ProfessionalReviewerDashboard = () => {
   const { user } = useSelector((state) => state.auth);
+  const effectiveRole = user?.role || 'reviewer';
   const queryClient = useQueryClient();
   
   const [activeTab, setActiveTab] = useState(0);
@@ -168,7 +173,20 @@ const ProfessionalReviewerDashboard = () => {
             variant="scrollable"
             scrollButtons="auto"
             aria-label="reviewer dashboard tabs"
-            sx={{ borderBottom: 1, borderColor: 'divider' }}
+            sx={{
+              borderBottom: 1,
+              borderColor: 'divider',
+              '& .MuiTab-root': {
+                color: 'text.secondary', // default color for all tabs
+                '&.Mui-selected': {
+                  color: getRoleColor(), // reviewer color for active tab
+                  fontWeight: 400,       // normal weight, not bold
+                },
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: getRoleColor(), // reviewer color for indicator
+              },
+            }}
           >
             <Tab 
               icon={<BusinessIcon />}

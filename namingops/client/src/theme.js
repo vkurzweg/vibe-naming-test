@@ -81,6 +81,7 @@ const commonSettings = {
     },
     MuiAppBar: {
       styleOverrides: {
+        background: 'transparent',
         root: {
           boxShadow: 'none',
         },

@@ -1,15 +1,15 @@
 import React from 'react';
-import { Button, Menu, MenuItem } from '@mui/material';
+import { Button, Menu, MenuItem, useTheme } from '@mui/material';
 import { ArrowDropDown } from '@mui/icons-material';
 
-const STATUS_COLOR_MAP = {
-  brand_review: '#1976d2',
-  legal_review: '#0288d1',
-  on_hold: '#ffd600',
-  approved: '#43a047',
-  canceled: '#e53935',
-  submitted: '#757575',
-};
+const STATUS_COLOR_MAP = (theme) => ({
+  brand_review: theme.palette.info.main,
+  legal_review: theme.palette.primary.main,
+  on_hold: theme.palette.warning.main,
+  approved: theme.palette.success.main,
+  canceled: theme.palette.error.main,
+  submitted: theme.palette.text.secondary,
+});
 
 export default function StatusDropdown({
   currentStatus,
@@ -18,6 +18,7 @@ export default function StatusDropdown({
   disabled = false,
   statusLabels = {},
 }) {
+  const theme = useTheme();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const open = Boolean(anchorEl);
   const optionLabel = options.find(opt => opt.value === currentStatus)?.label;
@@ -32,7 +33,11 @@ export default function StatusDropdown({
     handleClose();
   };
 
-  const color = STATUS_COLOR_MAP[currentStatus] || '#757575';
+  const colorMap = STATUS_COLOR_MAP(theme);
+  const color = colorMap[currentStatus] || theme.palette.text.secondary;
+  const bgColor = open
+    ? theme.palette.action.selected
+    : theme.palette.background.paper;
 
   return (
     <>
@@ -51,7 +56,7 @@ export default function StatusDropdown({
           textTransform: 'capitalize',
           borderColor: color,
           color: color,
-          backgroundColor: open ? `${color}22` : 'background.paper',
+          backgroundColor: bgColor,
           whiteSpace: 'nowrap',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -63,7 +68,7 @@ export default function StatusDropdown({
           },
           '&:hover': {
             borderColor: color,
-            backgroundColor: `${color}11`,
+            backgroundColor: theme.palette.action.hover,
           },
           transition: 'background 0.15s, color 0.15s, width 0.15s',
         }}
@@ -78,7 +83,7 @@ export default function StatusDropdown({
             textOverflow: 'ellipsis',
             textAlign: 'left',
             fontWeight: 400,
-      fontSize: '0.92rem',
+            fontSize: '0.92rem',
           }}
         >
           {currentLabel}
@@ -91,9 +96,9 @@ export default function StatusDropdown({
             selected={opt.value === currentStatus}
             onClick={() => handleSelect(opt.value)}
             sx={{
-              color: 'inherit',
-              fontWeight: 400, // NORMAL
-              fontSize: '0.92rem', // SMALLER
+              color: colorMap[opt.value] || theme.palette.text.secondary,
+              fontWeight: 400,
+              fontSize: '0.92rem',
             }}
           >
             {opt.label}

@@ -41,10 +41,10 @@ const WelcomeTab = () => {
           <Grid item xs={12}>
             <Box sx={{ mb: { xs: 2, md: 3 } }}>
               <Typography variant="h4" fontWeight={700} sx={{ mb: { xs: 2, md: 3 } }}>
-                Welcome to NamingHQ
+                Welcome 
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mb: { xs: 1, md: 2 } }}>
-                This MVP is for scaling knowledge management across domains 🚀 
+              This is an MVP for scaling knowledge management 🚀 
               </Typography>
               <Typography variant="body1" color="text.secondary" sx={{ mb: { xs: 2, md: 4 } }}>
                 Click the icon on the upper right to access dashboards for other roles

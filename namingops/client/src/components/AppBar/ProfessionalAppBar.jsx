@@ -15,6 +15,7 @@ import {
   ListItemText,
   Tooltip,
   Badge,
+  Grid,
 } from '@mui/material';
 import {
   AccountCircle,
@@ -29,6 +30,8 @@ import ThemeToggle from '../ThemeToggle/ThemeToggle';
 import SubmitRequestModal from '../Requests/SubmitRequestModal';
 import { ThemeContext } from '../ThemeIntegration/EnhancedThemeProvider';
 import { Container } from 'react-bootstrap';
+import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
+import EmojiPeopleIcon from '@mui/icons-material/EmojiPeople';
 
 const ProfessionalAppBar = () => {
   const navigate = useNavigate();
@@ -73,7 +76,7 @@ const ProfessionalAppBar = () => {
       case 'reviewer':
         return '#41c7cb';
       case 'submitter':
-        return '#2f79c3';
+        return '#6EB4FF';
       default:
         return 'default';
     }
@@ -86,12 +89,14 @@ const ProfessionalAppBar = () => {
       position="static" 
       elevation={0}
       sx={{
-        background: isDarkMode 
-          ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
-          : 'transparent',
-        borderBottom: isDarkMode 
-          ? '1px solid rgba(255, 255, 255, 0.1)'
-          : '1px solid rgba(0, 0, 0, 0.1)',
+        // background: isDarkMode 
+        //   ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+        //   : 'transparent',
+        background: 'transparent',
+        border: 'none',
+        // borderBottom: isDarkMode 
+        //   ? '1px solid rgba(255, 255, 255, 0.1)'
+        //   : '1px solid rgba(0, 0, 0, 0.1)',
         borderRadius: 0,
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
@@ -111,85 +116,68 @@ const ProfessionalAppBar = () => {
             boxSizing: 'border-box'
           }}
         >
-          {/* Logo and App Name */}
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'left', 
-          }}>
-            <img 
-              src={isDarkMode ? "/cog_logo_darkmode.png" : "/cog_logo_lightmode.png"}
-              alt="Company Logo"
-              style={{ 
-                height: '2.8rem',
-                maxWidth: '100%',
-                objectFit: 'contain'
-              }}
-            />
-          </Box>
+          <Grid container alignItems="center" spacing={2} sx={{ width: '100%' }}>
+            {/* Logo */}
+            <Grid item xs={6} sm={4} md={3} lg={2}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <img 
+                  src={isDarkMode ? "/cog_logo_darkmode.png" : "/cog_logo_lightmode.png"}
+                  alt="Company Logo"
+                  style={{ 
+                    height: '2.8rem',
+                    maxWidth: '100%',
+                    objectFit: 'contain'
+                  }}
+                />
+              </Box>
+            </Grid>
 
-          {/* Right side - User controls with improved light mode visibility */}
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.75em',
-          }}>
-            {/* Theme Toggle with improved visibility */}
-            <ThemeToggle 
-              sx={{ 
-                color: isDarkMode ? 'inherit' : '#1a1a1a',
-                padding: '0.5rem',
-                fontSize: '1.25rem',
-                '&:hover': {
-                  backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                },
-              }} 
-            />
-            
-            {/* Notifications with improved visibility */}
-            {/* <Tooltip title="Notifications">
-              <IconButton
-                color="inherit"
-                onClick={(e) => setNotificationAnchor(e.currentTarget)}
-                sx={{
-                  color: isDarkMode ? 'inherit' : '#1a1a1a',
-                  padding: '0.5rem',
-                  fontSize: '1.25rem',
-                  '&:hover': {
-                    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
-                  }
-                }}
-              >
-                <Badge badgeContent={0} color="error">
-                  <Notifications sx={{ fontSize: 'inherit' }} />
-                </Badge>
-              </IconButton>
-            </Tooltip> */}
-            
-            {/* User Menu */}
-            <Tooltip title="Account">
-              <IconButton
-                edge="end"
-                color="inherit"
-                onClick={handleMenuOpen}
-                sx={{ 
-                  padding: '0',
-                  height: '2rem',
-                  width: 'auto',
-                  fontSize: '1.25rem',
-                  marginRight: 0
-                }}
-                className="user-avatar"
-              >
-                <Avatar sx={{ 
-                  width: '2rem', 
-                  height: '2rem', 
-                  bgcolor: getRoleColor(effectiveRole)
-                }}>
-                  {userInitial}
-                </Avatar>
-              </IconButton>
-            </Tooltip>
-          </Box>
+            {/* Spacer for center alignment if needed */}
+            <Grid item xs={false} sm={4} md={6} lg={8} />
+
+            {/* Right side controls */}
+            <Grid item xs={6} sm={4} md={3} lg={2}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end' }}>
+                {/* Theme Toggle with improved visibility */}
+                <ThemeToggle 
+                  sx={{ 
+                    color: getRoleColor(effectiveRole),
+                    padding: '0.5rem',
+                    fontSize: '1.25rem',
+                    '&:hover': {
+                      backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                    },
+                  }} 
+                />
+                
+                {/* User Menu */}
+                <Tooltip title="Account">
+                  <IconButton
+                    edge="end"
+                    color="inherit"
+                    onClick={handleMenuOpen}
+                    sx={{ 
+                      padding: '0',
+                      height: '2rem',
+                      width: '2rem',
+                      fontSize: '1.25rem',
+                      marginRight: 0
+                    }}
+                    className="user-avatar"
+                  >
+                    <EmojiPeopleIcon
+                      sx={{
+                        width: '2rem',
+                        height: '2rem',
+                        color: getRoleColor(effectiveRole),
+                        transition: 'color 0.2s',
+                      }}
+                    />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Grid>
+          </Grid>
         </Toolbar>
           
         {/* User Menu Dropdown */}

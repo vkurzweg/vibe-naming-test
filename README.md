@@ -1,4 +1,4 @@
-# DomainHQ: Agent-First Knowledge Infrastructure 🚀
+# MVP: Scaling knowledge infrastructure 🚀
 
 ## Overview
 

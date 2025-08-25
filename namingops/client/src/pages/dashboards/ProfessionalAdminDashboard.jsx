@@ -142,6 +142,7 @@ const TabPanel = (props) => {
 
 const ProfessionalAdminDashboard = () => {
   const { user } = useSelector((state) => state.auth);
+  const effectiveRole = user?.role || 'submitter'; // or your role logic
   const queryClient = useQueryClient();
 
   // Admin request management hooks
@@ -206,6 +207,10 @@ const ProfessionalAdminDashboard = () => {
     deleteRequest.mutate(id);
   };
 
+  const adminColor = '#86a0fa'; // Use a valid hex color (remove extra #)
+
+  const getRoleColor = () => adminColor;
+
   return (
     <ResponsiveContainer className="px-2 px-sm-3 px-md-4">
       <Paper
@@ -228,16 +233,16 @@ const ProfessionalAdminDashboard = () => {
             sx={{
               borderBottom: 1,
               borderColor: 'divider',
-              '& .MuiTabs-flexContainer': {
-                flexWrap: { xs: 'nowrap', md: 'wrap' },
-                overflowX: { xs: 'auto', md: 'visible' },
-                whiteSpace: { xs: 'nowrap', md: 'normal' },
-                justifyContent: { xs: 'flex-start', md: 'center' }
-              },
               '& .MuiTab-root': {
-                minWidth: { xs: 120, md: 100 },
-                flex: { md: '1 1 auto' }
-              }
+                color: 'text.secondary', // default color for all tabs
+                fontWeight: 400,         // normal weight, not bold
+                '&.Mui-selected': {
+                  color: getRoleColor(), // admin color for active tab text and icon
+                },
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: getRoleColor(), // admin color for indicator
+              },
             }}
           >
             <Tab
